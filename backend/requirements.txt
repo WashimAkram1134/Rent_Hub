@@ -1,0 +1,48 @@
+# ─── Web Framework ─────────────────────────────────────────────────────────
+fastapi==0.115.12
+uvicorn[standard]==0.34.3
+python-multipart==0.0.20
+
+# ─── Database ──────────────────────────────────────────────────────────────
+sqlalchemy==2.0.41
+asyncpg==0.30.0
+alembic==1.14.1
+greenlet==3.2.3              # Required by SQLAlchemy async
+psycopg2-binary==2.9.10   # Used by Alembic synchronous env only
+
+# ─── Redis ─────────────────────────────────────────────────────────────────
+redis[hiredis]==5.2.1
+
+# ─── Auth & Security ───────────────────────────────────────────────────────
+python-jose[cryptography]==3.3.0
+bcrypt==4.3.0
+email-validator==2.2.0
+
+# ─── Configuration ─────────────────────────────────────────────────────────
+pydantic==2.11.7           # 2.11+ required for Python 3.14 support (jiter 0.8+)
+pydantic-settings==2.9.1
+
+# ─── Utilities ─────────────────────────────────────────────────────────────
+python-slugify==8.0.4
+Pillow==11.1.0              # Image processing / validation
+aiofiles==24.1.0            # Async file I/O
+
+# ─── Email ─────────────────────────────────────────────────────────────────
+emails==0.6                 # SMTP email sending
+
+# ─── HTTP Client (for external APIs) ───────────────────────────────────────
+httpx==0.28.1
+
+# ─── Logging ───────────────────────────────────────────────────────────────
+structlog==25.4.0
+
+# ─── Testing ───────────────────────────────────────────────────────────────
+pytest==8.3.4
+pytest-asyncio==0.25.3
+pytest-cov==6.0.0
+httpx==0.28.1               # Async test client
+factory-boy==3.3.1          # Test data factories
+
+# ─── Code Quality ──────────────────────────────────────────────────────────
+ruff==0.11.13
+mypy==1.16.0
