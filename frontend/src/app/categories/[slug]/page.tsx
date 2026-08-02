@@ -202,7 +202,8 @@ export default function CategoryDetailPage() {
   const toggleWishlist = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setWishlist((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    const product = allProducts.find((p) => p.id === id);
+    if (product) storeToggleWishlist({ id: product.id, title: product.title, price_per_day: product.price_per_day, image_url: product.image_url, location: product.location });
   };
 
   const handleClearAll = () => {
