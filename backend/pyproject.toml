@@ -1,3 +1,40 @@
+[project]
+name = "renthub-backend"
+version = "1.0.0"
+description = "RentHub FastAPI Backend"
+requires-python = ">=3.12"
+dependencies = [
+    # Web Framework
+    "fastapi==0.115.12",
+    "uvicorn[standard]==0.34.3",
+    "python-multipart==0.0.20",
+    # Database
+    "sqlalchemy==2.0.41",
+    "asyncpg==0.30.0",
+    "alembic==1.14.1",
+    "greenlet==3.2.3",
+    "psycopg2-binary==2.9.10",
+    # Redis
+    "redis[hiredis]==5.2.1",
+    # Auth & Security
+    "python-jose[cryptography]==3.3.0",
+    "bcrypt==4.3.0",
+    "email-validator==2.2.0",
+    # Configuration
+    "pydantic==2.11.7",
+    "pydantic-settings==2.9.1",
+    # Utilities
+    "python-slugify==8.0.4",
+    "Pillow==11.1.0",
+    "aiofiles==24.1.0",
+    # Email
+    "emails==0.6",
+    # HTTP Client
+    "httpx==0.28.1",
+    # Logging
+    "structlog==25.4.0",
+]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
