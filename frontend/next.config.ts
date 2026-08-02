@@ -23,12 +23,18 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Redirect /api calls to backend (dev without Docker)
+  // Proxy /api calls to backend — only when NEXT_PUBLIC_API_URL is a valid absolute URL
+  // On Vercel with multi-service, requests to /api/* go directly to the backend service, no rewrite needed.
   async rewrites() {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl || (!apiUrl.startsWith("http://") && !apiUrl.startsWith("https://"))) {
+      // No valid URL configured — skip rewrite (Vercel multi-service handles routing)
+      return [];
+    }
     return [
       {
         source: "/api/:path*",
-        destination: `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/:path*`,
+        destination: `${apiUrl}/api/:path*`,
       },
     ];
   },
