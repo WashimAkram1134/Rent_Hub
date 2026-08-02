@@ -1,15 +1,16 @@
 "use client";
 
+import { Suspense } from "react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle, ArrowLeft, KeyRound } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle, KeyRound } from "lucide-react";
 import { resetPasswordSchema, type ResetPasswordFormData } from "@/features/auth/schemas";
 import AuthService from "@/features/auth/authService";
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -101,10 +102,7 @@ export default function ResetPasswordPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
           {/* Password */}
           <div>
-            <label
-              htmlFor="reset-password"
-              className="block text-sm font-medium text-foreground mb-1.5"
-            >
+            <label htmlFor="reset-password" className="block text-sm font-medium text-foreground mb-1.5">
               New Password
             </label>
             <div className="relative">
@@ -132,10 +130,7 @@ export default function ResetPasswordPage() {
 
           {/* Confirm Password */}
           <div>
-            <label
-              htmlFor="reset-confirm-password"
-              className="block text-sm font-medium text-foreground mb-1.5"
-            >
+            <label htmlFor="reset-confirm-password" className="block text-sm font-medium text-foreground mb-1.5">
               Confirm Password
             </label>
             <div className="relative">
@@ -195,5 +190,13 @@ export default function ResetPasswordPage() {
         </Link>
       )}
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse text-center py-10 text-muted-foreground text-sm">Loading...</div>}>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }
