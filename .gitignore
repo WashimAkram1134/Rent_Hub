@@ -15,24 +15,23 @@ ENV/
 frontend/.next/
 .next/
 out/
-build/
-dist/
 
-# Python
+# Python bytecode & build artifacts
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
 env/
-build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Note: do NOT ignore lib/ globally - frontend/src/lib/ needs to be committed
+backend/lib/
+backend/lib64/
+backend/build/
+backend/dist/
 parts/
 sdist/
 var/
