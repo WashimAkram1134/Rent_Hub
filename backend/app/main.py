@@ -34,6 +34,7 @@ from app.database.redis import close_redis_pool, get_redis_pool
 from app.database.session import dispose_db
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.request_id import RequestIDMiddleware
+from app.websocket.manager import ws_manager
 
 # Configure structured logging before anything else
 configure_logging()
@@ -57,6 +58,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Warm up Redis connection pool
     await get_redis_pool()
     logger.info("redis_connected")
+    
+    # Start WebSocket Manager
+    await ws_manager.startup()
 
     logger.info("renthub_ready", port=settings.APP_PORT)
 
@@ -64,6 +68,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # ── Shutdown ───────────────────────────────────────────────────────────
     logger.info("renthub_shutting_down")
+    await ws_manager.shutdown()
     await dispose_db()
     await close_redis_pool()
     logger.info("renthub_stopped")
@@ -112,8 +117,9 @@ def create_application() -> FastAPI:
     _app.mount("/uploads", StaticFiles(directory=settings.LOCAL_STORAGE_PATH), name="uploads")
 
     # ── Routers ───────────────────────────────────────────────────────────
-    from app.api.v1.endpoints import cms, products, bookings, analytics, upload, payments
-    
+    from app.api.v1.endpoints import cms, products, bookings, analytics, upload, payments, websockets, messages, notifications, reviews, payouts, lister_applications
+    from app.api.v1.endpoints import identity_verification, admin_identity_verification
+
     _app.include_router(health.router, prefix=API_V1_PREFIX)
     _app.include_router(auth.router, prefix=API_V1_PREFIX)
     _app.include_router(users.router, prefix=API_V1_PREFIX)
@@ -122,8 +128,18 @@ def create_application() -> FastAPI:
     _app.include_router(products.router, prefix=f"{API_V1_PREFIX}/products")
     _app.include_router(bookings.router, prefix=f"{API_V1_PREFIX}/bookings")
     _app.include_router(payments.router, prefix=f"{API_V1_PREFIX}/payments")
+    _app.include_router(payouts.router, prefix=f"{API_V1_PREFIX}/payouts")
+    _app.include_router(lister_applications.router, prefix=f"{API_V1_PREFIX}/lister-applications")
     _app.include_router(analytics.router, prefix=f"{API_V1_PREFIX}/analytics")
     _app.include_router(upload.router, prefix=f"{API_V1_PREFIX}/upload")
+    _app.include_router(websockets.router, prefix=API_V1_PREFIX)
+    _app.include_router(messages.router, prefix=f"{API_V1_PREFIX}/messages")
+    _app.include_router(notifications.router, prefix=f"{API_V1_PREFIX}/notifications")
+    _app.include_router(reviews.router, prefix=f"{API_V1_PREFIX}/reviews")
+    # Identity Verification — customer flow
+    _app.include_router(identity_verification.router, prefix=f"{API_V1_PREFIX}/identity-verification")
+    # Identity Verification — admin management
+    _app.include_router(admin_identity_verification.router, prefix=f"{API_V1_PREFIX}/admin/identity-verifications")
 
     return _app
 

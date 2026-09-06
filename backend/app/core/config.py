@@ -89,6 +89,15 @@ class Settings(BaseSettings):
     PASSWORD_MIN_LENGTH: int = 8
     BCRYPT_ROUNDS: int = 12
 
+    # ─── Identity Verification ─────────────────────────────────────────────
+    IDENTITY_VERIFICATION_REQUIRED: bool = True
+    FACE_MATCH_THRESHOLD: float = 0.55
+    FACE_MATCH_MANUAL_REVIEW_THRESHOLD: float = 0.45
+    IDENTITY_MAX_RETRY_ATTEMPTS: int = 3
+    IDENTITY_DATA_RETENTION_DAYS: int = 90
+    IDENTITY_DOCUMENT_MAX_SIZE_MB: int = 10
+    IDENTITY_ENCRYPTION_KEY: str = ""
+
     # ─── Computed Properties ───────────────────────────────────────────────
     @property
     def is_production(self) -> bool:

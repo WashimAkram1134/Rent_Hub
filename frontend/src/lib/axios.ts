@@ -27,7 +27,7 @@ const apiClient: AxiosInstance = axios.create({
     "Content-Type": "application/json",
   },
   withCredentials: true, // Send httpOnly cookies (refresh token)
-  timeout: 15_000,
+  timeout: 30_000,
 });
 
 // ─── Token Refresh Queue ───────────────────────────────────────────────────
@@ -116,10 +116,30 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError as Error, null);
-        // Clear auth state and redirect to login
+        // Clear auth state
         if (typeof window !== "undefined") {
           localStorage.removeItem("access_token");
-          window.location.href = "/login?reason=session_expired";
+
+          // Only redirect if on a protected route
+          const protectedPrefixes = [
+            "/dashboard",
+            "/bookings",
+            "/payments",
+            "/payouts",
+            "/owner",
+            "/listings",
+            "/earnings",
+            "/verify-identity",
+          ];
+          const isProtectedRoute = protectedPrefixes.some((path) =>
+            window.location.pathname.startsWith(path)
+          );
+
+          if (isProtectedRoute) {
+            window.location.href = `/login?reason=session_expired&returnUrl=${encodeURIComponent(
+              window.location.pathname + window.location.search
+            )}`;
+          }
         }
         return Promise.reject(refreshError);
       } finally {

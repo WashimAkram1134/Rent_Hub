@@ -31,6 +31,7 @@ from app.models.category import Category  # noqa: F401
 from app.models.product import Product, ProductImage, Favorite  # noqa: F401
 from app.models.booking import Booking, Review, Dispute  # noqa: F401
 from app.models.cms import HeroBanner, Promotion, City  # noqa: F401
+from app.models.identity_verification import IdentityVerification  # noqa: F401
 # ─────────────────────────────────────────────────────────────────────────────
 
 config = context.config

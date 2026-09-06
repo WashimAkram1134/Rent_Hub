@@ -186,6 +186,15 @@ class RateLimitException(RentHubException):
         )
 
 
+class IdentityVerificationRequiredException(RentHubException):
+    def __init__(self) -> None:
+        super().__init__(
+            message="Identity verification is required before you can make a booking. Please verify your identity at /verify-identity.",
+            code="IDENTITY_VERIFICATION_REQUIRED",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+
+
 # ─── 500 Internal ────────────────────────────────────────────────────────────
 
 class InternalServerException(RentHubException):
