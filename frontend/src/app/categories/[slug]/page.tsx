@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useTransform, useSpring, Variants } from "framer-motion";
 import {
   ChevronRight,
   Heart,
@@ -15,13 +15,18 @@ import {
   Package,
   SlidersHorizontal,
   RotateCcw,
-  Check
+  Check,
+  ShoppingCart,
+  Plus,
 } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import { categoryService } from "@/features/categories/categoryService";
 import { Category } from "@/types";
 import apiClient from "@/lib/axios";
 import { useWishlistStore } from "@/store/wishlistStore";
+import { useCartStore } from "@/store/cartStore";
+import { useAuthStore } from "@/features/auth/authStore";
+import { useFlyToCart } from "@/context/FlyToCartContext";
 
 // Types
 interface ProductCard {
@@ -41,14 +46,62 @@ interface ProductCard {
   badge?: string;
 }
 
-const VEHICLE_TYPES = [
-  { label: "Car", value: "Car" },
-  { label: "Motorcycle", value: "Motorcycle" },
-  { label: "Bicycle", value: "Bicycle" },
-  { label: "CNG", value: "CNG" },
-  { label: "Bus", value: "Bus" },
-  { label: "Truck", value: "Truck" },
-];
+const CATEGORY_FILTERS: Record<string, { label: string; value: string }[]> = {
+  vehicles: [
+    { label: "Car", value: "Car" },
+    { label: "Motorcycle", value: "Motorcycle" },
+    { label: "Bicycle", value: "Bicycle" },
+    { label: "CNG", value: "CNG" },
+    { label: "Bus", value: "Bus" },
+    { label: "Truck", value: "Truck" },
+  ],
+  electronics: [
+    { label: "Laptop", value: "Laptop" },
+    { label: "Tablet", value: "Tablet" },
+    { label: "Console", value: "Console" },
+    { label: "Watch", value: "Watch" },
+    { label: "TV", value: "TV" },
+    { label: "Audio", value: "Audio" },
+  ],
+  cameras: [
+    { label: "DSLR", value: "DSLR" },
+    { label: "Mirrorless", value: "Mirrorless" },
+    { label: "Lens", value: "Lens" },
+    { label: "Action Camera", value: "Action Camera" },
+    { label: "Drone", value: "Drone" },
+  ],
+  apartments: [
+    { label: "Apartment", value: "Apartment" },
+    { label: "House", value: "House" },
+    { label: "Room", value: "Room" },
+    { label: "Office", value: "Office" },
+  ],
+  furniture: [
+    { label: "Table", value: "Table" },
+    { label: "Sofa", value: "Sofa" },
+    { label: "Chair", value: "Chair" },
+    { label: "Bed", value: "Bed" },
+    { label: "Storage", value: "Storage" },
+  ],
+  fashion: [
+    { label: "Men", value: "Men" },
+    { label: "Women", value: "Women" },
+    { label: "Wedding", value: "Wedding" },
+    { label: "Accessories", value: "Accessories" },
+  ],
+  sports: [
+    { label: "Cricket", value: "Cricket" },
+    { label: "Football", value: "Football" },
+    { label: "Fitness", value: "Fitness" },
+    { label: "Outdoor", value: "Outdoor" },
+    { label: "Racket", value: "Racket" },
+  ],
+  books: [
+    { label: "Textbook", value: "Textbook" },
+    { label: "Fiction", value: "Fiction" },
+    { label: "Self Help", value: "Self Help" },
+  ],
+};
 
 const CITY_AREAS: Record<string, string[]> = {
   Dhaka: ["Dhanmondi", "Gulshan", "Banani", "Uttara", "Mirpur", "Mohakhali", "Tejgaon", "Gazipur"],
@@ -56,20 +109,80 @@ const CITY_AREAS: Record<string, string[]> = {
   Sylhet: ["Zindabazar", "Amberkhana", "Upashahar", "Shibganj", "Tilagarh"],
 };
 
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.05 } },
+  visible: { transition: { staggerChildren: 0.07 } },
 };
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 15 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
+const cardVariants: Variants = {
+  hidden: { opacity: 0, y: 32, scale: 0.93, filter: "blur(4px)" },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    filter: "blur(0px)",
+    transition: { duration: 0.5, ease: "easeOut" },
+  },
 };
+
+// ── 3D Tilt Card with Shine ──────────────────────────────────────────────────
+function TiltProductCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const shineX = useMotionValue(50);
+  const shineY = useMotionValue(50);
+
+  const rotateX = useSpring(useTransform(mouseY, [-0.5, 0.5], [6, -6]), { stiffness: 120, damping: 20 });
+  const rotateY = useSpring(useTransform(mouseX, [-0.5, 0.5], [-6, 6]), { stiffness: 120, damping: 20 });
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const nx = (e.clientX - rect.left) / rect.width - 0.5;
+    const ny = (e.clientY - rect.top) / rect.height - 0.5;
+    mouseX.set(nx);
+    mouseY.set(ny);
+    shineX.set(((e.clientX - rect.left) / rect.width) * 100);
+    shineY.set(((e.clientY - rect.top) / rect.height) * 100);
+  };
+
+  const handleMouseLeave = () => {
+    mouseX.set(0);
+    mouseY.set(0);
+  };
+
+  return (
+    <motion.div
+      ref={ref}
+      style={{ rotateX, rotateY, transformStyle: "preserve-3d", perspective: 800 }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className={`relative ${className}`}
+    >
+      {/* Shine overlay */}
+      <motion.div
+        className="pointer-events-none absolute inset-0 z-20 rounded-[20px] opacity-0 hover:opacity-100 transition-opacity duration-300"
+        style={{
+          background: useTransform(
+            [shineX, shineY],
+            ([sx, sy]) => `radial-gradient(circle at ${sx}% ${sy}%, rgba(255,255,255,0.18) 0%, transparent 70%)`
+          ),
+        }}
+      />
+      {children}
+    </motion.div>
+  );
+}
 
 export default function CategoryDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
   const { toggleWishlist: storeToggleWishlist, isWishlisted: checkIsWishlisted } = useWishlistStore();
+  const { addItem: addCartItem, isInCart: checkIsInCart } = useCartStore();
+  const { triggerFlyToCart } = useFlyToCart();
+  const [justAddedIds, setJustAddedIds] = useState<Record<string, boolean>>({});
   const [category, setCategory] = useState<Category | null>(null);
   const [allProducts, setAllProducts] = useState<ProductCard[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,60 +198,130 @@ export default function CategoryDetailPage() {
   const [sortBy, setSortBy] = useState<string>("featured");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  // Fetch Category + Products from Supabase DB
+  // Fetch Category + Products from DB
   useEffect(() => {
     if (!slug) return;
     setLoading(true);
 
-    Promise.all([
+    Promise.allSettled([
       categoryService.get(slug),
       apiClient.get<ProductCard[]>("/products", { params: { category_slug: slug } }),
     ])
-      .then(([cat, productsRes]) => {
-        setCategory(cat);
-        const rawProducts = Array.isArray(productsRes.data) ? productsRes.data : [];
-        const mapped = rawProducts.map((p) => ({
-          ...p,
-          badge: p.is_featured
-            ? "Popular"
-            : (p.avg_rating && p.avg_rating >= 4.8 ? "Verified" : "New"),
-        }));
-        setAllProducts(mapped);
+      .then(([catRes, productsRes]) => {
+        if (catRes.status === "fulfilled") {
+          setCategory(catRes.value);
+        } else {
+          console.error("Failed to load category:", catRes.reason);
+        }
+
+        if (productsRes.status === "fulfilled") {
+          const rawProducts = Array.isArray(productsRes.value.data) ? productsRes.value.data : [];
+          const mapped = rawProducts.map((p) => ({
+            ...p,
+            badge: p.is_featured
+              ? "Popular"
+              : (p.avg_rating && p.avg_rating >= 4.8 ? "Verified" : "New"),
+          }));
+          setAllProducts(mapped);
+        } else {
+          console.error("Failed to load category products:", productsRes.reason);
+        }
       })
-      .catch(() => {
-        router.push("/categories");
+      .catch((err) => {
+        console.error("Error loading category page:", err);
       })
       .finally(() => setLoading(false));
   }, [slug, router]);
 
-  // Helper to determine vehicle type from product details
-  const getVehicleType = (p: ProductCard): string => {
+  // Helper to determine product type from product details based on category
+  const getProductType = (p: ProductCard, catSlug: string): string => {
     const text = `${p.title} ${p.description || ""}`.toLowerCase();
-    if (text.includes("car") || text.includes("sedan") || text.includes("toyota") || text.includes("honda grace") || text.includes("bmw")) return "Car";
-    if (text.includes("motorcycle") || text.includes("bike") || text.includes("yamaha") || text.includes("royal enfield")) return "Motorcycle";
-    if (text.includes("bicycle") || text.includes("trek") || text.includes("giant") || text.includes("cycle")) return "Bicycle";
-    if (text.includes("cng") || text.includes("rickshaw")) return "CNG";
-    if (text.includes("bus") || text.includes("coach") || text.includes("coaster")) return "Bus";
-    if (text.includes("truck") || text.includes("cargo") || text.includes("pickup")) return "Truck";
-    return "Car";
+    
+    if (catSlug === "vehicles") {
+      if (text.includes("car") || text.includes("sedan") || text.includes("toyota") || text.includes("honda grace") || text.includes("bmw")) return "Car";
+      if (text.includes("motorcycle") || text.includes("bike") || text.includes("yamaha") || text.includes("royal enfield")) return "Motorcycle";
+      if (text.includes("bicycle") || text.includes("trek") || text.includes("giant") || text.includes("cycle")) return "Bicycle";
+      if (text.includes("cng") || text.includes("rickshaw")) return "CNG";
+      if (text.includes("bus") || text.includes("coach") || text.includes("coaster")) return "Bus";
+      if (text.includes("truck") || text.includes("cargo") || text.includes("pickup")) return "Truck";
+      return "Car";
+    }
+    
+    if (catSlug === "electronics") {
+      if (text.includes("macbook") || text.includes("xps") || text.includes("laptop")) return "Laptop";
+      if (text.includes("ipad") || text.includes("tab")) return "Tablet";
+      if (text.includes("playstation") || text.includes("xbox") || text.includes("switch")) return "Console";
+      if (text.includes("watch")) return "Watch";
+      if (text.includes("tv")) return "TV";
+      if (text.includes("earbuds") || text.includes("audio")) return "Audio";
+      return "Laptop";
+    }
+    
+    if (catSlug === "cameras") {
+      if (text.includes("eos") || text.includes("dslr")) return "DSLR";
+      if (text.includes("sony a7") || text.includes("lumix") || text.includes("z6") || text.includes("x-t4")) return "Mirrorless";
+      if (text.includes("lens") || text.includes("35mm") || text.includes("70-200mm") || text.includes("24-70mm")) return "Lens";
+      if (text.includes("gopro") || text.includes("action")) return "Action Camera";
+      if (text.includes("mavic") || text.includes("drone")) return "Drone";
+      return "Mirrorless";
+    }
+    
+    if (catSlug === "apartments") {
+      if (text.includes("2bhk") || text.includes("3bhk") || text.includes("flat") || text.includes("apartment")) return "Apartment";
+      if (text.includes("house") || text.includes("duplex")) return "House";
+      if (text.includes("room")) return "Room";
+      if (text.includes("office") || text.includes("commercial") || text.includes("shop")) return "Office";
+      return "Apartment";
+    }
+    
+    if (catSlug === "furniture") {
+      if (text.includes("table") || text.includes("desk")) return "Table";
+      if (text.includes("sofa")) return "Sofa";
+      if (text.includes("chair") || text.includes("bean bag")) return "Chair";
+      if (text.includes("bed")) return "Bed";
+      if (text.includes("wardrobe") || text.includes("bookshelf") || text.includes("almirah")) return "Storage";
+      return "Table";
+    }
+  
+    if (catSlug === "fashion") {
+      if (text.includes("panjabi") || text.includes("sherwani") || text.includes("suit")) return "Men";
+      if (text.includes("lehenga") || text.includes("saree") || text.includes("dress")) return "Women";
+      if (text.includes("wedding") || text.includes("bridal")) return "Wedding";
+      if (text.includes("handbag") || text.includes("sunglasses")) return "Accessories";
+      return "Men";
+    }
+  
+    if (catSlug === "sports") {
+      if (text.includes("cricket") || text.includes("bat")) return "Cricket";
+      if (text.includes("football")) return "Football";
+      if (text.includes("treadmill") || text.includes("dumbbell") || text.includes("yoga")) return "Fitness";
+      if (text.includes("tent") || text.includes("camping")) return "Outdoor";
+      if (text.includes("racket") || text.includes("tennis") || text.includes("badminton")) return "Racket";
+      return "Fitness";
+    }
+  
+    if (catSlug === "books") {
+      if (text.includes("textbook") || text.includes("mathematics") || text.includes("anatomy") || text.includes("coursebook") || text.includes("ielts")) return "Textbook";
+      if (text.includes("potter") || text.includes("rings") || text.includes("novel") || text.includes("fiction")) return "Fiction";
+      if (text.includes("self") || text.includes("biography")) return "Self Help";
+      return "Textbook";
+    }
+    
+    return "Other";
   };
 
   // Compute counts per type dynamically
   const typeCounts = useMemo(() => {
-    const counts: Record<string, number> = {
-      Car: 0,
-      Motorcycle: 0,
-      Bicycle: 0,
-      CNG: 0,
-      Bus: 0,
-      Truck: 0,
-    };
+    const counts: Record<string, number> = {};
+    const filters = CATEGORY_FILTERS[slug] || [];
+    filters.forEach(f => { counts[f.value] = 0; });
+    
     allProducts.forEach((p) => {
-      const t = getVehicleType(p);
+      const t = getProductType(p, slug);
       if (counts[t] !== undefined) counts[t]++;
     });
     return counts;
-  }, [allProducts]);
+  }, [allProducts, slug]);
 
   // Filter & Sort Logic
   const filteredProducts = useMemo(() => {
@@ -146,12 +329,12 @@ export default function CategoryDetailPage() {
 
     // Filter by Subcategory Pill
     if (selectedSubcategory !== "All") {
-      list = list.filter((p) => getVehicleType(p).toLowerCase() === selectedSubcategory.toLowerCase());
+      list = list.filter((p) => getProductType(p, slug).toLowerCase() === selectedSubcategory.toLowerCase());
     }
 
     // Filter by Checkbox Types
     if (selectedTypes.length > 0) {
-      list = list.filter((p) => selectedTypes.includes(getVehicleType(p)));
+      list = list.filter((p) => selectedTypes.includes(getProductType(p, slug)));
     }
 
     // Filter by Location
@@ -203,7 +386,13 @@ export default function CategoryDetailPage() {
     e.preventDefault();
     e.stopPropagation();
     const product = allProducts.find((p) => p.id === id);
-    if (product) storeToggleWishlist({ id: product.id, title: product.title, price_per_day: product.price_per_day, image_url: product.image_url, location: product.location });
+    if (product) storeToggleWishlist({
+      id: product.id,
+      title: product.title,
+      price_per_day: product.price_per_day,
+      image_url: product.image_url || product.images?.[0]?.url || "",
+      location: product.area ? `${product.area}, ${product.city || "Dhaka"}` : product.city || "Dhaka"
+    });
   };
 
   const handleClearAll = () => {
@@ -220,13 +409,45 @@ export default function CategoryDetailPage() {
     return (
       <AppShell>
         <div className="flex-1 flex items-center justify-center h-full py-32">
-          <Loader2 size={40} className="text-indigo-600 animate-spin" />
+          <div className="flex flex-col items-center gap-4">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+            >
+              <Loader2 size={40} className="text-indigo-600" />
+            </motion.div>
+            <motion.p
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ repeat: Infinity, duration: 1.5 }}
+              className="text-sm text-slate-400 font-medium"
+            >
+              Loading products...
+            </motion.p>
+          </div>
         </div>
       </AppShell>
     );
   }
 
-  if (!category) return null;
+  if (!category) {
+    return (
+      <AppShell>
+        <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] text-center p-6">
+          <Package size={56} className="text-slate-300 mb-4" />
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Category Not Found</h2>
+          <p className="text-sm text-slate-500 max-w-sm mb-6">
+            We couldn't find the category you're looking for. It may have been removed or renamed.
+          </p>
+          <Link
+            href="/categories"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl transition-colors shadow-md shadow-indigo-100"
+          >
+            Browse All Categories
+          </Link>
+        </div>
+      </AppShell>
+    );
+  }
 
   // Sidebar Filter Panel Component
   const filterComponent = (
@@ -312,35 +533,37 @@ export default function CategoryDetailPage() {
         />
       </div>
 
-      {/* Vehicle Type Filter */}
-      <div className="mb-6">
-        <h3 className="text-xs font-semibold text-slate-900 mb-2.5">Vehicle Type</h3>
-        <div className="space-y-2">
-          {VEHICLE_TYPES.map((vt) => {
-            const isChecked = selectedTypes.includes(vt.value);
-            const count = typeCounts[vt.value] || 0;
-            return (
-              <label
-                key={vt.value}
-                onClick={() => toggleTypeCheckbox(vt.value)}
-                className="flex items-center justify-between cursor-pointer group hover:bg-slate-50 p-1.5 rounded-lg transition-colors"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                      isChecked ? "bg-indigo-600 border-indigo-600 text-white" : "border-slate-300 group-hover:border-indigo-500"
-                    }`}
-                  >
-                    {isChecked && <Check size={11} strokeWidth={3} />}
+      {/* Type Filter */}
+      {(CATEGORY_FILTERS[slug] || []).length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-xs font-semibold text-slate-900 mb-2.5">Category Type</h3>
+          <div className="space-y-2">
+            {(CATEGORY_FILTERS[slug] || []).map((vt) => {
+              const isChecked = selectedTypes.includes(vt.value);
+              const count = typeCounts[vt.value] || 0;
+              return (
+                <label
+                  key={vt.value}
+                  onClick={() => toggleTypeCheckbox(vt.value)}
+                  className="flex items-center justify-between cursor-pointer group hover:bg-slate-50 p-1.5 rounded-lg transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                        isChecked ? "bg-indigo-600 border-indigo-600 text-white" : "border-slate-300 group-hover:border-indigo-500"
+                      }`}
+                    >
+                      {isChecked && <Check size={11} strokeWidth={3} />}
+                    </div>
+                    <span className="text-xs font-medium text-slate-700">{vt.label}</span>
                   </div>
-                  <span className="text-xs font-medium text-slate-700">{vt.label}</span>
-                </div>
-                <span className="text-[10px] font-semibold text-slate-400">({count})</span>
-              </label>
-            );
-          })}
+                  <span className="text-[10px] font-semibold text-slate-400">({count})</span>
+                </label>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Ratings Filter */}
       <div className="mb-6">
@@ -420,9 +643,9 @@ export default function CategoryDetailPage() {
                   : "bg-white border border-slate-200 text-slate-600 hover:border-indigo-600 hover:text-indigo-600"
               }`}
             >
-              <LayoutGrid size={13} /> All Vehicles
+              <LayoutGrid size={13} /> All {category.name}
             </button>
-            {VEHICLE_TYPES.map((vt) => (
+            {(CATEGORY_FILTERS[slug] || []).map((vt) => (
               <button
                 key={vt.value}
                 onClick={() => setSelectedSubcategory(vt.value)}
@@ -481,9 +704,9 @@ export default function CategoryDetailPage() {
             className="flex flex-col items-center justify-center h-64 text-center bg-white rounded-2xl border border-slate-100 p-6"
           >
             <Package size={56} className="text-slate-300 mb-4" />
-            <h2 className="text-xl font-bold text-slate-700">No vehicles match your filters</h2>
+            <h2 className="text-xl font-bold text-slate-700">No {category.name.toLowerCase()} match your filters</h2>
             <p className="text-slate-400 text-xs mt-2 mb-6">
-              Try adjusting your price range or clearing selected vehicle types.
+              Try adjusting your price range or clearing selected {category.name.toLowerCase()} types.
             </p>
             <button
               onClick={handleClearAll}
@@ -493,10 +716,13 @@ export default function CategoryDetailPage() {
             </button>
           </motion.div>
         ) : (
+          <AnimatePresence mode="popLayout">
           <motion.div
+            key={`${selectedSubcategory}-${sortBy}-${viewMode}`}
             variants={containerVariants}
             initial="hidden"
             animate="visible"
+            exit={{ opacity: 0, transition: { duration: 0.2 } }}
             className={
               viewMode === "grid"
                 ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
@@ -523,6 +749,11 @@ export default function CategoryDetailPage() {
               const handleWishlistClick = (e: React.MouseEvent) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (!isAuthenticated || !user) {
+                  const returnUrl = window.location.pathname + window.location.search;
+                  router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+                  return;
+                }
                 storeToggleWishlist({
                   id: product.id,
                   title: product.title,
@@ -534,6 +765,33 @@ export default function CategoryDetailPage() {
                   location: product.area ? `${product.area}, ${product.city || "Dhaka"}` : product.city || "Dhaka",
                 });
               };
+
+              const handleAddToCartClick = (e: React.MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                triggerFlyToCart({
+                  image,
+                  startElement: e.currentTarget as HTMLElement,
+                  item: {
+                    id: product.id,
+                    title: product.title,
+                    slug: product.slug,
+                    price_per_day: product.price_per_day,
+                    image_url: image,
+                    category: category?.name || "General",
+                    owner_id: "owner-id",
+                    owner_name: "Verified Owner",
+                  },
+                });
+
+                setJustAddedIds((prev) => ({ ...prev, [product.id]: true }));
+                setTimeout(() => {
+                  setJustAddedIds((prev) => ({ ...prev, [product.id]: false }));
+                }, 2000);
+              };
+
+              const isAdded = checkIsInCart(product.id) || justAddedIds[product.id];
 
               if (viewMode === "list") {
                 return (
@@ -583,14 +841,36 @@ export default function CategoryDetailPage() {
                             </p>
                           </div>
 
-                          <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-                            <div className="flex items-center gap-1.5 text-slate-400">
-                              <MapPin size={13} />
-                              <span className="text-xs font-medium text-slate-600">
-                                {product.area ? `${product.area}, ` : ""}{product.city || "Dhaka"}
-                              </span>
+                          <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-auto">
+                            <div className="flex flex-col gap-2.5">
+                              <div className="flex items-center gap-1.5 text-slate-400">
+                                <MapPin size={13} />
+                                <span className="text-xs font-medium text-slate-600">
+                                  {product.area ? `${product.area}, ` : ""}{product.city || "Dhaka"}
+                                </span>
+                              </div>
+                              <button
+                                onClick={handleAddToCartClick}
+                                className={`text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all w-fit active:scale-95 shadow-sm ${
+                                  isAdded
+                                    ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/25 border border-emerald-500"
+                                    : "bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200"
+                                }`}
+                              >
+                                {isAdded ? (
+                                  <>
+                                    <Check size={13} className="stroke-[3]" />
+                                    <span>Added</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus size={13} className="stroke-[2.5]" />
+                                    <span>Add to Cart</span>
+                                  </>
+                                )}
+                              </button>
                             </div>
-                            <div className="text-right">
+                            <div className="text-right flex flex-col justify-end h-full">
                               <div className="text-[10px] text-slate-400 font-medium">
                                 <span className="line-through mr-1">৳ {origPrice.toLocaleString()}</span>
                                 <span className="text-rose-500 font-bold">{discPct}% OFF</span>
@@ -608,39 +888,61 @@ export default function CategoryDetailPage() {
 
               return (
                 <motion.div key={product.id} variants={cardVariants}>
+                  <TiltProductCard className="h-full">
                   <Link href={`/products/${product.slug}`} className="block group h-full">
-                    <div className="bg-white rounded-[20px] border border-slate-200/80 overflow-hidden hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 flex flex-col h-full hover:border-indigo-100">
+                    <div className="bg-white rounded-[20px] border border-slate-200/80 overflow-hidden hover:shadow-2xl hover:shadow-indigo-100/60 transition-all duration-400 flex flex-col h-full hover:border-indigo-200">
                       {/* Image Container */}
-                      <div className="relative h-[180px] w-full overflow-hidden bg-slate-100 shrink-0">
-                        <img
+                      <div className="relative h-[190px] w-full overflow-hidden bg-slate-100 shrink-0">
+                        <motion.img
                           src={image}
                           alt={product.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                          className="w-full h-full object-cover"
+                          whileHover={{ scale: 1.09 }}
+                          transition={{ duration: 0.5, ease: "easeOut" }}
                         />
+                        {/* Gradient overlay on hover */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                         {/* Top Badges */}
                         <div className="absolute top-3 left-3 flex gap-1.5 z-10">
-                          <span className="bg-rose-500 text-white font-black text-[10px] px-2 py-0.5 rounded-md shadow-md">
+                          <motion.span
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ delay: 0.1, type: "spring" }}
+                            className="bg-gradient-to-r from-rose-500 to-pink-500 text-white font-black text-[10px] px-2 py-0.5 rounded-md shadow-md"
+                          >
                             {discPct}% OFF
-                          </span>
+                          </motion.span>
                           {product.badge && (
-                            <span className={`text-[10px] font-bold text-white px-2.5 py-0.5 rounded-full shadow-sm flex items-center gap-1 ${badgeColor}`}>
+                            <motion.span
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ delay: 0.15, type: "spring" }}
+                              className={`text-[10px] font-bold text-white px-2.5 py-0.5 rounded-full shadow-sm flex items-center gap-1 ${badgeColor}`}
+                            >
                               {product.badge === "Popular" && <span>🔥</span>}
                               {product.badge}
-                            </span>
+                            </motion.span>
                           )}
                         </div>
 
                         {/* Heart Icon */}
-                        <button
+                        <motion.button
                           onClick={handleWishlistClick}
-                          className="absolute top-3 right-3 z-10 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center transition-all active:scale-90 shadow-sm"
+                          whileHover={{ scale: 1.15 }}
+                          whileTap={{ scale: 0.9 }}
+                          className="absolute top-3 right-3 z-10 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm"
                         >
                           <Heart
                             size={15}
-                            className={isFav ? "fill-rose-500 text-rose-500" : "text-slate-400 hover:text-rose-500"}
+                            className={isFav ? "fill-rose-500 text-rose-500" : "text-slate-400"}
                           />
-                        </button>
+                        </motion.button>
+
+                        {/* View 360 hint on hover */}
+                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 whitespace-nowrap">
+                          <RotateCcw size={10} /> View all angles
+                        </div>
                       </div>
 
                       {/* Details */}
@@ -661,34 +963,66 @@ export default function CategoryDetailPage() {
                           </div>
                         </div>
 
-                        <div className="mt-auto flex items-end justify-between border-t border-slate-100 pt-3">
-                          <div>
-                            <div className="text-[10px] text-slate-400 font-medium">
-                              <span className="line-through text-slate-400 mr-1">৳ {origPrice.toLocaleString()}</span>
+                        <div className="mt-auto flex flex-col gap-3 border-t border-slate-100 pt-3">
+                          <div className="flex items-end justify-between">
+                            <div>
+                              <div className="text-[10px] text-slate-400 font-medium">
+                                <span className="line-through text-slate-400 mr-1">৳ {origPrice.toLocaleString()}</span>
+                              </div>
+                              <motion.div
+                                key={product.price_per_day}
+                                initial={{ opacity: 0, y: -4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="font-extrabold text-base text-slate-900 leading-tight"
+                              >
+                                ৳ {product.price_per_day.toLocaleString()}
+                                <span className="text-[10px] text-slate-400 font-normal ml-1">/ day</span>
+                              </motion.div>
+                              <div className="flex items-center gap-1 text-slate-400 mt-0.5">
+                                <MapPin size={11} />
+                                <span className="text-[11px] font-medium text-slate-500 truncate max-w-[110px]">
+                                  {product.area ? `${product.area}, ` : ""}{product.city || "Dhaka"}
+                                </span>
+                              </div>
                             </div>
-                            <div className="font-extrabold text-base text-slate-900 leading-tight">
-                              ৳ {product.price_per_day.toLocaleString()}
-                              <span className="text-[10px] text-slate-400 font-normal ml-1">/ day</span>
-                            </div>
-                            <div className="flex items-center gap-1 text-slate-400 mt-0.5">
-                              <MapPin size={11} />
-                              <span className="text-[11px] font-medium text-slate-500 truncate max-w-[110px]">
-                                {product.area ? `${product.area}, ` : ""}{product.city || "Dhaka"}
-                              </span>
+
+                            <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                              Available
                             </div>
                           </div>
 
-                          <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-bold px-2 py-0.5 rounded-md">
-                            Available
-                          </div>
+                          <motion.button
+                            onClick={handleAddToCartClick}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.95 }}
+                            className={`w-full text-[11px] font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm ${
+                              isAdded
+                                ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/25 border border-emerald-500"
+                                : "bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200/80"
+                            }`}
+                          >
+                            {isAdded ? (
+                              <>
+                                <Check size={13} className="stroke-[3]" />
+                                <span>Added to Cart</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus size={13} className="stroke-[2.5]" />
+                                <span>+ Add to Cart</span>
+                              </>
+                            )}
+                          </motion.button>
                         </div>
                       </div>
                     </div>
                   </Link>
+                  </TiltProductCard>
                 </motion.div>
               );
             })}
           </motion.div>
+          </AnimatePresence>
         )}
       </div>
     </AppShell>

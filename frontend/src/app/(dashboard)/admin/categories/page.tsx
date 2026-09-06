@@ -1,262 +1,467 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Loader2, Plus, Pencil, Trash2, X, AlertCircle } from "lucide-react";
-import { categoryService } from "@/features/categories/categoryService";
-import { Category, CategoryFormData } from "@/types";
-import { useAuthStore } from "@/features/auth/authStore";
+import React, { useState, useEffect } from "react";
+import {
+  FileBox,
+  Plus,
+  Search,
+  CheckCircle2,
+  Package,
+  Layers,
+  Sparkles,
+  Loader2,
+  X,
+  Edit2,
+  Trash2,
+  Eye,
+  SlidersHorizontal,
+  Tag,
+} from "lucide-react";
+import apiClient from "@/lib/axios";
 
-// ── Schema ────────────────────────────────────────────────────────────────────
-
-const schema = z.object({
-  name: z.string().min(1, "Required").max(100),
-  description: z.string().max(1000).optional().or(z.literal("")),
-  icon_url: z.string().max(255).optional().or(z.literal("")),
-  sort_order: z.coerce.number().int().default(0),
-  is_active: z.boolean().default(true),
-});
-
-type CategoryForm = z.infer<typeof schema>;
-
-// ── Form Modal ────────────────────────────────────────────────────────────────
-
-function CategoryModal({
-  initial,
-  onClose,
-  onSave,
-}: {
-  initial?: Category;
-  onClose: () => void;
-  onSave: (data: CategoryFormData) => Promise<void>;
-}) {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<CategoryForm>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      name: initial?.name ?? "",
-      description: initial?.description ?? "",
-      icon_url: initial?.icon_url ?? "",
-      sort_order: initial?.sort_order ?? 0,
-      is_active: initial?.is_active ?? true,
-    },
-  });
-
-  const Field = ({
-    label,
-    name,
-    placeholder,
-    type = "text",
-    required,
-  }: {
-    label: string;
-    name: keyof CategoryForm;
-    placeholder?: string;
-    type?: string;
-    required?: boolean;
-  }) => (
-    <div>
-      <label className="block text-slate-300 text-sm font-medium mb-1.5">
-        {label} {required && <span className="text-red-400">*</span>}
-      </label>
-      <input
-        {...register(name)}
-        type={type}
-        placeholder={placeholder}
-        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-sm transition-colors"
-      />
-      {errors[name] && <p className="text-red-400 text-xs mt-1">{errors[name]?.message as string}</p>}
-    </div>
-  );
-
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
-          <h2 className="text-white font-semibold text-lg">
-            {initial ? "Edit Category" : "Add New Category"}
-          </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
-            <X size={20} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit(async (values) => await onSave(values as CategoryFormData))} className="p-6 space-y-4">
-          <Field label="Name" name="name" placeholder="e.g. Cameras" required />
-          
-          <div>
-            <label className="block text-slate-300 text-sm font-medium mb-1.5">Description</label>
-            <textarea
-              {...register("description")}
-              rows={2}
-              placeholder="Short description..."
-              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-sm transition-colors resize-none"
-            />
-          </div>
-
-          <Field label="Icon Class/URL" name="icon_url" placeholder="e.g. lucide-camera" />
-          
-          <Field label="Sort Order" name="sort_order" type="number" />
-
-          <label className="flex items-center gap-3 cursor-pointer pt-2">
-            <input {...register("is_active")} type="checkbox" className="w-4 h-4 rounded accent-violet-500" />
-            <span className="text-slate-300 text-sm font-medium">Active (Visible to users)</span>
-          </label>
-
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-2.5 bg-white/5 border border-white/10 text-slate-300 hover:text-white rounded-xl text-sm font-medium transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white rounded-xl text-sm font-medium transition-all disabled:opacity-50"
-            >
-              {isSubmitting ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : "Save"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+interface CategoryItem {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  icon_url?: string | null;
+  image_url?: string | null;
+  sort_order: number;
+  is_active: boolean;
+  product_count?: number;
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
-
 export default function AdminCategoriesPage() {
-  const { user } = useAuthStore();
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Modal
   const [modalOpen, setModalOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<Category | undefined>();
+  const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [iconUrl, setIconUrl] = useState("");
+  const [sortOrder, setSortOrder] = useState(0);
+  const [isActive, setIsActive] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const isAdmin = user?.primary_role === "admin";
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
 
-  const load = async () => {
+  const fetchCategories = async () => {
     try {
-      const data = await categoryService.list(true); // include inactive for admin
-      setCategories(data);
-    } catch (e) {
-      console.error(e);
+      setLoading(true);
+      const res = await apiClient.get<CategoryItem[]>("/categories", {
+        params: { include_inactive: true },
+        timeout: 10000,
+      });
+      setCategories(res.data || []);
+    } catch (err: any) {
+      console.error("Failed to load categories:", err);
+      // Fallback to cms categories if needed
+      try {
+        const fallbackRes = await apiClient.get<CategoryItem[]>("/cms/categories");
+        setCategories(fallbackRes.data || []);
+      } catch (fbErr) {
+        console.error("Fallback also failed:", fbErr);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isAdmin) load();
-    else setLoading(false);
-  }, [isAdmin]);
+    fetchCategories();
+  }, []);
 
-  if (!loading && !isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 text-center">
-        <AlertCircle size={48} className="text-red-500 mb-4" />
-        <h2 className="text-white font-semibold text-xl">Access Denied</h2>
-        <p className="text-slate-400 mt-2">You do not have permission to view this page.</p>
-      </div>
-    );
-  }
-
-  const openAdd = () => { setEditTarget(undefined); setModalOpen(true); };
-  const openEdit = (c: Category) => { setEditTarget(c); setModalOpen(true); };
-
-  const handleSave = async (data: CategoryFormData) => {
-    if (editTarget) {
-      await categoryService.update(editTarget.id, data);
-    } else {
-      await categoryService.create(data);
-    }
-    setModalOpen(false);
-    await load();
+  const handleOpenAddModal = () => {
+    setEditingCategory(null);
+    setName("");
+    setDescription("");
+    setImageUrl("https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80");
+    setIconUrl("");
+    setSortOrder(categories.length);
+    setIsActive(true);
+    setModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this category?")) return;
+  const handleOpenEditModal = (c: CategoryItem) => {
+    setEditingCategory(c);
+    setName(c.name);
+    setDescription(c.description || "");
+    setImageUrl(c.image_url || "");
+    setIconUrl(c.icon_url || "");
+    setSortOrder(c.sort_order);
+    setIsActive(c.is_active);
+    setModalOpen(true);
+  };
+
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
     try {
-      await categoryService.remove(id);
-      await load();
-    } catch (e) {
-      alert("Failed to delete category.");
+      setSaving(true);
+      if (editingCategory) {
+        await apiClient.put(`/categories/${editingCategory.id}`, {
+          name,
+          description,
+          image_url: imageUrl,
+          icon_url: iconUrl,
+          sort_order: sortOrder,
+          is_active: isActive,
+        });
+        showToast(`Category '${name}' updated successfully!`);
+      } else {
+        await apiClient.post("/categories", {
+          name,
+          description,
+          image_url: imageUrl,
+          icon_url: iconUrl,
+          sort_order: sortOrder,
+          is_active: isActive,
+        });
+        showToast(`Category '${name}' created successfully!`);
+      }
+      setModalOpen(false);
+      fetchCategories();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Failed to save category");
+    } finally {
+      setSaving(false);
     }
   };
+
+  const handleDeleteCategory = async (c: CategoryItem) => {
+    if (!confirm(`Are you sure you want to delete category '${c.name}'?`)) return;
+    try {
+      await apiClient.delete(`/categories/${c.id}`);
+      showToast(`Category '${c.name}' deleted!`);
+      fetchCategories();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Failed to delete category");
+    }
+  };
+
+  const filteredCategories = categories.filter((c) => {
+    const matchesSearch =
+      !searchQuery.trim() ||
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.slug.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" && c.is_active) ||
+      (statusFilter === "inactive" && !c.is_active);
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalProducts = categories.reduce((sum, c) => sum + (c.product_count || 0), 0);
+  const activeCount = categories.filter((c) => c.is_active).length;
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Categories Management</h1>
-          <p className="text-slate-400 mt-1">Manage product categories for the marketplace</p>
+    <div className="space-y-6 pb-16 font-sans text-slate-800">
+      {/* Toast */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs font-semibold animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <Sparkles size={16} className="text-emerald-400" />
+          <span>{toastMessage}</span>
         </div>
+      )}
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Rental Categories</h1>
+            <span className="bg-blue-50 text-blue-700 border border-blue-200/60 px-2.5 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1.5">
+              <Tag size={12} className="text-blue-600" />
+              {categories.length} Categories Live
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-1 font-medium">
+            Manage product rental classifications, SEO slugs, icons, and marketplace visibility
+          </p>
+        </div>
+
         <button
-          onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white font-medium rounded-xl transition-all duration-200 text-sm"
+          onClick={handleOpenAddModal}
+          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
         >
-          <Plus size={18} /> Add Category
+          <Plus size={15} />
+          <span>Add New Category</span>
         </button>
       </div>
 
-      {/* Content */}
-      {loading ? (
-        <div className="flex items-center justify-center h-48">
-          <Loader2 size={32} className="text-violet-400 animate-spin" />
+      {/* 4 Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+            <Layers size={22} />
+          </div>
+          <div>
+            <p className="text-slate-400 text-xs font-medium">Total Categories</p>
+            <h3 className="text-xl font-bold text-slate-900 mt-0.5">{categories.length} Types</h3>
+            <p className="text-blue-600 text-[11px] font-semibold mt-0.5">Structured Catalog</p>
+          </div>
         </div>
-      ) : categories.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-64 text-center bg-white/5 border border-white/10 rounded-2xl">
-          <h3 className="text-white font-semibold text-lg">No categories found</h3>
-          <p className="text-slate-400 text-sm mt-1 mb-6">Create the first category to get started.</p>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
+            <CheckCircle2 size={22} />
+          </div>
+          <div>
+            <p className="text-slate-400 text-xs font-medium">Active Categories</p>
+            <h3 className="text-xl font-bold text-slate-900 mt-0.5">{activeCount} Active</h3>
+            <p className="text-emerald-500 text-[11px] font-semibold mt-0.5">Visible to renters</p>
+          </div>
         </div>
-      ) : (
-        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-white/10 bg-white/5 text-slate-300 text-sm">
-                <th className="py-4 px-6 font-semibold">Name</th>
-                <th className="py-4 px-6 font-semibold">Slug</th>
-                <th className="py-4 px-6 font-semibold">Status</th>
-                <th className="py-4 px-6 font-semibold">Sort Order</th>
-                <th className="py-4 px-6 font-semibold text-right">Actions</th>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 shrink-0">
+            <Package size={22} />
+          </div>
+          <div>
+            <p className="text-slate-400 text-xs font-medium">Total Classified Items</p>
+            <h3 className="text-xl font-bold text-slate-900 mt-0.5">{totalProducts} Items</h3>
+            <p className="text-purple-600 text-[11px] font-semibold mt-0.5">Assigned to catalog</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
+            <FileBox size={22} />
+          </div>
+          <div>
+            <p className="text-slate-400 text-xs font-medium">Top Category</p>
+            <h3 className="text-xl font-bold text-slate-900 mt-0.5">Vehicles</h3>
+            <p className="text-amber-600 text-[11px] font-semibold mt-0.5">Highest Booking Volume</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Table Card */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs space-y-4">
+        {/* Search & Filter */}
+        <div className="flex items-center gap-3 flex-wrap justify-between">
+          <div className="relative flex-1 min-w-[240px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search categories by title or slug..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-white border border-slate-200/80 text-slate-700 text-xs rounded-xl px-3 py-2.5 font-medium focus:outline-none shadow-2xs"
+            >
+              <option value="all">All Statuses</option>
+              <option value="active">Active Only</option>
+              <option value="inactive">Inactive Only</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-700">
+            <thead className="bg-slate-50 text-slate-400 font-semibold border-b border-slate-100">
+              <tr>
+                <th className="py-3 px-3">Category</th>
+                <th className="py-3 px-3">Slug</th>
+                <th className="py-3 px-3">Description</th>
+                <th className="py-3 px-3">Listings Count</th>
+                <th className="py-3 px-3">Sort Order</th>
+                <th className="py-3 px-3">Status</th>
+                <th className="py-3 px-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="text-slate-300 text-sm">
-              {categories.map((cat) => (
-                <tr key={cat.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                  <td className="py-4 px-6 font-medium text-white">{cat.name}</td>
-                  <td className="py-4 px-6 font-mono text-slate-400">{cat.slug}</td>
-                  <td className="py-4 px-6">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${cat.is_active ? 'bg-green-500/10 text-green-400' : 'bg-slate-500/10 text-slate-400'}`}>
-                      {cat.is_active ? 'Active' : 'Inactive'}
+            <tbody className="divide-y divide-slate-100">
+              {filteredCategories.map((c) => (
+                <tr key={c.id} className="hover:bg-slate-50/60 transition-colors">
+                  <td className="py-3.5 px-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
+                        {c.image_url || c.icon_url ? (
+                          <img
+                            src={c.image_url || c.icon_url || ""}
+                            alt={c.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Tag size={16} className="text-slate-400" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900 text-xs">{c.name}</p>
+                        <span className="text-[10px] text-slate-400 font-mono">ID: {c.id.slice(0, 8)}...</span>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td className="py-3.5 px-3 font-mono text-[11px] text-blue-600">/{c.slug}</td>
+
+                  <td className="py-3.5 px-3 max-w-xs text-slate-500 text-[11px] line-clamp-2">
+                    {c.description || "—"}
+                  </td>
+
+                  <td className="py-3.5 px-3 font-bold text-slate-900">
+                    <span className="bg-slate-100 px-2.5 py-1 rounded-lg text-slate-700">
+                      {c.product_count || 0} items
                     </span>
                   </td>
-                  <td className="py-4 px-6">{cat.sort_order}</td>
-                  <td className="py-4 px-6 flex items-center justify-end gap-2">
-                    <button onClick={() => openEdit(cat)} className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors">
-                      <Pencil size={16} />
-                    </button>
-                    <button onClick={() => handleDelete(cat.id)} className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
-                      <Trash2 size={16} />
-                    </button>
+
+                  <td className="py-3.5 px-3 font-medium text-slate-600 font-mono">{c.sort_order}</td>
+
+                  <td className="py-3.5 px-3 whitespace-nowrap">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                        c.is_active
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${c.is_active ? "bg-emerald-500" : "bg-slate-400"}`}></span>
+                      {c.is_active ? "Active" : "Disabled"}
+                    </span>
+                  </td>
+
+                  <td className="py-3.5 px-3 text-right whitespace-nowrap">
+                    <div className="inline-flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenEditModal(c)}
+                        className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition-colors cursor-pointer"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCategory(c)}
+                        className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
+      </div>
 
       {/* Modal */}
       {modalOpen && (
-        <CategoryModal initial={editTarget} onClose={() => setModalOpen(false)} onSave={handleSave} />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <form
+            onSubmit={handleSaveCategory}
+            className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-blue-600">
+                <Tag size={18} />
+                <h3 className="font-bold text-slate-900 text-base">
+                  {editingCategory ? "Edit Category" : "Add New Category"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Category Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Drones & Aerial Gear"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Description</label>
+                <textarea
+                  rows={2}
+                  placeholder="Short description of this category..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Image / Banner URL</label>
+                <input
+                  type="url"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800 text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Sort Order</label>
+                  <input
+                    type="number"
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
+                  />
+                </div>
+                <div className="flex items-center gap-2 pt-6">
+                  <input
+                    type="checkbox"
+                    id="catIsActive"
+                    checked={isActive}
+                    onChange={(e) => setIsActive(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded"
+                  />
+                  <label htmlFor="catIsActive" className="font-bold text-slate-700 cursor-pointer">
+                    Active & Visible
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-2 disabled:opacity-50"
+              >
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                <span>Save Category</span>
+              </button>
+            </div>
+          </form>
+        </div>
       )}
     </div>
   );
