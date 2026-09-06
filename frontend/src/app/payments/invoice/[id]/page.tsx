@@ -18,7 +18,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
         console.error(err);
         // Fallback for dev demo
         setInvoice({
-          invoice_number: `INV-RH-${resolvedParams.id.slice(0, 6).upper() || "849201"}`,
+          invoice_number: `INV-RH-${resolvedParams.id.slice(0, 6).toUpperCase() || "849201"}`,
           booking_id: resolvedParams.id,
           date: "August 02, 2026",
           status: "PAID - HELD IN ESCROW",
