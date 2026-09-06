@@ -1,14 +1,17 @@
+import Link from "next/link";
 import { MoreHorizontal } from "lucide-react";
 import dayjs from "dayjs";
 
 interface Booking {
   id: string;
+  product_id?: string;
   start_date: string;
   end_date: string;
   total_days: number;
   total_amount: number;
   status: string;
   product: {
+    id?: string;
     title: string;
     image_url: string;
     category_id: string;
@@ -43,7 +46,7 @@ export function AdminRecentBookingsWidget({ bookings }: AdminTablesProps) {
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
       <div className="p-6 border-b border-slate-100 flex justify-between items-center">
         <h2 className="text-sm font-bold text-slate-900">Recent Bookings</h2>
-        <button className="text-indigo-600 text-xs font-bold hover:text-indigo-700">View all</button>
+        <Link href="/admin/bookings" className="text-indigo-600 text-xs font-bold hover:text-indigo-700">View all</Link>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[700px]">
@@ -58,27 +61,38 @@ export function AdminRecentBookingsWidget({ bookings }: AdminTablesProps) {
             </tr>
           </thead>
           <tbody className="text-sm">
-            {bookings.map((booking) => (
-              <tr key={booking.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
-                <td className="p-4 font-medium text-slate-900 text-xs">{booking.id.substring(0, 8)}</td>
-                <td className="p-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 shrink-0 uppercase">
-                      {booking.user ? `${booking.user.first_name[0]}${booking.user.last_name[0]}` : "U"}
+            {bookings.map((booking) => {
+              const productId = booking.product?.id || booking.product_id;
+              return (
+                <tr key={booking.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
+                  <td className="p-4 font-medium text-slate-900 text-xs">{booking.id.substring(0, 8)}</td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 shrink-0 uppercase">
+                        {booking.user ? `${booking.user.first_name[0]}${booking.user.last_name[0]}` : "U"}
+                      </div>
+                      <span className="font-medium text-slate-700 text-xs">{booking.user ? `${booking.user.first_name} ${booking.user.last_name}` : "Unknown"}</span>
                     </div>
-                    <span className="font-medium text-slate-700 text-xs">{booking.user ? `${booking.user.first_name} ${booking.user.last_name}` : "Unknown"}</span>
-                  </div>
-                </td>
-                <td className="p-4 font-medium text-slate-700 text-xs">{booking.product?.title || "Unknown"}</td>
-                <td className="p-4 text-slate-500 text-xs">{dayjs(booking.start_date).format("MMM DD, YYYY")}</td>
-                <td className="p-4 font-bold text-slate-900 text-xs">৳ {booking.total_amount.toLocaleString()}</td>
-                <td className="p-4">
-                  <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold border capitalize ${getStatusColor(booking.status)}`}>
-                    {booking.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="p-4 font-medium text-slate-700 text-xs">
+                    {productId ? (
+                      <Link href={`/products/${productId}`} className="hover:text-indigo-600 transition-colors">
+                        {booking.product?.title || "Unknown"}
+                      </Link>
+                    ) : (
+                      booking.product?.title || "Unknown"
+                    )}
+                  </td>
+                  <td className="p-4 text-slate-500 text-xs">{dayjs(booking.start_date).format("MMM DD, YYYY")}</td>
+                  <td className="p-4 font-bold text-slate-900 text-xs">৳ {booking.total_amount.toLocaleString()}</td>
+                  <td className="p-4">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold border capitalize ${getStatusColor(booking.status)}`}>
+                      {booking.status}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

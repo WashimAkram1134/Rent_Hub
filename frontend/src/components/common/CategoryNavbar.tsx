@@ -14,7 +14,11 @@ export default function CategoryNavbar() {
   const handleLogout = async () => {
     await logout();
     setDropdownOpen(false);
-    router.push("/");
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    } else {
+      router.push("/login");
+    }
   };
 
   return (

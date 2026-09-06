@@ -14,7 +14,11 @@ import {
   Mail,
   Phone,
   User,
+  ShieldCheck,
+  ShieldAlert,
+  ArrowRight,
 } from "lucide-react";
+import Link from "next/link";
 import { useAuthStore } from "@/features/auth/authStore";
 import { profileService } from "@/features/profile/profileService";
 import { ProfileUpdateData, ChangePasswordData } from "@/types";
@@ -139,6 +143,64 @@ export default function ProfilePage() {
       <div>
         <h1 className="text-3xl font-bold text-slate-900">My Profile</h1>
         <p className="text-slate-500 mt-1">Manage your personal information and password</p>
+      </div>
+
+      {/* ── Identity Verification Card ─────────────────────────────────────── */}
+      <div
+        className={`border rounded-2xl p-6 shadow-sm ${
+          user.identity_verification_status === "VERIFIED" || user.is_identity_verified
+            ? "bg-gradient-to-r from-emerald-50/80 via-teal-50/40 to-white border-emerald-200"
+            : "bg-gradient-to-r from-amber-50/80 via-orange-50/40 to-white border-amber-200"
+        }`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div
+              className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                user.identity_verification_status === "VERIFIED" || user.is_identity_verified
+                  ? "bg-emerald-100 text-emerald-700 shadow-sm"
+                  : "bg-amber-100 text-amber-700 shadow-sm"
+              }`}
+            >
+              {user.identity_verification_status === "VERIFIED" || user.is_identity_verified ? (
+                <ShieldCheck size={26} />
+              ) : (
+                <ShieldAlert size={26} />
+              )}
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h3 className="font-bold text-slate-900 text-base">Identity Verification</h3>
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                    user.identity_verification_status === "VERIFIED" || user.is_identity_verified
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-amber-100 text-amber-800"
+                  }`}
+                >
+                  {user.identity_verification_status === "VERIFIED" || user.is_identity_verified
+                    ? "✓ Verified (NID & Face)"
+                    : "Action Required"}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed max-w-xl">
+                {user.identity_verification_status === "VERIFIED" || user.is_identity_verified
+                  ? "Your identity is verified with NID and live face recognition. You will never need to identify again for any booking or listing on RentHub."
+                  : "Complete your one-time identity verification to unlock bookings and high-value rentals across RentHub."}
+              </p>
+            </div>
+          </div>
+
+          {!(user.identity_verification_status === "VERIFIED" || user.is_identity_verified) && (
+            <Link
+              href="/verify-identity"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-all shrink-0"
+            >
+              <span>Verify Now</span>
+              <ArrowRight size={14} />
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* ── Avatar card ─────────────────────────────────────────────────────── */}

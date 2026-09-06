@@ -46,6 +46,7 @@ import {
 import { useAuthStore } from "@/features/auth/authStore";
 import { useAppStore } from "@/store/appStore";
 import { dictionaries } from "@/i18n/dictionaries";
+import { NotificationDropdown } from "@/components/layout/NotificationDropdown";
 
 export default function DashboardLayout({
   children,
@@ -134,6 +135,7 @@ export default function DashboardLayout({
 
   const ADMIN_MAIN_ITEMS = [
     { label: "Dashboard", href: "/dashboard", icon: Home },
+    { label: "Lister Approvals", href: "/admin/listers", icon: UserCheck },
     { label: "Users", href: "/admin/users", icon: Users },
     { label: "Listings", href: "/admin/listings", icon: FileText },
     { label: "Bookings", href: "/admin/bookings", icon: Calendar },
@@ -148,8 +150,7 @@ export default function DashboardLayout({
   const ADMIN_MANAGEMENT_ITEMS = [
     { label: "Categories", href: "/admin/categories", icon: FileBox },
     { label: "Locations", href: "/admin/locations", icon: MapPin },
-    { label: "Verification", href: "/admin/verification", icon: UserCheck },
-    { label: "CMS", href: "/admin/cms", icon: LayoutTemplate },
+    { label: "Verification", href: "/admin/identity-verifications", icon: UserCheck },
     { label: "Notifications", href: "/admin/notifications", icon: Bell },
   ];
 
@@ -335,9 +336,9 @@ export default function DashboardLayout({
                     <h4 className="text-white text-[13px] font-bold">Platform Overview</h4>
                     <p className="text-slate-400 text-[10px] mt-1 leading-relaxed">Monitor and manage the entire marketplace.</p>
                   </div>
-                  <button className="bg-[#4F46E5] text-white font-medium py-1.5 px-3 mt-2 rounded-lg text-[11px] hover:bg-indigo-500 transition-colors flex items-center gap-1 w-fit">
+                  <Link href="/admin/reports" className="bg-[#4F46E5] text-white font-medium py-1.5 px-3 mt-2 rounded-lg text-[11px] hover:bg-indigo-500 transition-colors flex items-center gap-1 w-fit">
                     View Reports <ChevronRight size={12} />
-                  </button>
+                  </Link>
                 </div>
               </div>
             ) : (
@@ -415,14 +416,15 @@ export default function DashboardLayout({
 
               {/* Notification & Messages */}
               <div className="flex items-center gap-2">
-                <button className="p-2 text-slate-500 hover:text-slate-700 relative hover:bg-slate-50 rounded-full transition-colors">
-                  <Bell className="w-5 h-5" />
-                  <span className="absolute top-2 right-2.5 w-2 h-2 bg-violet-600 rounded-full border-2 border-white"></span>
-                </button>
+                <NotificationDropdown />
                 {isCustomer && (
-                  <button className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-full transition-colors hidden sm:block">
+                  <Link
+                    href="/messages"
+                    className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-full transition-colors hidden sm:flex items-center justify-center"
+                    title="Messages"
+                  >
                     <MessageSquare className="w-5 h-5" />
-                  </button>
+                  </Link>
                 )}
               </div>
 
@@ -447,7 +449,7 @@ export default function DashboardLayout({
                      <Link href="/profile" className="px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
                        <User size={16} /> {dict.header.profile}
                      </Link>
-                     <button onClick={() => { logout(); router.replace("/login"); }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
+                     <button onClick={async () => { await logout(); window.location.href = "/login"; }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer">
                        <LogOut size={16} /> {dict.header.signOut}
                      </button>
                    </div>

@@ -1,44 +1,47 @@
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { ArrowUpRight, UserPlus, ListPlus, Users, FileText, ShieldAlert, Settings, Server, CreditCard, Mail, Database, CheckCircle2 } from "lucide-react";
+import apiClient from "@/lib/axios";
 
-export function AdminPlatformSummaryWidget() {
+export function AdminPlatformSummaryWidget({ stats }: { stats?: any }) {
+  const safeStats = stats || {};
   return (
     <div className="lg:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
       <h2 className="text-sm font-bold text-slate-900 mb-6">Platform Summary</h2>
       <div className="space-y-4 flex-1">
         <div className="flex justify-between items-center text-sm">
           <span className="text-slate-500 text-xs">Active Users</span>
-          <span className="font-bold text-slate-900">18,452</span>
+          <span className="font-bold text-slate-900">{(safeStats.total_users || 0).toLocaleString()}</span>
         </div>
         <div className="flex justify-between items-center text-sm">
           <span className="text-slate-500 text-xs">Verified Users</span>
-          <span className="font-bold text-slate-900">14,218</span>
+          <span className="font-bold text-slate-900">{(safeStats.verified_users || 0).toLocaleString()}</span>
         </div>
         <div className="flex justify-between items-center text-sm">
           <span className="text-slate-500 text-xs">Unverified Users</span>
-          <span className="font-bold text-slate-900">4,234</span>
+          <span className="font-bold text-slate-900">{(safeStats.unverified_users || 0).toLocaleString()}</span>
         </div>
         <div className="h-px w-full bg-slate-100 my-2"></div>
         <div className="flex justify-between items-center text-sm">
           <span className="text-slate-500 text-xs">Active Listings</span>
-          <span className="font-bold text-slate-900">6,781</span>
+          <span className="font-bold text-slate-900">{(safeStats.active_listings || 0).toLocaleString()}</span>
         </div>
         <div className="flex justify-between items-center text-sm">
           <span className="text-slate-500 text-xs">Inactive Listings</span>
-          <span className="font-bold text-slate-900">1,975</span>
+          <span className="font-bold text-slate-900">{(safeStats.inactive_listings || 0).toLocaleString()}</span>
         </div>
         <div className="flex justify-between items-center text-sm">
           <span className="text-slate-500 text-xs">Suspended Listings</span>
-          <span className="font-bold text-slate-900">134</span>
+          <span className="font-bold text-slate-900">{(safeStats.suspended_listings || 0).toLocaleString()}</span>
         </div>
         <div className="h-px w-full bg-slate-100 my-2"></div>
         <div className="flex justify-between items-center text-sm">
           <span className="text-slate-500 text-xs">Completed Bookings</span>
-          <span className="font-bold text-slate-900">12,458</span>
+          <span className="font-bold text-slate-900">{(safeStats.completed_bookings || 0).toLocaleString()}</span>
         </div>
         <div className="flex justify-between items-center text-sm">
           <span className="text-slate-500 text-xs">Cancelled Bookings</span>
-          <span className="font-bold text-slate-900">1,243</span>
+          <span className="font-bold text-slate-900">{(safeStats.cancelled_bookings || 0).toLocaleString()}</span>
         </div>
       </div>
       <button className="w-full mt-6 bg-indigo-50 text-indigo-600 font-bold py-2.5 rounded-xl text-xs hover:bg-indigo-100 transition-colors flex items-center justify-center gap-1.5">
@@ -184,27 +187,26 @@ export function AdminPendingListingsWidget() {
   const [pendingListings, setPendingListings] = useState<any>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchPending = async () => {
+    try {
+      setLoading(true);
+      const res = await apiClient.get("/products", { params: { status: "PENDING" } });
+      setPendingListings(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Failed to fetch pending listings:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetch("http://localhost:8000/api/v1/products?status=PENDING")
-      .then(res => res.json())
-      .then(data => {
-        setPendingListings(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
+    fetchPending();
   }, []);
 
   const handleApprove = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/products/${id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "APPROVED" })
-      });
-      if (res.ok) {
+      const res = await apiClient.patch(`/products/${id}/status`, { status: "APPROVED" });
+      if (res.status === 200 || res.status === 204) {
         setPendingListings((prev: any) => prev.filter((p: any) => p.id !== id));
       }
     } catch (err) {
@@ -214,12 +216,8 @@ export function AdminPendingListingsWidget() {
 
   const handleReject = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/products/${id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "REJECTED" })
-      });
-      if (res.ok) {
+      const res = await apiClient.patch(`/products/${id}/status`, { status: "REJECTED" });
+      if (res.status === 200 || res.status === 204) {
         setPendingListings((prev: any) => prev.filter((p: any) => p.id !== id));
       }
     } catch (err) {
@@ -249,15 +247,15 @@ export function AdminPendingListingsWidget() {
         <div className="space-y-4">
           {pendingListings.map((product: any) => (
             <div key={product.id} className="flex items-center justify-between border-b border-slate-50 pb-4 last:border-0 last:pb-0">
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden shrink-0">
-                  <img src={product.image_url} alt="" className="w-full h-full object-cover" />
+              <Link href={`/products/${product.slug || product.id}`} className="flex items-center gap-3 overflow-hidden group cursor-pointer">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden shrink-0 group-hover:ring-2 group-hover:ring-indigo-500 transition-all">
+                  <img src={product.image_url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900 truncate">{product.title}</p>
+                  <p className="text-xs font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">{product.title}</p>
                   <p className="text-[10px] text-slate-500 truncate">৳{product.price_per_day}/day</p>
                 </div>
-              </div>
+              </Link>
               <div className="flex items-center gap-2 shrink-0">
                 <button onClick={() => handleApprove(product.id)} className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors">
                   Approve

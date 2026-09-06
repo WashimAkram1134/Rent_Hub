@@ -14,31 +14,22 @@ import {
   Bar,
 } from "recharts";
 
-const revenueData = [
-  { name: "Mon", current: 25000, previous: 20000 },
-  { name: "Tue", current: 40000, previous: 25000 },
-  { name: "Wed", current: 35000, previous: 22000 },
-  { name: "Thu", current: 55000, previous: 38000 },
-  { name: "Fri", current: 95000, previous: 50000 },
-  { name: "Sat", current: 65000, previous: 45000 },
-  { name: "Sun", current: 85000, previous: 55000 },
-];
-
-const categoryData = [
-  { name: 'Vehicles', value: 1317, color: '#4F46E5', percentage: '22%' },
-  { name: 'Electronics', value: 767, color: '#3B82F6', percentage: '15%' },
-  { name: 'Furniture', value: 522, color: '#10B981', percentage: '12%' },
-  { name: 'Apartments', value: 418, color: '#F59E0B', percentage: '10%' },
-  { name: 'Cameras', value: 279, color: '#EF4444', percentage: '8%' },
-  { name: 'Others', value: 279, color: '#6B7280', percentage: '8%' },
-];
-
-const userGrowthData = Array.from({ length: 24 }).map((_, i) => ({
-  date: `May ${i + 1}`,
-  users: 2000 + Math.random() * 6000 + (i * 200)
-}));
+import { useState, useEffect } from "react";
+import apiClient from "@/lib/axios";
 
 export function AdminChartsWidget() {
+  const [revenueData, setRevenueData] = useState<any[]>([]);
+  const [categoryData, setCategoryData] = useState<any[]>([]);
+  const [totalCategories, setTotalCategories] = useState(0);
+
+  useEffect(() => {
+    apiClient.get("/analytics/chart/revenue").then(res => setRevenueData(res.data)).catch(() => {});
+    apiClient.get("/analytics/chart/categories").then(res => {
+      setCategoryData(res.data);
+      setTotalCategories(res.data.reduce((acc: number, cur: any) => acc + cur.value, 0));
+    }).catch(() => {});
+  }, []);
+
   return (
     <>
       <div className="lg:col-span-6 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
@@ -108,7 +99,7 @@ export function AdminChartsWidget() {
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-xl font-bold text-slate-900">3,482</span>
+            <span className="text-xl font-bold text-slate-900">{totalCategories.toLocaleString()}</span>
             <span className="text-[10px] text-slate-500">Total</span>
           </div>
         </div>
@@ -132,6 +123,12 @@ export function AdminChartsWidget() {
 }
 
 export function AdminUserGrowthChart() {
+  const [userGrowthData, setUserGrowthData] = useState([]);
+
+  useEffect(() => {
+    apiClient.get("/analytics/chart/user-growth").then(res => setUserGrowthData(res.data)).catch(() => {});
+  }, []);
+
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
       <div className="flex justify-between items-center mb-6">

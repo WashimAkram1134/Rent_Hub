@@ -15,6 +15,7 @@ import { UpcomingBookingWidget } from "@/features/dashboard/components/UpcomingB
 import { DealsWidget } from "@/features/dashboard/components/DealsWidget";
 import apiClient from "@/lib/axios";
 import { useWishlistStore } from "@/store/wishlistStore";
+import { useRecentlyViewedStore } from "@/store/recentlyViewedStore";
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
@@ -23,13 +24,6 @@ const wishlistImages = [
   "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=80&h=80&q=80",
   "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=80&h=80&q=80",
   "https://images.unsplash.com/photo-1541558869434-2840d308329a?auto=format&fit=crop&w=80&h=80&q=80",
-];
-
-const continueBrowsing = [
-  { image: "https://images.unsplash.com/photo-1556189250-72ba954cfc2b?auto=format&fit=crop&w=200&h=150&q=80", name: "BMW X5" },
-  { image: "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?auto=format&fit=crop&w=200&h=150&q=80", name: "Sony A7 IV" },
-  { image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=200&h=150&q=80", name: "Studio Apt" },
-  { image: "https://images.unsplash.com/photo-1541558869434-2840d308329a?auto=format&fit=crop&w=200&h=150&q=80", name: "Office Chair" },
 ];
 
 const topOwners = [
@@ -45,6 +39,7 @@ export function CustomerDashboard() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
   const { items: wishlistStoreItems } = useWishlistStore();
+  const { items: recentlyViewedItems, fetchItems: fetchRecentlyViewed, clearHistory } = useRecentlyViewedStore();
 
   // State
   const [heroSlides, setHeroSlides] = useState<any[]>([]);
@@ -60,6 +55,7 @@ export function CustomerDashboard() {
 
   // Fetch data
   useEffect(() => {
+    fetchRecentlyViewed();
     const fetchData = async () => {
       try {
         const [bannersRes, catsRes, productsRes, recommendedRes, citiesRes, dealsRes, bookingsRes] = await Promise.all([
@@ -90,15 +86,30 @@ export function CustomerDashboard() {
       }
     };
     fetchData();
-  }, []);
+  }, [user?.id]);
 
   const toggleWishlist = (id: string) => {
     setWishlist((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   };
 
+  const formatTimeAgo = (dateStr?: string | null) => {
+    if (!dateStr) return "Recently viewed";
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diffMs / (1000 * 60));
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  };
+
   const handleSignOut = async () => {
     await logout();
-    router.replace("/login");
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    } else {
+      router.replace("/login");
+    }
   };
 
   if (!user) return null;
@@ -197,20 +208,53 @@ export function CustomerDashboard() {
 
                 {/* Continue Browsing */}
                 <div>
-                  <h2 className="text-sm font-bold text-slate-900 mb-3">Continue Browsing</h2>
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-bold text-slate-900">Continue Browsing</h2>
+                    {recentlyViewedItems.length > 0 && (
+                      <button
+                        onClick={clearHistory}
+                        className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                        title="Clear browsing history"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                   <div className="grid grid-cols-4 gap-2">
-                    {continueBrowsing.map((item, i) => (
-                      <div key={i} className="relative rounded-xl overflow-hidden h-[90px] group cursor-pointer">
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors" />
-                        <div className="absolute bottom-1.5 left-0 right-0 px-1.5">
-                          <p className="text-white text-[9px] font-semibold truncate">{item.name}</p>
-                        </div>
-                        <button className="absolute top-1.5 right-1.5 w-5 h-5 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                          <Clock size={9} className="text-white" />
-                        </button>
-                      </div>
-                    ))}
+                    {recentlyViewedItems.slice(0, 4).map((item, i) => {
+                      const img = item.image_url || item.image || "https://images.unsplash.com/photo-1556189250-72ba954cfc2b?auto=format&fit=crop&w=300&q=80";
+                      const title = item.name || item.title || "Item";
+                      const timeAgo = formatTimeAgo(item.viewed_at);
+
+                      return (
+                        <Link
+                          key={item.id || i}
+                          href={`/products/${item.slug || item.id}`}
+                          className="relative rounded-2xl overflow-hidden h-[92px] group cursor-pointer block bg-slate-100 shadow-xs border border-slate-100/60"
+                        >
+                          <img
+                            src={img}
+                            alt={title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent group-hover:from-black/90 transition-colors" />
+                          
+                          <div className="absolute bottom-2 left-0 right-0 px-2">
+                            <p className="text-white text-[11px] font-bold truncate group-hover:text-blue-200 transition-colors">
+                              {title}
+                            </p>
+                          </div>
+
+                          {/* Clock icon with tooltip */}
+                          <div
+                            className="absolute top-1.5 right-1.5 w-5 h-5 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center backdrop-blur-md text-white/90 shadow-xs group-hover:bg-indigo-600 transition-colors"
+                            title={timeAgo}
+                          >
+                            <Clock size={9} />
+                          </div>
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -227,19 +271,31 @@ export function CustomerDashboard() {
                       ))
                     ) : (
                       recommended.map((item) => (
-                        <div key={item.id} className="bg-white rounded-xl overflow-hidden border border-slate-100 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200 group">
+                        <Link
+                          key={item.id}
+                          href={`/products/${item.slug || item.id}`}
+                          className="bg-white rounded-xl overflow-hidden border border-slate-100 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200 group block cursor-pointer"
+                        >
                           <div className="h-[90px] overflow-hidden">
-                            <img src={item.image_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                            <img
+                              src={item.image_url}
+                              alt={item.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
                           </div>
                           <div className="p-2">
-                            <p className="text-[10px] font-bold text-slate-900 truncate">{item.title}</p>
+                            <p className="text-[10px] font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                              {item.title}
+                            </p>
                             <div className="flex items-center gap-0.5 mt-0.5">
                               <Star size={8} className="fill-amber-400 text-amber-400" />
                               <span className="text-[9px] text-slate-600">{item.avg_rating}</span>
                             </div>
-                            <p className="text-[10px] font-bold text-blue-700 mt-1">৳ {item.price_per_day} <span className="font-normal text-slate-400">/ day</span></p>
+                            <p className="text-[10px] font-bold text-blue-700 mt-1">
+                              ৳ {item.price_per_day} <span className="font-normal text-slate-400">/ day</span>
+                            </p>
                           </div>
-                        </div>
+                        </Link>
                       ))
                     )}
                   </div>

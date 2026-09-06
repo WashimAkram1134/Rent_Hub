@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
+import { WebSocketProvider } from "@/providers/WebSocketProvider";
+import { FlyToCartProvider } from "@/context/FlyToCartContext";
+import { FlyToCartOverlay } from "@/components/cart/FlyToCartOverlay";
+import { FloatingCartBar } from "@/components/cart/FloatingCartBar";
 
 // ─── Fonts ─────────────────────────────────────────────────────────────────
 const inter = Inter({
@@ -61,7 +65,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${outfit.variable} antialiased`} suppressHydrationWarning>
-        {children}
+        <WebSocketProvider>
+          <FlyToCartProvider>
+            <FlyToCartOverlay />
+            <FloatingCartBar />
+            {children}
+          </FlyToCartProvider>
+        </WebSocketProvider>
       </body>
     </html>
   );

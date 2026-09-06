@@ -1,6 +1,8 @@
+import React, { useState } from "react";
 import Link from "next/link";
-import { MoreVertical, ChevronRight } from "lucide-react";
+import { MoreVertical, ChevronRight, Check, X, Loader2 } from "lucide-react";
 import dayjs from "dayjs";
+import apiClient from "@/lib/axios";
 
 interface Booking {
   id: string;
@@ -13,27 +15,49 @@ interface Booking {
     title: string;
     image_url: string;
   };
+  renter?: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    avatar_url?: string;
+  };
 }
 
 interface RecentRequestsProps {
   requests: Booking[];
+  onRequestUpdated?: () => void;
 }
 
-export function RecentRequestsWidget({ requests }: RecentRequestsProps) {
+export function RecentRequestsWidget({ requests, onRequestUpdated }: RecentRequestsProps) {
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "pending":
         return "bg-amber-50 text-amber-700 border-amber-200";
       case "approved":
+      case "confirmed":
+      case "active":
         return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "ongoing":
-        return "bg-blue-50 text-blue-700 border-blue-200";
       case "completed":
         return "bg-slate-100 text-slate-700 border-slate-200";
+      case "rejected":
       case "cancelled":
         return "bg-rose-50 text-rose-700 border-rose-200";
       default:
         return "bg-indigo-50 text-indigo-700 border-indigo-200";
+    }
+  };
+
+  const handleStatusUpdate = async (id: string, newStatus: string) => {
+    try {
+      setActionLoading(id);
+      await apiClient.put(`/bookings/${id}/status`, { status: newStatus });
+      if (onRequestUpdated) onRequestUpdated();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Failed to update booking status");
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -51,6 +75,7 @@ export function RecentRequestsWidget({ requests }: RecentRequestsProps) {
           View all <ChevronRight size={14} />
         </Link>
       </div>
+
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -60,55 +85,96 @@ export function RecentRequestsWidget({ requests }: RecentRequestsProps) {
               <th className="pb-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Duration</th>
               <th className="pb-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Amount</th>
               <th className="pb-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-              <th className="pb-3"></th>
+              <th className="pb-3 text-right text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Quick Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {requests.map((req) => (
-              <tr key={req.id} className="hover:bg-slate-50 transition-colors">
-                <td className="py-3 pr-4">
-                  <div className="flex items-center gap-3 min-w-[150px]">
-                    <div className="w-10 h-8 rounded-md overflow-hidden shrink-0 bg-slate-100">
-                      {req.product?.image_url && <img src={req.product.image_url} alt={req.product.title} className="w-full h-full object-cover" />}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-900 truncate max-w-[120px]">{req.product?.title || "Unknown"}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="py-3 pr-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-600">
-                      G
-                    </div>
-                    <p className="text-xs font-semibold text-slate-700">Guest Renter</p>
-                  </div>
-                </td>
-                <td className="py-3 pr-4">
-                  <p className="text-xs font-semibold text-slate-900 whitespace-nowrap">
-                    {dayjs(req.start_date).format("MMM D")} - {dayjs(req.end_date).format("MMM D, YYYY")}
-                  </p>
-                  <p className="text-[10px] text-slate-500">{req.total_days} Days</p>
-                </td>
-                <td className="py-3 pr-4 text-xs font-bold text-slate-900 whitespace-nowrap">৳ {req.total_amount.toLocaleString()}</td>
-                <td className="py-3 pr-4">
-                  <Link href="/owner/bookings" className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border capitalize whitespace-nowrap hover:opacity-80 transition-opacity ${getStatusColor(req.status)}`}>
-                    {req.status}
-                  </Link>
-                </td>
-                <td className="py-3 text-right min-w-[30px]">
-                  <Link href="/owner/bookings" className="text-slate-400 hover:text-indigo-600 p-1 block">
-                    <MoreVertical size={14} />
-                  </Link>
-                </td>
-              </tr>
-            ))}
-            {requests.length === 0 && (
+            {requests.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-8 text-center text-sm text-slate-500">
-                  No recent requests found.
+                <td colSpan={6} className="py-6 text-center text-xs text-slate-400">
+                  No rental requests found for your items yet.
                 </td>
               </tr>
+            ) : (
+              requests.map((req) => (
+                <tr key={req.id} className="hover:bg-slate-50/80 transition-colors">
+                  <td className="py-3 pr-4">
+                    <div className="flex items-center gap-3 min-w-[170px]">
+                      <div className="w-10 h-8 rounded-lg overflow-hidden shrink-0 bg-slate-100 border border-slate-200">
+                        {req.product?.image_url ? (
+                          <img src={req.product.image_url} alt={req.product.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-[9px] text-slate-400">Item</div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-900 truncate max-w-[140px]">{req.product?.title || "Item"}</p>
+                        <p className="text-[10px] font-mono text-slate-400">#{req.id.slice(0, 6)}</p>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td className="py-3 pr-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center text-[10px] font-bold text-indigo-700 shrink-0">
+                        {req.renter?.first_name ? req.renter.first_name.charAt(0) : "C"}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-800 truncate max-w-[110px]">
+                          {req.renter?.first_name ? `${req.renter.first_name} ${req.renter.last_name || ""}` : "Customer"}
+                        </p>
+                        <span className="text-[9px] text-emerald-600 font-semibold">NID Verified</span>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td className="py-3 pr-4">
+                    <p className="text-xs font-semibold text-slate-900 whitespace-nowrap">
+                      {dayjs(req.start_date).format("MMM D")} - {dayjs(req.end_date).format("MMM D, YYYY")}
+                    </p>
+                    <p className="text-[10px] text-slate-500">{req.total_days} Days Rental</p>
+                  </td>
+
+                  <td className="py-3 pr-4 text-xs font-bold text-slate-900 whitespace-nowrap">
+                    ৳ {Number(req.total_amount).toLocaleString()}
+                  </td>
+
+                  <td className="py-3 pr-4">
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border capitalize whitespace-nowrap ${getStatusColor(req.status)}`}>
+                      {req.status}
+                    </span>
+                  </td>
+
+                  <td className="py-3 text-right whitespace-nowrap">
+                    {req.status.toLowerCase() === "pending" ? (
+                      <div className="inline-flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleStatusUpdate(req.id, "approved")}
+                          disabled={actionLoading === req.id}
+                          className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                        >
+                          {actionLoading === req.id ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+                          <span>Approve</span>
+                        </button>
+                        <button
+                          onClick={() => handleStatusUpdate(req.id, "rejected")}
+                          disabled={actionLoading === req.id}
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-lg text-[11px] font-bold transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    ) : (
+                      <Link
+                        href="/owner/bookings"
+                        className="text-xs font-semibold text-indigo-600 hover:underline inline-flex items-center gap-0.5"
+                      >
+                        Details <ChevronRight size={13} />
+                      </Link>
+                    )}
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>
