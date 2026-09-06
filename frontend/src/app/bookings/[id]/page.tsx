@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
 import {
   ArrowLeft, Calendar, MapPin, Star, ShieldCheck, CheckCircle2, Check,
@@ -12,34 +12,37 @@ import {
 import dayjs from "dayjs";
 
 import { PaymentModal } from "@/components/common/PaymentModal";
+import ChatWidget from "@/features/bookings/components/ChatWidget";
+import { useAuthStore } from "@/features/auth/authStore";
+import apiClient from "@/lib/axios";
 
-type TabType = "details" | "owner" | "payment" | "timeline";
+type TabType = "details" | "owner" | "payment" | "timeline" | "chat";
 
-export default function BookingDetailPage({ params }: { params: Promise<{ id: string }> }) {
+function BookingDetailPageContent({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab") as TabType | null;
+  const { user } = useAuthStore();
   
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>("details");
+  const [activeTab, setActiveTab] = useState<TabType>(tabParam || "details");
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [paidTrxId, setPaidTrxId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`http://localhost:8000/api/v1/bookings`)
-      .then((res) => res.json())
-      .then((data) => {
-        const list = Array.isArray(data) ? data : [];
-        const found = list.find((b: any) => b.id === resolvedParams.id || b.notes === resolvedParams.id);
-        if (found) {
-          setBooking(found);
-        } else if (list.length > 0) {
-          // Fallback to first booking for demo if ID param differs
-          setBooking(list[0]);
-        }
+    if (!resolvedParams.id) return;
+    apiClient
+      .get(`/bookings/${resolvedParams.id}`)
+      .then((res) => {
+        setBooking(res.data);
       })
-      .catch((err) => console.error(err))
+      .catch((err) => {
+        console.error("Error fetching booking details:", err);
+        setBooking(null);
+      })
       .finally(() => setLoading(false));
   }, [resolvedParams.id]);
 
@@ -69,7 +72,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
 
   const prod = booking.product || {};
   const renter = booking.renter || {};
-  const owner = booking.owner || {};
+  const owner = prod.owner || booking.owner || {};
+  
+  const isOwnerView = user?.id === prod.owner_id || user?.id === owner.id;
 
   const galleryImages = [
     prod.image_url || "https://images.unsplash.com/photo-1590362891991-f776e747a588?auto=format&fit=crop&w=1000&q=80",
@@ -87,9 +92,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const taxVat = 225;
   const totalAmount = subtotal + serviceFee + taxVat;
 
-  const isPending = booking.status.toLowerCase() === "pending";
-  const isActive = booking.status.toLowerCase() === "approved" || booking.status.toLowerCase() === "active";
-  const isCompleted = booking.status.toLowerCase() === "completed";
+  const isPending = booking.status?.toLowerCase() === "pending";
+  const isActive = booking.status?.toLowerCase() === "approved" || booking.status?.toLowerCase() === "active";
+  const isCompleted = booking.status?.toLowerCase() === "completed";
 
   return (
     <AppShell>
@@ -247,9 +252,10 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               <div className="flex items-center gap-6 border-b border-slate-200 px-2 text-xs font-bold text-slate-500">
                 {[
                   { key: "details", label: "Item Details" },
-                  { key: "owner", label: "Owner Details" },
+                  { key: "owner", label: isOwnerView ? "Customer Information" : "Owner Details" },
                   { key: "payment", label: "Payment Details" },
                   { key: "timeline", label: "Activity Timeline" },
+                  { key: "chat", label: "Live Chat" },
                 ].map((t) => (
                   <button
                     key={t.key}
@@ -378,48 +384,103 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                     </div>
                   </div>
 
-                  {/* Owner Details Card */}
-                  <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
-                    <h3 className="font-extrabold text-slate-900 text-sm border-b border-slate-100 pb-3">Owner Details</h3>
-
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-bold text-base flex items-center justify-center shadow-md">
-                          RH
+                  {isOwnerView ? (
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-5">
+                      <h3 className="font-extrabold text-slate-900 text-[13px] uppercase tracking-wider mb-2">Customer Information</h3>
+                      <div className="flex items-start gap-4">
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-bold text-2xl flex items-center justify-center shadow-sm shrink-0 overflow-hidden">
+                          {renter.avatar_url ? (
+                            <img src={renter.avatar_url} alt="renter avatar" className="w-full h-full object-cover" />
+                          ) : (
+                            renter.first_name?.[0] || "G"
+                          )}
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-extrabold text-slate-900 text-base">Rashed Hasan</h4>
-                            <span className="bg-indigo-100 text-indigo-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
-                              Super Owner
-                            </span>
+                          <h4 className="font-extrabold text-slate-900 text-lg leading-tight">{renter.first_name || "Gary"} {renter.last_name || "Brown"}</h4>
+                          <div className="flex items-center gap-1.5 text-sm text-slate-500 mt-0.5">
+                            <Star size={14} className="fill-amber-400 text-amber-500" />
+                            <span className="font-bold text-amber-500">4.8</span>
+                            <span>(32 reviews)</span>
                           </div>
-                          <p className="text-xs text-slate-400 mt-0.5">Member since January 2022</p>
-                          <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 font-medium">
-                            <span className="text-amber-500 font-bold flex items-center gap-0.5">
-                              <Star size={12} className="fill-amber-400" /> 4.8 <span className="text-slate-400 font-normal">(128 reviews)</span>
-                            </span>
-                            <span>· Typically replies within 1 hour</span>
-                          </div>
+                          <p className="text-sm text-slate-400 mt-0.5">Member since May 2023</p>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4 text-center border-t sm:border-t-0 sm:border-l border-slate-100 pt-3 sm:pt-0 sm:pl-6 text-xs">
-                        <div>
-                          <span className="text-slate-400 text-[10px] block">Response Rate</span>
-                          <strong className="text-slate-900 font-extrabold text-sm">98%</strong>
+                      <div className="space-y-3 pt-2 text-slate-600 text-sm">
+                        <div className="flex items-center gap-3">
+                          <Phone size={18} className="text-slate-400" />
+                          <span>{renter.phone || "+880 1XXX-XXXXXX"}</span>
                         </div>
-                        <div>
-                          <span className="text-slate-400 text-[10px] block">Total Listings</span>
-                          <strong className="text-slate-900 font-extrabold text-sm">24</strong>
+                        <div className="flex items-center gap-3">
+                          <Mail size={18} className="text-slate-400" />
+                          <span>{renter.email || "fahimahmed@email.com"}</span>
                         </div>
-                        <div>
-                          <span className="text-slate-400 text-[10px] block">Total Bookings</span>
-                          <strong className="text-slate-900 font-extrabold text-sm">186</strong>
+                      </div>
+
+                      <button 
+                        onClick={() => setActiveTab("chat")}
+                        className="w-full mt-4 py-3 border border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-bold text-sm rounded-xl transition-colors flex items-center justify-center gap-2"
+                      >
+                        <MessageCircle size={18} /> Chat with Customer
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+                      <h3 className="font-extrabold text-slate-900 text-sm border-b border-slate-100 pb-3">Owner Details</h3>
+  
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-bold text-base flex items-center justify-center shadow-md overflow-hidden">
+                            {owner.avatar_url ? (
+                              <img src={owner.avatar_url} alt="owner avatar" className="w-full h-full object-cover" />
+                            ) : (
+                              <>{owner.first_name?.[0] || "R"}{owner.last_name?.[0] || "H"}</>
+                            )}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-extrabold text-slate-900 text-base">{owner.first_name || "Verified"} {owner.last_name || "Owner"}</h4>
+                              <span className="bg-indigo-100 text-indigo-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                                Super Owner
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-0.5">Member since January 2022</p>
+                            <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 font-medium">
+                              <span className="text-amber-500 font-bold flex items-center gap-0.5">
+                                <Star size={12} className="fill-amber-400" /> 4.8 <span className="text-slate-400 font-normal">(128 reviews)</span>
+                              </span>
+                              <span>· Typically replies within 1 hour</span>
+                            </div>
+                          </div>
                         </div>
+  
+                        <div className="grid grid-cols-3 gap-4 text-center border-t sm:border-t-0 sm:border-l border-slate-100 pt-3 sm:pt-0 sm:pl-6 text-xs">
+                          <div>
+                            <span className="text-slate-400 text-[10px] block">Response Rate</span>
+                            <strong className="text-slate-900 font-extrabold text-sm">98%</strong>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 text-[10px] block">Total Listings</span>
+                            <strong className="text-slate-900 font-extrabold text-sm">24</strong>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 text-[10px] block">Total Bookings</span>
+                            <strong className="text-slate-900 font-extrabold text-sm">186</strong>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Chat Action */}
+                      <div className="pt-4 border-t border-slate-100 flex justify-end">
+                        <button 
+                          onClick={() => setActiveTab("chat")}
+                          className="w-full sm:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2"
+                        >
+                          <MessageCircle size={15} /> Chat with Owner
+                        </button>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                 </div>
               )}
@@ -461,6 +522,12 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                       <Download size={15} /> Download Official Printable Invoice
                     </Link>
                   </div>
+                </div>
+              )}
+
+              {activeTab === "chat" && (
+                <div className="bg-white rounded-2xl p-2 border border-slate-200/80 shadow-sm">
+                  <ChatWidget bookingId={booking.id} otherUser={isOwnerView ? renter : owner} />
                 </div>
               )}
 
@@ -517,28 +584,65 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-3">
                 <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider mb-1">Actions</h3>
 
-                <button
-                  onClick={() => setIsPaymentOpen(true)}
-                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-200 transition-all flex items-center justify-center gap-2"
-                >
-                  <ShieldCheck size={16} /> Pay Now (Escrow Secured)
-                </button>
+                {!isOwnerView ? (
+                  <>
+                    <button
+                      onClick={() => setIsPaymentOpen(true)}
+                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-200 transition-all flex items-center justify-center gap-2"
+                    >
+                      <ShieldCheck size={16} /> Pay Now (Escrow Secured)
+                    </button>
 
-                <button className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-200 transition-all flex items-center justify-center gap-2">
-                  <MessageCircle size={15} /> Contact Owner
-                </button>
+                    <button
+                      onClick={() => setActiveTab("chat")}
+                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-200 transition-all flex items-center justify-center gap-2"
+                    >
+                      <MessageCircle size={15} /> Contact Owner
+                    </button>
+                    
+                    <button className="w-full py-2.5 border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-xl transition-colors">
+                      Request Cancellation
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {isPending && (
+                      <div className="flex items-center gap-2">
+                        <button className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-200 transition-all">
+                          Approve
+                        </button>
+                        <button className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md shadow-rose-200 transition-all">
+                          Decline
+                        </button>
+                      </div>
+                    )}
+                    
+                    {isActive && (
+                      <button className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-200 transition-all flex items-center justify-center gap-2">
+                        <CheckCircle2 size={16} /> Mark as Delivered
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => setActiveTab("chat")}
+                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-200 transition-all flex items-center justify-center gap-2"
+                    >
+                      <MessageCircle size={15} /> Contact Customer
+                    </button>
+                    
+                    <button className="w-full py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs rounded-xl transition-colors">
+                      Cancel Booking
+                    </button>
+                  </>
+                )}
 
                 <Link
                   href={`/payments/invoice/${booking.id}`}
                   target="_blank"
-                  className="w-full py-2.5 border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5"
+                  className="w-full py-2.5 border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 mt-2"
                 >
                   <Download size={14} /> Download Printable Invoice
                 </Link>
-
-                <button className="w-full py-2.5 border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-xl transition-colors">
-                  Request Cancellation
-                </button>
               </div>
 
               {/* Need Help Banner (Matches Reference Image) */}
@@ -583,5 +687,20 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
 
       </div>
     </AppShell>
+  );
+}
+
+export default function BookingDetailPage(props: { params: Promise<{ id: string }> }) {
+  return (
+    <Suspense fallback={
+      <AppShell>
+        <div className="p-12 text-center text-slate-500 font-sans min-h-screen bg-[#F8FAFC]">
+          <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          Loading booking details...
+        </div>
+      </AppShell>
+    }>
+      <BookingDetailPageContent {...props} />
+    </Suspense>
   );
 }

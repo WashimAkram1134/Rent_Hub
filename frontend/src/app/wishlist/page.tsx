@@ -1,15 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
 import { Heart, Trash2, ArrowLeft, Filter, Search, ShoppingBag, MapPin, Star } from "lucide-react";
 import { useWishlistStore } from "@/store/wishlistStore";
+import { useAuthStore } from "@/features/auth/authStore";
 
 export default function WishlistPage() {
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
   const { items, toggleWishlist, clearWishlist } = useWishlistStore();
   const [selectedCat, setSelectedCat] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace(`/login?returnUrl=${encodeURIComponent("/wishlist")}`);
+    }
+  }, [isAuthenticated, router]);
 
   const categories = ["all", "Vehicles", "Cameras", "Electronics", "Apartments", "Furniture", "Sports"];
 

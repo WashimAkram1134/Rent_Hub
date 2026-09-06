@@ -47,10 +47,20 @@ class Review(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     
     rating: Mapped[float] = mapped_column(Numeric(3, 2), nullable=False)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
-    type: Mapped[str] = mapped_column(String(20), nullable=False)
+    type: Mapped[str] = mapped_column(String(20), nullable=False)  # "product", "owner", "customer"
+    status: Mapped[str] = mapped_column(String(20), default="published", nullable=False)  # "published", "reported", "hidden"
+    reported_by: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    report_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    action_taken: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    action_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    booking: Mapped["Booking"] = relationship("Booking")
+    reviewer: Mapped["User"] = relationship("User", foreign_keys=[reviewer_id])  # type: ignore
+    reviewee: Mapped["User"] = relationship("User", foreign_keys=[reviewee_id])  # type: ignore
+    product: Mapped["Product"] = relationship("Product")  # type: ignore
 
     def __repr__(self) -> str:
-        return f"<Review {self.rating} by {self.reviewer_id}>"
+        return f"<Review {self.rating} by {self.reviewer_id} status={self.status}>"
 
 
 class Dispute(Base, UUIDPrimaryKeyMixin, TimestampMixin):

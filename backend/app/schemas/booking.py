@@ -13,6 +13,15 @@ class ProductSimple(BaseModel):
     class Config:
         from_attributes = True
 
+class UserSimple(BaseModel):
+    id: UUID
+    first_name: str
+    last_name: str
+    avatar_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
 class BookingCreate(BaseModel):
     product_id: UUID
     start_date: date
@@ -43,6 +52,8 @@ class BookingOut(BaseModel):
 
     # Joined relations for easy UI display
     product: Optional[ProductSimple] = None
+    renter: Optional[UserSimple] = None
+    owner: Optional[UserSimple] = None
 
     class Config:
         from_attributes = True

@@ -24,47 +24,70 @@ function getCategoryIcon(catName: string = "") {
   return <Package size={14} className="text-indigo-600" />;
 }
 
-export default function BookingRequestsPage() {
+import { useSearchParams, useRouter } from "next/navigation";
+import { useAuthStore } from "@/features/auth/authStore";
+import apiClient from "@/lib/axios";
+
+function BookingRequestsPageContent() {
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
+  const searchParams = useSearchParams();
+  const initialStatus = searchParams.get("status");
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace(`/login?returnUrl=${encodeURIComponent("/owner/bookings")}`);
+    }
+  }, [isAuthenticated, router]);
+
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<FilterTab>("all");
+  const [activeTab, setActiveTab] = useState<FilterTab>(
+    initialStatus === "approved"
+      ? "approved"
+      : initialStatus === "pending"
+      ? "pending"
+      : initialStatus === "completed"
+      ? "approved"
+      : "all"
+  );
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const fetchBookings = () => {
-    setLoading(true);
-    fetch("http://localhost:8000/api/v1/bookings")
-      .then((res) => res.json())
-      .then((data) => {
-        const list = Array.isArray(data) ? data : [];
-        setBookings(list);
-        if (list.length > 0 && !selectedBooking) {
-          setSelectedBooking(list[0]);
-        }
-      })
-      .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
+  const fetchBookings = async () => {
+    try {
+      setLoading(true);
+      const res = await apiClient.get("/bookings", {
+        params: {
+          owner_id: user?.id,
+          limit: 100,
+        },
+      });
+      const list = Array.isArray(res.data) ? res.data : [];
+      setBookings(list);
+      if (list.length > 0) {
+        setSelectedBooking(list[0]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch owner bookings:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchBookings();
-  }, []);
+  }, [user?.id]);
 
   const handleUpdateStatus = async (id: string, status: string) => {
     setActionLoading(id);
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/bookings/${id}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      if (res.ok) {
-        setBookings((prev) =>
-          prev.map((b) => (b.id === id ? { ...b, status } : b))
-        );
-        if (selectedBooking?.id === id) {
-          setSelectedBooking((prev: any) => (prev ? { ...prev, status } : null));
-        }
+      await apiClient.put(`/bookings/${id}/status`, { status });
+      setBookings((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, status } : b))
+      );
+      if (selectedBooking?.id === id) {
+        setSelectedBooking((prev: any) => (prev ? { ...prev, status } : null));
       }
     } catch (e) {
       console.error(e);
@@ -429,5 +452,24 @@ export default function BookingRequestsPage() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+import { Suspense } from "react";
+
+export default function BookingRequestsPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell>
+          <div className="p-12 text-center text-slate-500 font-sans min-h-screen bg-[#F8FAFC]">
+            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            Loading booking requests...
+          </div>
+        </AppShell>
+      }
+    >
+      <BookingRequestsPageContent />
+    </Suspense>
   );
 }

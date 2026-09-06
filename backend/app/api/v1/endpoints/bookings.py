@@ -10,8 +10,11 @@ from app.database.session import get_db
 from app.models.booking import Booking
 from app.models.product import Product, ProductImage
 from app.models.user import User
-from app.schemas.booking import BookingOut, BookingCreate, BookingStatusUpdate, ProductSimple
+from app.models.identity_verification import VerificationStatus
+from app.schemas.booking import BookingOut, BookingCreate, BookingStatusUpdate, ProductSimple, UserSimple
 from app.auth.dependencies import get_current_user_optional
+from app.core.exceptions import IdentityVerificationRequiredException
+from app.services.identity_verification.policy import IdentityVerificationPolicyService
 
 router = APIRouter()
 
@@ -21,20 +24,38 @@ async def get_bookings(
     status_filter: str = Query(None, alias="status"),
     renter_id: str = Query(None),
     owner_id: str = Query(None),
+    product_id: str = Query(None),
     limit: int = Query(20, le=100),
+    current_user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    stmt = select(Booking).options(selectinload(Booking.product).selectinload(Product.images))
+    if not current_user and not renter_id and not owner_id and not product_id:
+        return []
+
+    stmt = select(Booking).options(
+        selectinload(Booking.product).selectinload(Product.images),
+        selectinload(Booking.renter),
+        selectinload(Booking.owner)
+    )
+    
+    if product_id:
+        try:
+            stmt = stmt.where(Booking.product_id == UUID(product_id))
+        except Exception:
+            stmt = stmt.where(Booking.product_id == product_id)
+    elif renter_id:
+        stmt = stmt.where(Booking.renter_id == UUID(renter_id))
+    elif owner_id:
+        stmt = stmt.where(Booking.owner_id == UUID(owner_id))
+    elif current_user:
+        # If user is not admin, only show bookings where they are the renter or owner
+        if current_user.primary_role != "admin":
+            stmt = stmt.where((Booking.renter_id == current_user.id) | (Booking.owner_id == current_user.id))
     
     if upcoming:
-        stmt = stmt.where(Booking.status.in_(["approved", "pending"]))
+        stmt = stmt.where(Booking.status.in_(["approved", "pending", "active"]))
     elif status_filter:
         stmt = stmt.where(Booking.status == status_filter.lower())
-        
-    if renter_id:
-        stmt = stmt.where(Booking.renter_id == UUID(renter_id))
-    if owner_id:
-        stmt = stmt.where(Booking.owner_id == UUID(owner_id))
         
     stmt = stmt.order_by(Booking.created_at.desc()).limit(limit)
     
@@ -59,6 +80,9 @@ async def get_bookings(
                 city=b.product.city
             )
             
+        r_user = b.renter
+        o_user = b.owner
+            
         out.append(BookingOut(
             id=b.id,
             product_id=b.product_id,
@@ -75,10 +99,78 @@ async def get_bookings(
             status=b.status,
             delivery_option=b.delivery_option,
             notes=b.notes,
-            product=prod_simple
+            product=prod_simple,
+            renter=UserSimple(id=r_user.id, first_name=r_user.first_name, last_name=r_user.last_name, avatar_url=r_user.avatar_url) if r_user else None,
+            owner=UserSimple(id=o_user.id, first_name=o_user.first_name, last_name=o_user.last_name, avatar_url=o_user.avatar_url) if o_user else None
         ))
         
     return out
+
+
+@router.get("/{booking_id}", response_model=BookingOut)
+async def get_booking_by_id(
+    booking_id: UUID,
+    current_user: User | None = Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db)
+):
+    stmt = (
+        select(Booking)
+        .options(
+            selectinload(Booking.product).selectinload(Product.images),
+            selectinload(Booking.renter),
+            selectinload(Booking.owner)
+        )
+        .where(Booking.id == booking_id)
+    )
+    res = await db.execute(stmt)
+    b = res.scalars().first()
+    if not b:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    if current_user and current_user.primary_role != "admin":
+        if b.renter_id != current_user.id and b.owner_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this booking")
+
+    img_url = None
+    if b.product and getattr(b.product, "images", None):
+        img_url = next((img.url for img in b.product.images if getattr(img, "is_primary", False)), None)
+        if not img_url and len(b.product.images) > 0:
+            img_url = b.product.images[0].url
+
+    prod_simple = None
+    if b.product:
+        prod_simple = ProductSimple(
+            id=b.product.id,
+            title=b.product.title,
+            image_url=img_url,
+            price_per_day=b.product.price_per_day,
+            city=b.product.city
+        )
+
+    r_user = b.renter
+    o_user = b.owner
+
+    return BookingOut(
+        id=b.id,
+        product_id=b.product_id,
+        renter_id=b.renter_id,
+        owner_id=b.owner_id,
+        start_date=b.start_date,
+        end_date=b.end_date,
+        total_days=int(b.total_days or 1),
+        daily_rate=float(b.daily_rate or 0),
+        subtotal=float(b.subtotal or 0),
+        security_deposit=float(b.security_deposit or 0),
+        delivery_fee=float(b.delivery_fee or 0),
+        total_amount=float(b.total_amount or 0),
+        status=b.status,
+        delivery_option=b.delivery_option,
+        notes=b.notes,
+        product=prod_simple,
+        renter=UserSimple(id=r_user.id, first_name=r_user.first_name, last_name=r_user.last_name, avatar_url=r_user.avatar_url) if r_user else None,
+        owner=UserSimple(id=o_user.id, first_name=o_user.first_name, last_name=o_user.last_name, avatar_url=o_user.avatar_url) if o_user else None
+    )
+
 
 
 @router.post("", response_model=BookingOut, status_code=status.HTTP_201_CREATED)
@@ -94,6 +186,14 @@ async def create_booking(
     
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+
+    # ── Identity Verification Gate ─────────────────────────────────────────
+    # Only enforce for authenticated users (unauthenticated = dev/testing bypass)
+    if current_user:
+        policy = IdentityVerificationPolicyService()
+        if policy.requires_verification_for_booking(current_user, product):
+            if current_user.identity_verification_status != VerificationStatus.VERIFIED.value:
+                raise IdentityVerificationRequiredException()
         
     # Calculate days & pricing
     total_days = max(1, (payload.end_date - payload.start_date).days)
@@ -222,6 +322,7 @@ async def create_multi_booking(
                     notes="Multi-item cart booking request"
                 )
                 db.add(b)
+                await db.flush()
                 processed.append(str(b.id))
         except Exception as e:
             print("Multi-booking item process note:", e)
@@ -234,3 +335,19 @@ async def create_multi_booking(
         "booking_ids": processed
     }
 
+
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_booking(
+    id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(__import__('app.auth.dependencies', fromlist=['require_role']).require_role("admin"))
+):
+    stmt = select(Booking).where(Booking.id == id)
+    res = await db.execute(stmt)
+    booking = res.scalars().first()
+    
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+        
+    await db.delete(booking)
+    await db.commit()

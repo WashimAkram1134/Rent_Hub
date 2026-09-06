@@ -22,58 +22,11 @@ interface WishlistState {
   clearWishlist: () => void;
 }
 
-const DEFAULT_WISHLIST: WishlistItem[] = [
-  {
-    id: "wish-1",
-    title: "Canon EOS R6 Camera",
-    category: "Cameras",
-    price: 2000,
-    price_per_day: 2000,
-    rating: 4.9,
-    review_count: 32,
-    image_url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=500&q=80",
-    location: "Banani, Dhaka",
-  },
-  {
-    id: "wish-2",
-    title: "MacBook Pro M3 16\"",
-    category: "Electronics",
-    price: 2000,
-    price_per_day: 2000,
-    rating: 4.8,
-    review_count: 28,
-    image_url: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=500&q=80",
-    location: "Mirpur, Dhaka",
-  },
-  {
-    id: "wish-3",
-    title: "Sony FX3 Cinema Line",
-    category: "Cameras",
-    price: 3500,
-    price_per_day: 3500,
-    rating: 5.0,
-    review_count: 14,
-    image_url: "https://images.unsplash.com/photo-1581591524425-c7e0978865fc?auto=format&fit=crop&w=500&q=80",
-    location: "Gulshan, Dhaka",
-  },
-  {
-    id: "wish-4",
-    title: "Ergonomic Office Chair",
-    category: "Furniture",
-    price: 800,
-    price_per_day: 800,
-    rating: 4.7,
-    review_count: 19,
-    image_url: "https://images.unsplash.com/photo-1580481072645-022f9a6d83d0?auto=format&fit=crop&w=500&q=80",
-    location: "Dhanmondi, Dhaka",
-  },
-];
-
 export const useWishlistStore = create<WishlistState>()(
   persist(
     (set, get) => ({
-      items: DEFAULT_WISHLIST,
-      wishlistIds: DEFAULT_WISHLIST.map((i) => i.id),
+      items: [],
+      wishlistIds: [],
       toggleWishlist: (item) => {
         const { items } = get();
         const exists = items.some((i) => i.id === item.id);

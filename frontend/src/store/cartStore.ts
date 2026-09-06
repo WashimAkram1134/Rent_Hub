@@ -13,6 +13,7 @@ export interface CartItem {
   start_date?: string;
   end_date?: string;
   delivery_option?: string;
+  slug?: string;
 }
 
 interface CartState {
@@ -24,49 +25,20 @@ interface CartState {
   isInCart: (id: string) => boolean;
 }
 
-const DEFAULT_CART: CartItem[] = [
-  {
-    id: "cart-1",
-    title: "Toyota Axio 2020 (Sedan)",
-    category: "Vehicle",
-    price_per_day: 2500,
-    security_deposit: 5000,
-    image_url: "https://images.unsplash.com/photo-1590362891991-f776e747a588?auto=format&fit=crop&w=500&q=80",
-    owner_id: "owner-1",
-    owner_name: "Rashed Hasan",
-    start_date: "2025-05-25",
-    end_date: "2025-05-28",
-    delivery_option: "Pickup",
-  },
-  {
-    id: "cart-2",
-    title: "Sony FX3 Cinema Camera Kit",
-    category: "Camera",
-    price_per_day: 3500,
-    security_deposit: 3000,
-    image_url: "https://images.unsplash.com/photo-1581591524425-c7e0978865fc?auto=format&fit=crop&w=500&q=80",
-    owner_id: "owner-2",
-    owner_name: "Sabbir Hossain",
-    start_date: "2025-05-25",
-    end_date: "2025-05-28",
-    delivery_option: "Delivery",
-  },
-];
-
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
-      items: DEFAULT_CART,
+      items: [],
       addItem: (item) => {
         const { items } = get();
         const exists = items.some((i) => i.id === item.id);
         if (!exists) {
           const newItem: CartItem = {
             ...item,
-            start_date: item.start_date || "2025-05-25",
-            end_date: item.end_date || "2025-05-28",
+            start_date: item.start_date || new Date().toISOString().split("T")[0],
+            end_date: item.end_date || new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
             delivery_option: item.delivery_option || "Pickup",
-            owner_name: item.owner_name || "Rashed Hasan",
+            owner_name: item.owner_name || "Host",
           };
           set({ items: [newItem, ...items] });
         }

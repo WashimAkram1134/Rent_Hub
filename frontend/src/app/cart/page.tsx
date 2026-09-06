@@ -6,17 +6,20 @@ import { useRouter } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
 import {
   ShoppingCart, Trash2, Calendar, ShieldCheck, ArrowRight, CheckCircle2,
-  AlertCircle, MapPin, Building, ChevronRight, User, Loader2
+  AlertCircle, MapPin, Building, ChevronRight, User, Loader2, MessageCircle
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
+import { useAuthStore } from "@/features/auth/authStore";
 import apiClient from "@/lib/axios";
 
 export default function RentalCartPage() {
   const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
   const { items, removeItem, updateDates, clearCart } = useCartStore();
   
   const [submitting, setSubmitting] = useState(false);
   const [successResponse, setSuccessResponse] = useState<any>(null);
+  const [chatWarningOwner, setChatWarningOwner] = useState<string | null>(null);
 
   // Calculate pricing breakdown
   const subtotal = items.reduce((acc, item) => acc + (item.price_per_day * 3), 0);
@@ -34,6 +37,10 @@ export default function RentalCartPage() {
 
   const handleSendAllRequests = async () => {
     if (items.length === 0) return;
+    if (!isAuthenticated || !user) {
+      router.push(`/login?returnUrl=${encodeURIComponent("/cart")}`);
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -145,20 +152,41 @@ export default function RentalCartPage() {
                   <div key={groupIdx} className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
                     
                     {/* Owner Group Header */}
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-extrabold text-xs flex items-center justify-center">
+                        <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-extrabold text-xs flex items-center justify-center shrink-0">
                           <User size={14} />
                         </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Item Owner</span>
-                          <h3 className="font-extrabold text-slate-900 text-sm">{ownerName}</h3>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                          <div>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Item Owner</span>
+                            <h3 className="font-extrabold text-slate-900 text-sm">{ownerName}</h3>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              if (!isAuthenticated || !user) {
+                                router.push(`/login?returnUrl=${encodeURIComponent("/cart")}`);
+                                return;
+                              }
+                              setChatWarningOwner(ownerName);
+                            }}
+                            className="text-[10px] bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 font-bold px-2 py-1 rounded-md flex items-center gap-1 transition-colors w-fit sm:mt-3"
+                          >
+                            <MessageCircle size={12} /> Chat
+                          </button>
                         </div>
                       </div>
-                      <span className="text-xs bg-slate-100 text-slate-600 font-bold px-2.5 py-0.5 rounded-full">
+                      <span className="text-xs bg-slate-100 text-slate-600 font-bold px-2.5 py-0.5 rounded-full shrink-0 w-fit">
                         {ownerItems.length} {ownerItems.length === 1 ? "Request" : "Requests"}
                       </span>
                     </div>
+
+                    {chatWarningOwner === ownerName && (
+                      <div className="text-[11px] text-amber-600 bg-amber-50 p-2.5 rounded-xl border border-amber-100 flex items-start gap-1.5 animate-in fade-in">
+                        <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                        Please send your booking requests first to initiate a chat with this owner.
+                      </div>
+                    )}
 
                     {/* Items List */}
                     <div className="space-y-4">
@@ -168,16 +196,18 @@ export default function RentalCartPage() {
                           className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors"
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-200 shrink-0 border border-slate-200/60">
+                            <Link href={`/products/${item.slug || item.id}`} className="w-16 h-16 rounded-xl overflow-hidden bg-slate-200 shrink-0 border border-slate-200/60 block hover:opacity-80 transition-opacity">
                               <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
-                            </div>
+                            </Link>
                             <div className="space-y-1 min-w-0">
                               <span className="text-[9px] font-extrabold text-indigo-600 uppercase bg-indigo-50 px-2 py-0.5 rounded-md inline-block">
                                 {item.category || "General"}
                               </span>
-                              <h4 className="font-extrabold text-slate-900 text-sm truncate max-w-[220px]">
-                                {item.title}
-                              </h4>
+                              <Link href={`/products/${item.slug || item.id}`} className="block">
+                                <h4 className="font-extrabold text-slate-900 text-sm truncate max-w-[220px] hover:text-indigo-600 transition-colors">
+                                  {item.title}
+                                </h4>
+                              </Link>
                               <p className="text-xs text-slate-500 font-medium">
                                 ৳ {item.price_per_day.toLocaleString()} <span className="text-[10px] text-slate-400">/ day</span>
                               </p>

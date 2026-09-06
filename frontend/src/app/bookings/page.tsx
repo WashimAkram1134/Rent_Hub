@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
+import { useAuthStore } from "@/features/auth/authStore";
 import {
   Calendar, MapPin, Clock, Star, CheckCircle2, XCircle, RefreshCw,
   ChevronDown, Phone, Mail, User, MessageCircle, MoreVertical,
@@ -10,6 +12,7 @@ import {
   Heart, Download, Truck, RotateCcw, AlertCircle, HelpCircle, FileText, ChevronLeft
 } from "lucide-react";
 import dayjs from "dayjs";
+import apiClient from "@/lib/axios";
 
 type TabStatus = "upcoming" | "active" | "completed" | "cancelled";
 
@@ -67,45 +70,55 @@ function getStatusBadge(status: string) {
 }
 
 export default function CustomerBookingsPage() {
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabStatus>("active");
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
-  const fetchBookings = () => {
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace(`/login?returnUrl=${encodeURIComponent("/bookings")}`);
+    }
+  }, [isAuthenticated, router]);
+
+  const fetchBookings = async () => {
+    if (!user) return;
     setLoading(true);
-    fetch("http://localhost:8000/api/v1/bookings")
-      .then((res) => res.json())
-      .then((data) => {
-        setBookings(Array.isArray(data) ? data : []);
-      })
-      .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
+    try {
+      const res = await apiClient.get("/bookings");
+      setBookings(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Failed to fetch user bookings:", err);
+      setBookings([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchBookings();
-  }, []);
+    if (user) {
+      fetchBookings();
+    }
+  }, [user]);
 
   const handleCancelRequest = async (id: string) => {
     if (!confirm("Are you sure you want to cancel this booking request?")) return;
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/bookings/${id}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "cancelled", notes: "Cancelled by customer" }),
+      await apiClient.put(`/bookings/${id}/status`, {
+        status: "cancelled",
+        notes: "Cancelled by customer",
       });
-      if (res.ok) {
-        fetchBookings();
-      }
+      fetchBookings();
     } catch (e) {
-      console.error(e);
+      console.error("Failed to cancel booking:", e);
     }
   };
 
   // Filter bookings based on activeTab
   const filteredBookings = bookings.filter((b) => {
-    const s = b.status.toLowerCase();
+    const s = b.status?.toLowerCase();
     if (activeTab === "upcoming") return s === "pending" || s === "upcoming";
     if (activeTab === "active") return s === "approved" || s === "active";
     if (activeTab === "completed") return s === "completed";
@@ -113,13 +126,13 @@ export default function CustomerBookingsPage() {
     return true;
   });
 
-  const upcomingCount = bookings.filter((b) => b.status.toLowerCase() === "pending" || b.status.toLowerCase() === "upcoming").length;
-  const activeCount = bookings.filter((b) => b.status.toLowerCase() === "approved" || b.status.toLowerCase() === "active").length;
-  const completedCount = bookings.filter((b) => b.status.toLowerCase() === "completed").length;
-  const cancelledCount = bookings.filter((b) => b.status.toLowerCase() === "cancelled" || b.status.toLowerCase() === "rejected").length;
+  const upcomingCount = bookings.filter((b) => b.status?.toLowerCase() === "pending" || b.status?.toLowerCase() === "upcoming").length;
+  const activeCount = bookings.filter((b) => b.status?.toLowerCase() === "approved" || b.status?.toLowerCase() === "active").length;
+  const completedCount = bookings.filter((b) => b.status?.toLowerCase() === "completed").length;
+  const cancelledCount = bookings.filter((b) => b.status?.toLowerCase() === "cancelled" || b.status?.toLowerCase() === "rejected").length;
 
   const totalSpent = bookings
-    .filter((b) => b.status.toLowerCase() === "approved" || b.status.toLowerCase() === "completed" || b.status.toLowerCase() === "active")
+    .filter((b) => b.status?.toLowerCase() === "approved" || b.status?.toLowerCase() === "completed" || b.status?.toLowerCase() === "active")
     .reduce((acc, b) => acc + (b.total_amount || 0), 0);
 
   // Recommendations carousel items
@@ -180,10 +193,10 @@ export default function CustomerBookingsPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2 rounded-2xl border border-slate-200/80 shadow-sm">
               <div className="flex items-center gap-1 overflow-x-auto">
                 {[
-                  { key: "upcoming", label: "Upcoming", count: upcomingCount || 4 },
-                  { key: "active", label: "Active", count: activeCount || 2 },
-                  { key: "completed", label: "Completed", count: completedCount || 7 },
-                  { key: "cancelled", label: "Cancelled", count: cancelledCount || 1 },
+                  { key: "upcoming", label: "Upcoming", count: upcomingCount },
+                  { key: "active", label: "Active", count: activeCount },
+                  { key: "completed", label: "Completed", count: completedCount },
+                  { key: "cancelled", label: "Cancelled", count: cancelledCount },
                 ].map((t) => (
                   <button
                     key={t.key}
@@ -290,11 +303,15 @@ export default function CustomerBookingsPage() {
                           <div className="hidden lg:flex flex-col text-right">
                             <span className="text-[10px] text-slate-400 font-semibold uppercase">Owner</span>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-bold text-[10px] flex items-center justify-center shadow-sm">
-                                RH
+                              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-bold text-[10px] flex items-center justify-center shadow-sm overflow-hidden">
+                                {b.product?.owner?.avatar_url ? (
+                                  <img src={b.product.owner.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                  <>{b.product?.owner?.first_name?.[0] || "R"}{b.product?.owner?.last_name?.[0] || "H"}</>
+                                )}
                               </div>
                               <div className="text-left">
-                                <span className="text-xs font-bold text-slate-800 leading-none block">Rashed Hasan</span>
+                                <span className="text-xs font-bold text-slate-800 leading-none block">{b.product?.owner?.first_name || "Verified"} {b.product?.owner?.last_name || "Owner"}</span>
                                 <span className="text-[10px] font-bold text-amber-500 flex items-center gap-0.5 mt-0.5">
                                   <Star size={10} className="fill-amber-400" /> 4.8
                                 </span>
@@ -347,9 +364,12 @@ export default function CustomerBookingsPage() {
 
                             {openDropdownId === b.id && (
                               <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in duration-150">
-                                <button className="w-full px-4 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                                  <MessageCircle size={14} /> Contact Owner
-                                </button>
+                                <Link 
+                                  href={`/bookings/${b.id}?tab=owner`}
+                                  className="w-full px-4 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                >
+                                  <User size={14} /> Contact Owner
+                                </Link>
                                 <button className="w-full px-4 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
                                   <Download size={14} /> Download Invoice
                                 </button>
@@ -424,7 +444,7 @@ export default function CustomerBookingsPage() {
                       <div className="text-[10px] text-slate-400 font-medium">Currently active</div>
                     </div>
                   </div>
-                  <span className="text-lg font-black text-emerald-600">{activeCount || 2}</span>
+                  <span className="text-lg font-black text-emerald-600">{activeCount}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -437,7 +457,7 @@ export default function CustomerBookingsPage() {
                       <div className="text-[10px] text-slate-400 font-medium">In the next 7 days</div>
                     </div>
                   </div>
-                  <span className="text-lg font-black text-indigo-600">{upcomingCount || 4}</span>
+                  <span className="text-lg font-black text-indigo-600">{upcomingCount}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -450,7 +470,7 @@ export default function CustomerBookingsPage() {
                       <div className="text-[10px] text-slate-400 font-medium">Till now</div>
                     </div>
                   </div>
-                  <span className="text-lg font-black text-blue-600">{completedCount || 7}</span>
+                  <span className="text-lg font-black text-blue-600">{completedCount}</span>
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100">
@@ -463,7 +483,7 @@ export default function CustomerBookingsPage() {
                       <div className="text-[10px] text-slate-400 font-medium">All time</div>
                     </div>
                   </div>
-                  <span className="text-lg font-black text-amber-600">৳ 35,900</span>
+                  <span className="text-lg font-black text-amber-600">৳ {Number(totalSpent).toLocaleString()}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -476,7 +496,7 @@ export default function CustomerBookingsPage() {
                       <div className="text-[10px] text-slate-400 font-medium">Available to use</div>
                     </div>
                   </div>
-                  <span className="text-lg font-black text-rose-600">120</span>
+                  <span className="text-lg font-black text-rose-600">{Math.floor(totalSpent / 100)}</span>
                 </div>
               </div>
             </div>
@@ -510,45 +530,31 @@ export default function CustomerBookingsPage() {
               <h2 className="font-extrabold text-slate-900 text-sm border-b border-slate-100 pb-3">Recent Activity</h2>
 
               <div className="space-y-3.5 text-xs">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-                  <div>
-                    <p className="text-slate-800 font-semibold">Your booking <strong>#RHBC-23145</strong> is now active</p>
-                    <span className="text-[10px] text-slate-400 font-medium">10 mins ago</span>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2.5">
-                  <div className="w-2 h-2 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
-                  <div>
-                    <p className="text-slate-800 font-semibold">Owner Rashed Hasan sent you a message</p>
-                    <span className="text-[10px] text-slate-400 font-medium">1 hour ago</span>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2.5">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-                  <div>
-                    <p className="text-slate-800 font-semibold">Payment of <strong>৳ 7,500</strong> was successful</p>
-                    <span className="text-[10px] text-slate-400 font-medium">2 hours ago</span>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2.5">
-                  <div className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
-                  <div>
-                    <p className="text-slate-800 font-semibold">Reminder: Return Toyota Axio tomorrow</p>
-                    <span className="text-[10px] text-slate-400 font-medium">1 day ago</span>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2.5">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                  <div>
-                    <p className="text-slate-800 font-semibold">Invoice generated for <strong>#RHBC-23075</strong></p>
-                    <span className="text-[10px] text-slate-400 font-medium">3 days ago</span>
-                  </div>
-                </div>
+                {bookings.length === 0 ? (
+                  <p className="text-slate-400 text-xs py-4 text-center font-medium">No recent rental activity.</p>
+                ) : (
+                  bookings.slice(0, 5).map((b) => (
+                    <div key={b.id} className="flex items-start gap-2.5">
+                      <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+                        b.status === "active" || b.status === "approved"
+                          ? "bg-emerald-500"
+                          : b.status === "completed"
+                          ? "bg-blue-500"
+                          : b.status === "cancelled" || b.status === "rejected"
+                          ? "bg-rose-500"
+                          : "bg-indigo-500"
+                      }`} />
+                      <div>
+                        <p className="text-slate-800 font-semibold">
+                          {b.product?.title || "Booking"} ({b.status.toUpperCase()})
+                        </p>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          {b.created_at ? new Date(b.created_at).toLocaleDateString() : "Recently"}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               <div className="pt-2 border-t border-slate-100">
