@@ -10,6 +10,9 @@ router = APIRouter()
 class UploadOut(BaseModel):
     url: str
 
+class MultiUploadOut(BaseModel):
+    urls: list[str]
+
 @router.post("", response_model=UploadOut)
 async def upload_file(file: UploadFile = File(...)):
     # Validate file type
@@ -36,8 +39,31 @@ async def upload_file(file: UploadFile = File(...)):
     finally:
         file.file.close()
 
-    # Construct the public URL
-    # Assuming the app is served on localhost:8000 for this prototype
     public_url = f"http://localhost:8000/uploads/{unique_filename}"
     
     return UploadOut(url=public_url)
+
+@router.post("/multiple", response_model=MultiUploadOut)
+async def upload_multiple_files(files: list[UploadFile] = File(...)):
+    allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+    upload_dir = Path(settings.LOCAL_STORAGE_PATH)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    saved_urls = []
+    for f in files:
+        if f.content_type not in allowed_types:
+            continue
+        ext = f.filename.split(".")[-1] if f.filename else "jpg"
+        unique_filename = f"{uuid.uuid4().hex}.{ext}"
+        file_path = upload_dir / unique_filename
+
+        try:
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(f.file, buffer)
+            saved_urls.append(f"http://localhost:8000/uploads/{unique_filename}")
+        except Exception as e:
+            print(f"Failed to save file: {e}")
+        finally:
+            f.file.close()
+
+    return MultiUploadOut(urls=saved_urls)

@@ -32,6 +32,9 @@ class Product(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     review_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_trending: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    discount_percentage: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    offer_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    offer_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     owner: Mapped["User"] = relationship("User")  # type: ignore
     category: Mapped["Category"] = relationship("Category", back_populates="products")  # type: ignore
