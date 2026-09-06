@@ -113,8 +113,12 @@ class UserResponse(BaseModel):
     full_name: str
     avatar_url: str | None
     is_email_verified: bool
-    is_identity_verified: bool
+    identity_verification_status: str
+    is_identity_verified: bool = False
     is_active: bool
+    is_owner: bool = False
+    is_customer: bool = True
+    lister_status: str = "none"
     primary_role: str
     role_names: list[str]
     last_login_at: datetime | None
@@ -130,7 +134,11 @@ class UserPublicResponse(BaseModel):
     last_name: str
     full_name: str
     avatar_url: str | None
-    is_identity_verified: bool
+    identity_verification_status: str
+    is_identity_verified: bool = False
+    is_owner: bool = False
+    is_customer: bool = True
+    lister_status: str = "none"
     primary_role: str
     created_at: datetime
 

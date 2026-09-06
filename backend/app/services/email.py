@@ -37,8 +37,8 @@ class EmailService:
 
     async def send(self, *, to_email: str, subject: str, html_body: str) -> bool:
         """Send an email. Returns True on success, False on failure."""
-        if settings.is_development and not self.smtp_host:
-            # Dev mode: print to console instead of sending
+        # Dev mode or dummy credentials: print to console instead of trying to reach remote SMTP
+        if settings.is_development or not self.smtp_host or self.smtp_password == "your_smtp_password" or "yourdomain" in str(self.smtp_user):
             logger.info(
                 "email_dev_mode",
                 to=to_email,

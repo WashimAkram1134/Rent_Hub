@@ -109,11 +109,17 @@ def require_role(*roles: str):
         ): ...
     """
     async def _dependency(current_user: User = Depends(get_current_user)) -> User:
-        if current_user.primary_role not in roles:
-            raise ForbiddenException(
-                f"This action requires one of these roles: {', '.join(roles)}."
-            )
-        return current_user
+        user_roles = set(current_user.role_names)
+        if current_user.primary_role:
+            user_roles.add(current_user.primary_role)
+        
+        # Admin always has access or if any required role is in user's roles
+        if "admin" in user_roles or any(r in user_roles for r in roles):
+            return current_user
+
+        raise ForbiddenException(
+            f"This action requires one of these roles: {', '.join(roles)}."
+        )
     return _dependency
 
 

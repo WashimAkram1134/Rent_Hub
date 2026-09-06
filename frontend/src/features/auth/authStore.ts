@@ -22,6 +22,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  activeRole: "customer" | "owner";
 }
 
 interface AuthActions {
@@ -30,6 +31,8 @@ interface AuthActions {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   setUser: (user: User) => void;
+  setActiveRole: (role: "customer" | "owner") => void;
+  toggleActiveRole: () => void;
   clearError: () => void;
   hydrate: () => Promise<void>;
 }
@@ -45,6 +48,7 @@ export const useAuthStore = create<AuthStore>()(
       isAuthenticated: false,
       isLoading: false,
       error: null,
+      activeRole: "customer",
 
       // ─── Actions ──────────────────────────────────────────────────────────
 
@@ -53,11 +57,16 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const { token, user } = await AuthService.login(credentials);
           localStorage.setItem("access_token", token.access_token);
+          
+          const isOwnerUser = user.is_owner || user.primary_role === "owner" || user.role_names?.includes("owner");
+          const defaultRole = isOwnerUser ? "owner" : "customer";
+
           set({
             user,
             accessToken: token.access_token,
             isAuthenticated: true,
             isLoading: false,
+            activeRole: defaultRole,
           });
         } catch (err: any) {
           const message = err?.response?.data?.error?.message ?? "Login failed. Please try again.";
@@ -85,13 +94,21 @@ export const useAuthStore = create<AuthStore>()(
         } catch {
           // Always clear state even if API call fails
         } finally {
-          localStorage.removeItem("access_token");
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.clear();
+              sessionStorage.clear();
+            } catch (e) {
+              console.error("Failed to clear browser storage on logout", e);
+            }
+          }
           set({
             user: null,
             accessToken: null,
             isAuthenticated: false,
             isLoading: false,
             error: null,
+            activeRole: "customer",
           });
         }
       },
@@ -108,6 +125,14 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       setUser: (user) => set({ user }),
+
+      setActiveRole: (role) => set({ activeRole: role }),
+
+      toggleActiveRole: () => {
+        const current = get().activeRole;
+        const next = current === "owner" ? "customer" : "owner";
+        set({ activeRole: next });
+      },
 
       clearError: () => set({ error: null }),
 
@@ -134,10 +159,11 @@ export const useAuthStore = create<AuthStore>()(
         typeof window !== "undefined" ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {} }
       ),
       partialize: (state) => ({
-        // Only persist non-sensitive state
+        // Persist non-sensitive state and active role preference
         user: state.user,
         accessToken: state.accessToken,
         isAuthenticated: state.isAuthenticated,
+        activeRole: state.activeRole,
       }),
     }
   )

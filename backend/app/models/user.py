@@ -109,7 +109,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
 
     # ── Status ───────────────────────────────────────────────────────────────
     is_email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    is_identity_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    identity_verification_status: Mapped[str] = mapped_column(String(30), default="NOT_STARTED", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
 
     # ── Email Verification ───────────────────────────────────────────────────
@@ -138,6 +138,20 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         cascade="all, delete-orphan",
         lazy="noload",
     )
+    identity_verification: Mapped["IdentityVerification"] = relationship(  # type: ignore[name-defined]  # noqa: F821
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="noload",
+        foreign_keys="[IdentityVerification.user_id]",
+    )
+    lister_application: Mapped["ListerApplication"] = relationship(  # type: ignore[name-defined]  # noqa: F821
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        foreign_keys="[ListerApplication.user_id]",
+    )
     addresses: Mapped[list["Address"]] = relationship(  # type: ignore[name-defined]  # noqa: F821
         back_populates="user",
         cascade="all, delete-orphan",
@@ -156,8 +170,28 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         return f"{self.first_name} {self.last_name}"
 
     @property
+    def is_identity_verified(self) -> bool:
+        return self.identity_verification_status == "VERIFIED"
+
+    @property
     def role_names(self) -> list[str]:
         return [r.name for r in self.roles]
+
+    @property
+    def is_owner(self) -> bool:
+        return any(r.name in ["owner", "admin"] for r in self.roles)
+
+    @property
+    def is_customer(self) -> bool:
+        return True
+
+    @property
+    def lister_status(self) -> str:
+        if self.is_owner:
+            return "approved"
+        if getattr(self, "lister_application", None):
+            return self.lister_application.status.lower()
+        return "none"
 
     @property
     def primary_role(self) -> str:

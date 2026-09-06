@@ -54,12 +54,51 @@ export interface User {
   last_name: string;
   full_name: string;
   avatar_url?: string;
-  is_verified: boolean;
-  is_identity_verified: boolean;
+  is_verified?: boolean;
+  is_email_verified?: boolean;
+  is_identity_verified?: boolean;
+  identity_verification_status?: string;
   is_active: boolean;
+  is_owner?: boolean;
+  is_customer?: boolean;
+  lister_status?: "none" | "pending" | "approved" | "rejected";
   primary_role: UserRole;
   role_names: UserRole[];
   created_at: string;
+}
+
+export interface ListerApplication {
+  id: string;
+  user_id: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  business_name?: string;
+  address_line: string;
+  city: string;
+  state?: string;
+  postal_code?: string;
+  country: string;
+  id_type: string;
+  id_number: string;
+  id_front_url?: string;
+  id_back_url?: string;
+  experience_bio?: string;
+  categories_intended?: string[];
+  agreed_terms?: boolean;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  rejection_reason?: string;
+  admin_notes?: string;
+  created_at?: string;
+  reviewed_at?: string;
+  user?: {
+    id: string;
+    full_name: string;
+    email: string;
+    avatar_url?: string;
+    created_at?: string;
+    role_names?: string[];
+  };
 }
 
 export interface AuthTokens {
@@ -217,6 +256,18 @@ export interface Notification {
   is_read: boolean;
   reference_id?: string;
   reference_type?: string;
+  created_at: string;
+}
+
+// ─── Message ──────────────────────────────────────────────────────────────
+
+export interface Message {
+  id: string;
+  booking_id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  is_read: boolean;
   created_at: string;
 }
 

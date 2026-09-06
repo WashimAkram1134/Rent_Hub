@@ -6,8 +6,21 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  Eye, EyeOff, UserPlus, Loader2, AlertCircle, CheckCircle,
-  Camera, Laptop, Bike, Package, ChevronLeft, ChevronRight, User, Store,
+  Eye,
+  EyeOff,
+  UserPlus,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  User,
+  Store,
+  Sparkles,
+  ShieldCheck,
+  Mail,
+  Lock,
+  Phone,
 } from "lucide-react";
 import { registerSchema, type RegisterFormData } from "@/features/auth/schemas";
 import { useAuthStore } from "@/features/auth/authStore";
@@ -17,23 +30,21 @@ type Step = 1 | 2;
 const ROLE_OPTIONS = [
   {
     value: "customer" as const,
-    label: "Rent Items",
-    description: "Browse and rent items from local owners",
+    label: "Renter Account",
+    description: "Browse & rent cars, cameras, drones, laptops & luxury outfits.",
     icon: User,
-    examples: ["Camera", "Laptop", "Projector"],
+    examples: ["Vehicles", "Cameras", "Electronics"],
     color: "from-blue-500 to-cyan-500",
-    bg: "from-blue-500/10 to-cyan-500/10",
-    border: "border-blue-500/40",
+    glow: "rgba(59,130,246,0.15)",
   },
   {
     value: "owner" as const,
-    label: "List & Earn",
-    description: "List your items and earn while they're idle",
+    label: "Owner / Partner",
+    description: "List your assets, receive verified bookings & earn daily payouts.",
     icon: Store,
-    examples: ["Camera gear", "Electronics", "Furniture"],
-    color: "from-violet-500 to-purple-600",
-    bg: "from-violet-500/10 to-purple-600/10",
-    border: "border-violet-500/40",
+    examples: ["Earn up to ৳1.2L/mo", "Escrow Protection"],
+    color: "from-violet-500 to-indigo-600",
+    glow: "rgba(139,92,246,0.15)",
   },
 ];
 
@@ -78,279 +89,355 @@ export default function RegisterPage() {
     }
   };
 
-  // ── Success State ──────────────────────────────────────────────────────────
   if (success) {
     return (
-      <div className="text-center py-8">
-        <div className="w-20 h-20 rounded-full bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center justify-center mx-auto mb-6">
-          <CheckCircle className="w-10 h-10 text-emerald-500" />
+      <div className="w-full">
+        <div className="relative rounded-3xl p-8 sm:p-10 bg-slate-900/70 backdrop-blur-2xl border border-white/[0.1] shadow-[0_20px_60px_rgba(0,0,0,0.7)] text-center overflow-hidden">
+          <div className="w-20 h-20 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_rgba(16,185,129,0.25)]">
+            <CheckCircle className="w-10 h-10 text-emerald-400" />
+          </div>
+          <h2 className="font-display font-black text-2xl sm:text-3xl text-white mb-3">
+            Account Created! 🎉
+          </h2>
+          <p className="text-slate-300 text-sm mb-8 max-w-sm mx-auto leading-relaxed">
+            Welcome to RentHub! Your account is ready. Sign in to start exploring verified rentals and listing your items.
+          </p>
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-2xl font-bold text-white text-sm shadow-[0_0_30px_rgba(37,99,235,0.4)] hover:scale-105 transition-all"
+            style={{
+              background: "linear-gradient(135deg, #2563EB, #7C3AED)",
+            }}
+          >
+            Go to Sign In →
+          </Link>
         </div>
-        <h2 className="font-display font-bold text-2xl text-foreground mb-3">Check your inbox!</h2>
-        <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-          We&apos;ve sent a verification link to your email address. Click the link to activate your account.
-        </p>
-        <Link
-          href="/login"
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white text-sm"
-          style={{ background: "linear-gradient(135deg, hsl(220, 75%, 52%), hsl(240, 75%, 55%))" }}
-        >
-          Go to Login
-        </Link>
       </div>
     );
   }
 
   return (
-    <div>
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="font-display font-bold text-2xl sm:text-3xl text-foreground mb-2">
-          Create your account
-        </h1>
-        <p className="text-muted-foreground">
-          Already have an account?{" "}
-          <Link href="/login" className="text-primary font-semibold hover:underline">Sign in</Link>
-        </p>
-      </div>
+    <div className="w-full">
+      <div className="relative rounded-3xl p-7 sm:p-10 bg-slate-900/70 backdrop-blur-2xl border border-white/[0.1] shadow-[0_20px_60px_rgba(0,0,0,0.7)] overflow-hidden">
+        {/* Top Glow Accent */}
+        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-32 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
 
-      {/* Progress steps */}
-      <div className="flex items-center gap-3 mb-8">
-        {[1, 2].map((s) => (
-          <div key={s} className="flex items-center gap-2">
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
-                step === s
-                  ? "text-white shadow-brand"
-                  : step > s
-                  ? "bg-emerald-500 text-white"
-                  : "bg-muted text-muted-foreground"
-              }`}
-              style={step === s ? { background: "linear-gradient(135deg, hsl(220, 75%, 52%), hsl(240, 75%, 55%))" } : {}}
-            >
-              {step > s ? <CheckCircle className="w-4 h-4" /> : s}
-            </div>
-            <span className={`text-sm font-medium ${step === s ? "text-foreground" : "text-muted-foreground"}`}>
-              {s === 1 ? "Choose role" : "Your details"}
-            </span>
-            {s < 2 && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+        {/* Header */}
+        <div className="mb-6">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-semibold mb-3">
+            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+            Join RentHub Today
           </div>
-        ))}
-      </div>
-
-      {/* Error */}
-      {error && (
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/20 mb-5">
-          <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-          <p className="text-sm text-destructive">{error}</p>
+          <h1 className="font-display font-black text-2xl sm:text-3xl text-white tracking-tight mb-2">
+            Create an account
+          </h1>
+          <p className="text-slate-400 text-sm">
+            Already have an account?{" "}
+            <Link href="/login" className="text-blue-400 font-semibold hover:underline">
+              Sign in
+            </Link>
+          </p>
         </div>
-      )}
 
-      {/* Step 1 — Role Selection ────────────────────────────────────────── */}
-      {step === 1 && (
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground mb-2">How will you use RentHub?</p>
-
-          {ROLE_OPTIONS.map((option) => {
-            const Icon = option.icon;
-            const isSelected = selectedRole === option.value;
-            return (
-              <button
-                key={option.value}
-                id={`role-${option.value}`}
-                type="button"
-                onClick={() => handleRoleSelect(option.value)}
-                className={`w-full p-5 rounded-2xl border-2 text-left transition-all duration-200 group relative overflow-hidden ${
-                  isSelected ? `${option.border} bg-gradient-to-br ${option.bg}` : "border-border bg-card hover:border-primary/30"
+        {/* Progress indicator */}
+        <div className="flex items-center gap-3 mb-6 p-2 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+          {[1, 2].map((s) => (
+            <div key={s} className="flex-1 flex items-center gap-2 px-2 py-1">
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                  step === s
+                    ? "bg-blue-600 text-white shadow-[0_0_10px_rgba(37,99,235,0.6)]"
+                    : step > s
+                    ? "bg-emerald-500 text-white"
+                    : "bg-white/10 text-slate-400"
                 }`}
               >
-                <div className="flex items-start gap-4">
-                  <div
-                    className={`w-12 h-12 rounded-xl bg-gradient-to-br ${option.color} flex items-center justify-center shrink-0 shadow-lg`}
-                  >
-                    <Icon className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-semibold text-foreground">{option.label}</span>
-                      {isSelected && (
-                        <CheckCircle className="w-5 h-5 text-primary shrink-0" />
-                      )}
-                    </div>
-                    <p className="text-muted-foreground text-sm mb-2">{option.description}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {option.examples.map((ex) => (
-                        <span key={ex} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                          {ex}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-
-          <button
-            id="register-next"
-            type="button"
-            onClick={() => setStep(2)}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-white mt-2 transition-all hover:opacity-90"
-            style={{ background: "linear-gradient(135deg, hsl(220, 75%, 52%), hsl(240, 75%, 55%))" }}
-          >
-            Continue
-            <ChevronRight className="w-4 h-4" />
-          </button>
+                {step > s ? <CheckCircle className="w-3.5 h-3.5" /> : s}
+              </div>
+              <span
+                className={`text-xs font-semibold ${
+                  step === s ? "text-white" : "text-slate-400"
+                }`}
+              >
+                {s === 1 ? "1. Select Role" : "2. Account Details"}
+              </span>
+            </div>
+          ))}
         </div>
-      )}
 
-      {/* Step 2 — Details Form ──────────────────────────────────────────── */}
-      {step === 2 && (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-          {/* Back */}
-          <button
-            type="button"
-            onClick={() => setStep(1)}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
-          >
-            <ChevronLeft className="w-4 h-4" /> Back
-          </button>
-
-          {/* Role badge */}
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 w-fit mb-2">
-            {selectedRole === "customer" ? <User className="w-4 h-4 text-primary" /> : <Store className="w-4 h-4 text-primary" />}
-            <span className="text-primary text-sm font-medium capitalize">{selectedRole} account</span>
+        {/* Global error */}
+        {error && (
+          <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 mb-6 text-rose-300 text-sm">
+            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+            <p className="text-xs">{error}</p>
           </div>
-          <input type="hidden" {...register("role")} value={selectedRole} />
+        )}
 
-          {/* Name row */}
-          <div className="grid grid-cols-2 gap-3">
-            <FormField
-              id="register-first-name"
-              label="First name"
-              placeholder="John"
-              error={errors.first_name?.message}
-              {...register("first_name")}
-            />
-            <FormField
-              id="register-last-name"
-              label="Last name"
-              placeholder="Doe"
-              error={errors.last_name?.message}
-              {...register("last_name")}
-            />
+        {/* Step 1: Role Selection */}
+        {step === 1 && (
+          <div className="space-y-3.5">
+            <p className="text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">
+              Select your primary purpose:
+            </p>
+
+            {ROLE_OPTIONS.map((option) => {
+              const Icon = option.icon;
+              const isSelected = selectedRole === option.value;
+              return (
+                <button
+                  key={option.value}
+                  id={`role-${option.value}`}
+                  type="button"
+                  onClick={() => handleRoleSelect(option.value)}
+                  className={`w-full p-4 sm:p-5 rounded-2xl border text-left transition-all duration-300 relative overflow-hidden group ${
+                    isSelected
+                      ? "border-blue-500/60 bg-blue-500/[0.08] shadow-[0_0_25px_rgba(59,130,246,0.15)]"
+                      : "border-white/[0.08] bg-white/[0.02] hover:border-white/[0.2] hover:bg-white/[0.04]"
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={`w-11 h-11 rounded-xl bg-gradient-to-br ${option.color} flex items-center justify-center shrink-0 shadow-lg`}
+                    >
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-sm text-white">{option.label}</span>
+                        {isSelected && (
+                          <span className="text-xs font-semibold text-blue-400 flex items-center gap-1 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
+                            Selected
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-slate-400 text-xs mb-2 leading-relaxed">
+                        {option.description}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {option.examples.map((ex) => (
+                          <span
+                            key={ex}
+                            className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-300 border border-white/[0.06]"
+                          >
+                            {ex}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+
+            <button
+              id="register-next"
+              type="button"
+              onClick={() => setStep(2)}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-white text-sm mt-4 shadow-[0_0_30px_rgba(37,99,235,0.3)] hover:scale-[1.01] transition-all"
+              style={{
+                background: "linear-gradient(135deg, #2563EB 0%, #4F46E5 50%, #7C3AED 100%)",
+              }}
+            >
+              Continue to Details
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
+        )}
 
-          {/* Email */}
-          <FormField
-            id="register-email"
-            label="Email address"
-            type="email"
-            placeholder="you@example.com"
-            error={errors.email?.message}
-            autoComplete="email"
-            {...register("email")}
-          />
-
-          {/* Phone */}
-          <FormField
-            id="register-phone"
-            label="Phone (optional)"
-            type="tel"
-            placeholder="+880 17XX XXXXXX"
-            error={errors.phone?.message}
-            {...register("phone")}
-          />
-
-          {/* Password */}
-          <div>
-            <label htmlFor="register-password" className="block text-sm font-medium text-foreground mb-1.5">
-              Password
-            </label>
-            <div className="relative">
-              <input
-                id="register-password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Min. 8 characters"
-                autoComplete="new-password"
-                {...register("password")}
-                className={`w-full px-4 py-3 pr-12 rounded-xl border bg-background text-foreground placeholder-muted-foreground outline-none text-sm transition-all focus:ring-2 focus:ring-primary/30 focus:border-primary ${errors.password ? "border-destructive" : "border-border"}`}
-              />
-              <button type="button" onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1">
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+        {/* Step 2: Form Details */}
+        {step === 2 && (
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+            <div className="flex items-center justify-between pb-1">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" /> Back to Role
               </button>
+
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-[11px] font-semibold capitalize">
+                {selectedRole === "customer" ? <User className="w-3 h-3" /> : <Store className="w-3 h-3" />}
+                {selectedRole} Account
+              </div>
             </div>
-            {errors.password && <p className="mt-1.5 text-xs text-destructive">{errors.password.message}</p>}
-          </div>
 
-          {/* Confirm Password */}
-          <div>
-            <label htmlFor="register-confirm-password" className="block text-sm font-medium text-foreground mb-1.5">
-              Confirm password
-            </label>
-            <div className="relative">
-              <input
-                id="register-confirm-password"
-                type={showConfirm ? "text" : "password"}
-                placeholder="Repeat your password"
-                autoComplete="new-password"
-                {...register("confirm_password")}
-                className={`w-full px-4 py-3 pr-12 rounded-xl border bg-background text-foreground placeholder-muted-foreground outline-none text-sm transition-all focus:ring-2 focus:ring-primary/30 focus:border-primary ${errors.confirm_password ? "border-destructive" : "border-border"}`}
-              />
-              <button type="button" onClick={() => setShowConfirm(!showConfirm)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1">
-                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+            <input type="hidden" {...register("role")} value={selectedRole} />
+
+            {/* Name Fields */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                  First name
+                </label>
+                <input
+                  type="text"
+                  placeholder="John"
+                  {...register("first_name")}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border bg-slate-950/60 text-white placeholder-slate-500 outline-none text-sm transition-all focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 ${
+                    errors.first_name ? "border-rose-500" : "border-white/[0.1]"
+                  }`}
+                />
+                {errors.first_name && (
+                  <p className="mt-1 text-[11px] text-rose-400">{errors.first_name.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                  Last name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Doe"
+                  {...register("last_name")}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border bg-slate-950/60 text-white placeholder-slate-500 outline-none text-sm transition-all focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 ${
+                    errors.last_name ? "border-rose-500" : "border-white/[0.1]"
+                  }`}
+                />
+                {errors.last_name && (
+                  <p className="mt-1 text-[11px] text-rose-400">{errors.last_name.message}</p>
+                )}
+              </div>
             </div>
-            {errors.confirm_password && <p className="mt-1.5 text-xs text-destructive">{errors.confirm_password.message}</p>}
-          </div>
 
-          {/* Submit */}
-          <button
-            id="register-submit"
-            type="submit"
-            disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-white transition-all hover:opacity-90 hover:scale-[1.01] disabled:opacity-60 disabled:cursor-not-allowed text-sm"
-            style={{ background: "linear-gradient(135deg, hsl(220, 75%, 52%), hsl(240, 75%, 55%))" }}
-          >
-            {isLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating account...</> : <><UserPlus className="w-4 h-4" /> Create Account</>}
-          </button>
+            {/* Email */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                Email Address
+              </label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-400">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <input
+                  type="email"
+                  placeholder="name@example.com"
+                  autoComplete="email"
+                  {...register("email")}
+                  className={`w-full pl-10 pr-4 py-2.5 rounded-xl border bg-slate-950/60 text-white placeholder-slate-500 outline-none text-sm transition-all focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 ${
+                    errors.email ? "border-rose-500" : "border-white/[0.1]"
+                  }`}
+                />
+              </div>
+              {errors.email && (
+                <p className="mt-1 text-[11px] text-rose-400">{errors.email.message}</p>
+              )}
+            </div>
 
-          <p className="text-center text-xs text-muted-foreground pt-1">
-            By signing up, you agree to our{" "}
-            <Link href="/terms" className="text-primary hover:underline">Terms</Link> and{" "}
-            <Link href="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
-          </p>
-        </form>
-      )}
+            {/* Phone */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                Phone Number (Optional)
+              </label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-400">
+                  <Phone className="w-4 h-4" />
+                </div>
+                <input
+                  type="tel"
+                  placeholder="+880 17XX XXXXXX"
+                  {...register("phone")}
+                  className={`w-full pl-10 pr-4 py-2.5 rounded-xl border bg-slate-950/60 text-white placeholder-slate-500 outline-none text-sm transition-all focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 ${
+                    errors.phone ? "border-rose-500" : "border-white/[0.1]"
+                  }`}
+                />
+              </div>
+              {errors.phone && (
+                <p className="mt-1 text-[11px] text-rose-400">{errors.phone.message}</p>
+              )}
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                Password
+              </label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-400">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Min. 8 characters"
+                  autoComplete="new-password"
+                  {...register("password")}
+                  className={`w-full pl-10 pr-11 py-2.5 rounded-xl border bg-slate-950/60 text-white placeholder-slate-500 outline-none text-sm transition-all focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 ${
+                    errors.password ? "border-rose-500" : "border-white/[0.1]"
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-1"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="mt-1 text-[11px] text-rose-400">{errors.password.message}</p>
+              )}
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                Confirm Password
+              </label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-400">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <input
+                  type={showConfirm ? "text" : "password"}
+                  placeholder="Repeat your password"
+                  autoComplete="new-password"
+                  {...register("confirm_password")}
+                  className={`w-full pl-10 pr-11 py-2.5 rounded-xl border bg-slate-950/60 text-white placeholder-slate-500 outline-none text-sm transition-all focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 ${
+                    errors.confirm_password ? "border-rose-500" : "border-white/[0.1]"
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-1"
+                >
+                  {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {errors.confirm_password && (
+                <p className="mt-1 text-[11px] text-rose-400">
+                  {errors.confirm_password.message}
+                </p>
+              )}
+            </div>
+
+            {/* Submit */}
+            <button
+              id="register-submit"
+              type="submit"
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-white text-sm shadow-[0_0_30px_rgba(37,99,235,0.3)] hover:scale-[1.01] transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+              style={{
+                background: "linear-gradient(135deg, #2563EB 0%, #4F46E5 50%, #7C3AED 100%)",
+              }}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  Creating your account...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4" />
+                  Complete Registration
+                </>
+              )}
+            </button>
+          </form>
+        )}
+      </div>
     </div>
   );
 }
-
-// ─── Reusable Field ───────────────────────────────────────────────────────────
-import { forwardRef } from "react";
-
-const FormField = forwardRef<HTMLInputElement, {
-  id: string;
-  label: string;
-  error?: string;
-  type?: string;
-  placeholder?: string;
-  autoComplete?: string;
-  [key: string]: any;
-}>(({ id, label, error, type = "text", placeholder, autoComplete, ...props }, ref) => (
-  <div>
-    <label htmlFor={id} className="block text-sm font-medium text-foreground mb-1.5">{label}</label>
-    <input
-      ref={ref}
-      id={id}
-      type={type}
-      placeholder={placeholder}
-      autoComplete={autoComplete}
-      {...props}
-      className={`w-full px-4 py-3 rounded-xl border bg-background text-foreground placeholder-muted-foreground outline-none text-sm transition-all focus:ring-2 focus:ring-primary/30 focus:border-primary ${error ? "border-destructive" : "border-border"}`}
-    />
-    {error && <p className="mt-1.5 text-xs text-destructive">{error}</p>}
-  </div>
-));
-FormField.displayName = "FormField";
