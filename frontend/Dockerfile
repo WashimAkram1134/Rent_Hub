@@ -26,6 +26,7 @@ RUN npm ci
 COPY . .
 
 # Build Next.js production bundle
+ENV BUILD_STANDALONE=true
 RUN npm run build
 
 

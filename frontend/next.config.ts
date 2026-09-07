@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Required for Docker production build (copies to .next/standalone)
-  output: "standalone",
+  // Standalone output is ONLY for Docker builds (breaks Vercel native serverless routing)
+  ...(process.env.BUILD_STANDALONE === "true" ? { output: "standalone" as const } : {}),
   // Suppress non-critical TS and ESLint errors during production builds
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
