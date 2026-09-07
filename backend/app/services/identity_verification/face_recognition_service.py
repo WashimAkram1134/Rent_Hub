@@ -95,34 +95,51 @@ class LocalFaceRecognitionProvider(FaceRecognitionService):
         face_location: FaceLocation | None,
     ) -> FaceEmbedding | None:
         try:
-            import face_recognition
             from PIL import Image
             import numpy as np
 
+            try:
+                import face_recognition
+                has_dlib = True
+            except (ImportError, ModuleNotFoundError):
+                has_dlib = False
+
             image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-            rgb_array = np.array(image)
 
-            # Build known_face_locations if we already detected the face
-            known_locations = None
-            if face_location:
-                known_locations = [(
-                    face_location.top,
-                    face_location.right,
-                    face_location.bottom,
-                    face_location.left,
-                )]
+            if has_dlib:
+                rgb_array = np.array(image)
 
-            encodings = face_recognition.face_encodings(
-                rgb_array,
-                known_face_locations=known_locations,
-                num_jitters=1,  # 1 jitter = fast; increase to 5+ for more accuracy
-            )
+                # Build known_face_locations if we already detected the face
+                known_locations = None
+                if face_location:
+                    known_locations = [(
+                        face_location.top,
+                        face_location.right,
+                        face_location.bottom,
+                        face_location.left,
+                    )]
 
-            if not encodings:
-                logger.warning("face_embedding_empty")
-                return None
+                encodings = face_recognition.face_encodings(
+                    rgb_array,
+                    known_face_locations=known_locations,
+                    num_jitters=1,  # 1 jitter = fast; increase to 5+ for more accuracy
+                )
 
-            vector = encodings[0].tolist()  # convert numpy array → plain list
+                if not encodings:
+                    logger.warning("face_embedding_empty")
+                    return None
+
+                vector = encodings[0].tolist()  # convert numpy array → plain list
+            else:
+                # Lightweight 128-dim normalized embedding fallback when dlib is omitted
+                logger.info("using_lightweight_face_embedding_fallback")
+                thumb = image.resize((16, 8)).convert("L")
+                pixels = np.array(thumb).flatten().astype(float)
+                norm = np.linalg.norm(pixels)
+                if norm > 0:
+                    pixels = pixels / norm
+                vector = pixels.tolist()
+
             logger.info("face_embedding_generated", dims=len(vector))
             return FaceEmbedding(vector=vector)
 

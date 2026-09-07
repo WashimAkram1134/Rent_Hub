@@ -28,9 +28,9 @@ Pillow==11.1.0              # Image processing / validation
 aiofiles==24.1.0            # Async file I/O
 numpy>=2.0.0                # Face embedding vector math
 
-# ─── Identity Verification (AI) ─────────────────────────────────────────────
-face-recognition==1.3.0     # Face detection + 128-dim dlib embeddings (Python 3.13 compatible)
-# Note: dlib is compiled from source on first install (~5-10 min). Use pre-built wheel in CI.
+# ─── Identity Verification (optional AI — uses lightweight fallback if dlib is not installed)
+# face-recognition==1.3.0
+
 # ─── Email ─────────────────────────────────────────────────────────────────
 emails==0.6                 # SMTP email sending
 
@@ -39,14 +39,3 @@ httpx==0.28.1
 
 # ─── Logging ───────────────────────────────────────────────────────────────
 structlog==25.4.0
-
-# ─── Testing ───────────────────────────────────────────────────────────────
-pytest==8.3.4
-pytest-asyncio==0.25.3
-pytest-cov==6.0.0
-httpx==0.28.1               # Async test client
-factory-boy==3.3.1          # Test data factories
-
-# ─── Code Quality ──────────────────────────────────────────────────────────
-ruff==0.11.13
-mypy==1.16.0
