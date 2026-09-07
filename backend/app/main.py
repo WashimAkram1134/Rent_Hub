@@ -95,18 +95,19 @@ def create_application() -> FastAPI:
         openapi_url="/openapi.json" if settings.openapi_enabled else None,
     )
 
-    # ── CORS ──────────────────────────────────────────────────────────────
+    # ── Custom Middleware ──────────────────────────────────────────────────
+    _app.add_middleware(RateLimitMiddleware)
+    _app.add_middleware(RequestIDMiddleware)
+
+    # ── CORS (added last so it is the outermost layer wrapping all responses) ─
     _app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins_list,
+        allow_origin_regex=r"https://.*\.vercel\.app",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    # ── Custom Middleware ──────────────────────────────────────────────────
-    _app.add_middleware(RateLimitMiddleware)
-    _app.add_middleware(RequestIDMiddleware)
 
     # ── Exception Handlers ────────────────────────────────────────────────
     register_exception_handlers(_app)
