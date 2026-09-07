@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Required for Docker production build (copies to .next/standalone)
+  output: "standalone",
   // Suppress non-critical TS and ESLint errors during production builds
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
@@ -13,6 +15,24 @@ const nextConfig: NextConfig = {
         hostname: "localhost",
         port: "80",
         pathname: "/uploads/**",
+      },
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "8000",
+        pathname: "/uploads/**",
+      },
+      {
+        // Koyeb backend — production uploads
+        protocol: "https",
+        hostname: "*.koyeb.app",
+        pathname: "/uploads/**",
+      },
+      {
+        // Vercel preview & production domains
+        protocol: "https",
+        hostname: "*.vercel.app",
+        pathname: "/**",
       },
       {
         protocol: "https",

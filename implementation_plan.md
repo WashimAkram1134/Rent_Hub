@@ -347,16 +347,12 @@ AWS_SECRET_ACCESS_KEY=
 
 ---
 
-## What's Next — Payment Integration & Realtime Features
+## What's Next — Realtime Features & Reviews
 
-1. **Payment Gateway Integration (SSLCommerz / bKash / Stripe)**:
-   - Connect checkout modal for approved bookings.
-   - Payment status tracking (Pending → Paid → Released to Owner upon rental completion).
-
-2. **Realtime Chat & Notifications**:
+1. **Realtime Chat & Notifications**:
    - WebSocket connection for instant owner-renter messaging.
    - Notification dropdown on topbar for booking updates.
 
-3. **Reviews & Rating System**:
+2. **Reviews & Rating System**:
    - Renter review submission modal after booking completion.
    - Dynamic calculation of owner and product ratings.

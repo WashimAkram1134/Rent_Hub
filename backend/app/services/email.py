@@ -72,9 +72,7 @@ class EmailService:
     async def send_verification_email(
         self, *, to_email: str, first_name: str, token: str
     ) -> bool:
-        verify_url = f"{settings.LOCAL_STORAGE_URL.replace('/uploads', '')}/verify-email?token={token}"
-        # In production, use NEXT_PUBLIC_APP_URL
-        verify_url = f"http://localhost:3000/verify-email?token={token}"
+        verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
 
         html = f"""
         <!DOCTYPE html>
@@ -114,7 +112,7 @@ class EmailService:
     async def send_password_reset_email(
         self, *, to_email: str, first_name: str, token: str
     ) -> bool:
-        reset_url = f"http://localhost:3000/reset-password?token={token}"
+        reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
 
         html = f"""
         <!DOCTYPE html>
@@ -167,7 +165,7 @@ class EmailService:
                 Your email has been verified. You're all set to start renting or listing items on Bangladesh's
                 most trusted rental marketplace.
               </p>
-              <a href="http://localhost:3000/search"
+              <a href="{settings.FRONTEND_URL}/search"
                  style="display:inline-block; background:linear-gradient(135deg,#1a3a8f,#2d4dd6); color:white;
                         text-decoration:none; padding:14px 32px; border-radius:10px; font-weight:600; font-size:16px;">
                 Browse Listings

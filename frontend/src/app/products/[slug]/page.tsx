@@ -435,7 +435,8 @@ export default function ProductDetailsPage() {
 
   useEffect(() => {
     if (!slug) return;
-    fetch(`http://localhost:8000/api/v1/products/${slug}`)
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    fetch(`${apiUrl}/api/v1/products/${slug}`)
       .then((res) => { if (!res.ok) throw new Error("Not found"); return res.json(); })
       .then((data) => {
         setProduct(data);
@@ -443,7 +444,7 @@ export default function ProductDetailsPage() {
         useRecentlyViewedStore.getState().recordView(data);
         const catSlug = data.category?.name?.toLowerCase();
         if (catSlug) {
-          fetch(`http://localhost:8000/api/v1/products?category_slug=${catSlug}&limit=5`)
+          fetch(`${apiUrl}/api/v1/products?category_slug=${catSlug}&limit=5`)
             .then((r) => r.json())
             .then((list) => {
               setSimilarProducts(

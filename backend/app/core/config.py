@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     # ─── CORS ──────────────────────────────────────────────────────────────
     ALLOWED_ORIGINS: str = "http://localhost:3000"
 
+    # ─── Frontend URL (used in email links, redirects) ─────────────────────────
+    FRONTEND_URL: str = "http://localhost:3000"
+
     @property
     def allowed_origins_list(self) -> list[str]:
         """Parse comma-separated origins to a list."""

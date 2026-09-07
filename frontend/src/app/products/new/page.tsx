@@ -113,7 +113,8 @@ export default function AddListingPage() {
       for (const file of files) {
         const formDataObj = new FormData();
         formDataObj.append("file", file);
-        const res = await fetch("http://localhost:8000/api/v1/upload", {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const res = await fetch(`${apiUrl}/api/v1/upload`, {
           method: "POST",
           body: formDataObj,
         });

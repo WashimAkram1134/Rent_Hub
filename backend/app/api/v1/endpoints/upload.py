@@ -39,7 +39,7 @@ async def upload_file(file: UploadFile = File(...)):
     finally:
         file.file.close()
 
-    public_url = f"http://localhost:8000/uploads/{unique_filename}"
+    public_url = f"{settings.LOCAL_STORAGE_URL}/{unique_filename}"
     
     return UploadOut(url=public_url)
 
@@ -60,7 +60,7 @@ async def upload_multiple_files(files: list[UploadFile] = File(...)):
         try:
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(f.file, buffer)
-            saved_urls.append(f"http://localhost:8000/uploads/{unique_filename}")
+            saved_urls.append(f"{settings.LOCAL_STORAGE_URL}/{unique_filename}")
         except Exception as e:
             print(f"Failed to save file: {e}")
         finally:
