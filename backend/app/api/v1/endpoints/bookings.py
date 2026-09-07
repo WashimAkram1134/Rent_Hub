@@ -13,6 +13,7 @@ from app.models.user import User
 from app.models.identity_verification import VerificationStatus
 from app.schemas.booking import BookingOut, BookingCreate, BookingStatusUpdate, ProductSimple, UserSimple
 from app.auth.dependencies import get_current_user_optional
+from app.core.config import settings
 from app.core.exceptions import IdentityVerificationRequiredException
 from app.services.identity_verification.policy import IdentityVerificationPolicyService
 
@@ -188,12 +189,16 @@ async def create_booking(
         raise HTTPException(status_code=404, detail="Product not found")
 
     # ── Identity Verification Gate ─────────────────────────────────────────
-    # Only enforce for authenticated users (unauthenticated = dev/testing bypass)
     if current_user:
         policy = IdentityVerificationPolicyService()
         if policy.requires_verification_for_booking(current_user, product):
             if current_user.identity_verification_status != VerificationStatus.VERIFIED.value:
                 raise IdentityVerificationRequiredException()
+    elif settings.IDENTITY_VERIFICATION_REQUIRED:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication and identity verification required before requesting a booking."
+        )
         
     # Calculate days & pricing
     total_days = max(1, (payload.end_date - payload.start_date).days)
@@ -296,6 +301,18 @@ async def create_multi_booking(
     current_user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
+    # ── Identity Verification Gate ─────────────────────────────────────────
+    if current_user:
+        policy = IdentityVerificationPolicyService()
+        if policy.requires_verification_for_booking(current_user):
+            if current_user.identity_verification_status != VerificationStatus.VERIFIED.value:
+                raise IdentityVerificationRequiredException()
+    elif settings.IDENTITY_VERIFICATION_REQUIRED:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication and identity verification required before requesting bookings."
+        )
+
     processed = []
     
     for item in payload.items:
@@ -304,6 +321,9 @@ async def create_multi_booking(
             res = await db.execute(select(Product).where(Product.id == p_uuid))
             prod = res.scalars().first()
             if prod:
+                # Disallow booking own listing
+                if current_user and prod.owner_id == current_user.id:
+                    continue
                 renter_id = current_user.id if current_user else prod.owner_id
                 b = Booking(
                     product_id=prod.id,

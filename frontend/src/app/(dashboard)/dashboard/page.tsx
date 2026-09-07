@@ -10,12 +10,12 @@ export default function DashboardPage() {
   
   if (!user) return null;
 
-  // Admin users can toggle between Admin, Owner, and Customer views
-  if (user.primary_role === "admin" && !activeRole) {
+  // 1. Admin users should always see the Admin Dashboard
+  if (user.primary_role === "admin" || user.role_names?.includes("admin")) {
     return <AdminDashboard />;
   }
 
-  // Active Role toggle determines the view for multi-role users
+  // 2. Active Role toggle determines the view for multi-role users (Owner vs Customer)
   if (activeRole === "owner") {
     return <OwnerDashboard />;
   }
@@ -24,13 +24,9 @@ export default function DashboardPage() {
     return <CustomerDashboard />;
   }
 
-  // Fallback defaults
+  // 3. Fallback defaults
   if (user.primary_role === "owner" || user.is_owner || user.role_names?.includes("owner")) {
     return <OwnerDashboard />;
-  }
-
-  if (user.primary_role === "admin") {
-    return <AdminDashboard />;
   }
 
   return <CustomerDashboard />;

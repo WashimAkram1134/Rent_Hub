@@ -49,7 +49,7 @@ type DurationMode = "Daily" | "Weekly" | "Monthly";
 type DeliveryMode = "Pick-up" | "Delivery";
 
 // ── Dynamic Semantic Angle Helpers ──────────────────────────────────────────
-export function getAngleInfo(index: number, total: number, categorySlug?: string) {
+function getAngleInfo(index: number, total: number, categorySlug?: string) {
   const cat = (categorySlug || "").toLowerCase();
   if (cat.includes("vehic") || cat.includes("car") || cat.includes("bike")) {
     const carAngles = [

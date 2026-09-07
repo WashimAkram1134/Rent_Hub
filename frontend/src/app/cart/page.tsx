@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
 import {
-  ShoppingCart, Trash2, Calendar, ShieldCheck, ArrowRight, CheckCircle2,
+  ShoppingCart, Trash2, Calendar, ShieldCheck, ShieldAlert, ArrowRight, CheckCircle2,
   AlertCircle, MapPin, Building, ChevronRight, User, Loader2, MessageCircle
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
@@ -20,6 +20,11 @@ export default function RentalCartPage() {
   const [submitting, setSubmitting] = useState(false);
   const [successResponse, setSuccessResponse] = useState<any>(null);
   const [chatWarningOwner, setChatWarningOwner] = useState<string | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+
+  const isVerified =
+    user?.identity_verification_status === "VERIFIED" ||
+    user?.is_identity_verified === true;
 
   // Calculate pricing breakdown
   const subtotal = items.reduce((acc, item) => acc + (item.price_per_day * 3), 0);
@@ -37,18 +42,28 @@ export default function RentalCartPage() {
 
   const handleSendAllRequests = async () => {
     if (items.length === 0) return;
+    setBookingError(null);
+
     if (!isAuthenticated || !user) {
       router.push(`/login?returnUrl=${encodeURIComponent("/cart")}`);
       return;
     }
+
+    if (!isVerified) {
+      const returnUrl = "/cart";
+      sessionStorage.setItem("renthub_verify_return_url", returnUrl);
+      router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       const payload = {
         items: items.map((i) => ({
           product_id: i.id.startsWith("cart-") ? "00000000-0000-0000-0000-000000000001" : i.id,
-          start_date: i.start_date || "2025-05-25",
-          end_date: i.end_date || "2025-05-28",
+          start_date: i.start_date || new Date().toISOString().split("T")[0],
+          end_date: i.end_date || new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
           delivery_option: i.delivery_option || "pickup",
         })),
       };
@@ -56,16 +71,22 @@ export default function RentalCartPage() {
       const res = await apiClient.post("/bookings/multi", payload);
       setSuccessResponse(res.data);
       clearCart();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Multi-booking error:", err);
-      // Demo fallback success
-      setSuccessResponse({
-        status: "success",
-        message: `Successfully sent booking requests to ${Object.keys(groupedByOwner).length} item owners simultaneously!`,
-        total_requests: items.length,
-        owners: Object.keys(groupedByOwner),
-      });
-      clearCart();
+      if (
+        err.response?.status === 403 &&
+        err.response?.data?.error?.code === "IDENTITY_VERIFICATION_REQUIRED"
+      ) {
+        const returnUrl = "/cart";
+        sessionStorage.setItem("renthub_verify_return_url", returnUrl);
+        router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);
+        return;
+      }
+      setBookingError(
+        err.response?.data?.error?.message ||
+        err.response?.data?.detail ||
+        "Failed to send booking requests. Please try again."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -90,6 +111,45 @@ export default function RentalCartPage() {
               </span>
             </h1>
           </div>
+
+          {/* Identity Verification Warning Banner if logged in and unverified */}
+          {isAuthenticated && !isVerified && (
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-in fade-in">
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 shadow-inner">
+                  <ShieldAlert size={22} />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-amber-950 text-sm flex items-center gap-1.5">
+                    Identity Verification Required
+                    <span className="text-[10px] uppercase font-black bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded-md">
+                      Action Needed
+                    </span>
+                  </h4>
+                  <p className="text-xs text-amber-800 mt-0.5 font-medium leading-relaxed">
+                    RentHub requires National ID & facial verification before submitting booking requests to protect lenders.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  sessionStorage.setItem("renthub_verify_return_url", "/cart");
+                  router.push(`/verify-identity?returnUrl=${encodeURIComponent("/cart")}`);
+                }}
+                className="bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-md shadow-amber-600/20 transition-all shrink-0 flex items-center justify-center gap-1.5"
+              >
+                Verify Identity Now <ArrowRight size={14} />
+              </button>
+            </div>
+          )}
+
+          {/* Booking Error Alert Banner */}
+          {bookingError && (
+            <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl p-4 text-xs font-semibold flex items-center gap-2.5 shadow-sm animate-in fade-in">
+              <AlertCircle size={18} className="shrink-0 text-rose-600" />
+              <span>{bookingError}</span>
+            </div>
+          )}
 
           {/* Success Banner Overlay after checkout */}
           {successResponse ? (
@@ -269,21 +329,38 @@ export default function RentalCartPage() {
                     </div>
                   </div>
 
-                  <div className="bg-indigo-50/70 rounded-xl p-3 border border-indigo-100 text-[11px] text-indigo-900 flex items-start gap-2">
-                    <ShieldCheck size={16} className="text-indigo-600 shrink-0 mt-0.5" />
-                    <span>
-                      Booking requests will be sent simultaneously to <strong>{Object.keys(groupedByOwner).length} distinct item owners</strong> for approval.
-                    </span>
-                  </div>
+                  {isAuthenticated && !isVerified ? (
+                    <div className="bg-amber-50 rounded-xl p-3 border border-amber-200 text-[11px] text-amber-900 flex items-start gap-2">
+                      <ShieldAlert size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                      <span>
+                        National ID and facial verification are required before your rental requests can be sent.
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="bg-indigo-50/70 rounded-xl p-3 border border-indigo-100 text-[11px] text-indigo-900 flex items-start gap-2">
+                      <ShieldCheck size={16} className="text-indigo-600 shrink-0 mt-0.5" />
+                      <span>
+                        Booking requests will be sent simultaneously to <strong>{Object.keys(groupedByOwner).length} distinct item owners</strong> for approval.
+                      </span>
+                    </div>
+                  )}
 
                   <button
                     onClick={handleSendAllRequests}
                     disabled={submitting}
-                    className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
+                    className={`w-full py-3.5 text-white font-extrabold text-xs rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 ${
+                      isAuthenticated && !isVerified
+                        ? "bg-amber-600 hover:bg-amber-700 shadow-amber-200"
+                        : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200"
+                    }`}
                   >
                     {submitting ? (
                       <>
                         <Loader2 size={16} className="animate-spin" /> Dispatching Requests...
+                      </>
+                    ) : isAuthenticated && !isVerified ? (
+                      <>
+                        Verify Identity to Request Booking <ArrowRight size={16} />
                       </>
                     ) : (
                       <>
