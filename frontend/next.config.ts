@@ -23,7 +23,12 @@ const nextConfig: NextConfig = {
         pathname: "/uploads/**",
       },
       {
-        // Koyeb backend — production uploads
+        // Backend — production uploads (Render or Koyeb)
+        protocol: "https",
+        hostname: "*.onrender.com",
+        pathname: "/uploads/**",
+      },
+      {
         protocol: "https",
         hostname: "*.koyeb.app",
         pathname: "/uploads/**",
