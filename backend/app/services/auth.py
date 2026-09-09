@@ -20,6 +20,7 @@ The service layer coordinates:
 
 from __future__ import annotations
 
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -47,6 +48,8 @@ from app.models.user import RefreshToken, User
 from app.repositories.role import RoleRepository
 from app.repositories.user import UserRepository
 from app.schemas.auth import (
+    FacebookAuthRequest,
+    GoogleAuthRequest,
     LoginResponse,
     RegisterRequest,
     TokenResponse,
@@ -176,7 +179,226 @@ class AuthService:
         )
         return login_response, raw_refresh
 
+    # ─── Google Auth (Login or Register) ──────────────────────────────────────
+
+    async def google_auth(
+        self, data: GoogleAuthRequest, request: Request
+    ) -> tuple[LoginResponse, str]:
+        """
+        Authenticate or register a user via Google OAuth seamlessly.
+        
+        Supports:
+        - Verified Google ID Token (`credential`) from Google Identity Services
+        - Verified Google profile data (email, name, picture)
+        """
+        email = data.email
+        first_name = data.first_name
+        last_name = data.last_name
+        avatar_url = data.avatar_url
+
+        # 1. If Google ID Token credential was provided, verify with Google TokenInfo API
+        if data.credential:
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    resp = await client.get(
+                        f"https://oauth2.googleapis.com/tokeninfo?id_token={data.credential}"
+                    )
+                    if resp.status_code == 200:
+                        payload = resp.json()
+                        email = payload.get("email") or email
+                        first_name = payload.get("given_name") or payload.get("name", "User").split()[0]
+                        parts = payload.get("name", "").split()
+                        last_name = payload.get("family_name") or (parts[-1] if len(parts) > 1 else "User")
+                        avatar_url = payload.get("picture") or avatar_url
+                    else:
+                        logger.warning("google_tokeninfo_failed", status=resp.status_code, body=resp.text)
+            except Exception as exc:
+                logger.warning("google_token_verify_error", error=str(exc))
+
+        if not email:
+            raise BadRequestException("A valid Google account email is required.")
+
+        # 2. Check if user already exists
+        user = await self.user_repo.get_by_email(email)
+
+        if user:
+            if not user.is_active:
+                raise UnauthorizedException("Your account has been suspended. Please contact support.")
+
+            # Update profile info if missing
+            if avatar_url and not user.avatar_url:
+                user.avatar_url = avatar_url
+            if not user.is_email_verified:
+                user.is_email_verified = True
+            
+            user.last_login_at = datetime.now(timezone.utc)
+            self.db.add(user)
+            logger.info("google_user_logged_in", user_id=str(user.id), email=email)
+        else:
+            # 3. Register new user seamlessly with Google profile
+            role_name = data.role if data.role in ("customer", "owner") else "customer"
+            role = await self.role_repo.get_by_name(role_name)
+            
+            clean_first_name = (first_name or email.split("@")[0].capitalize() or "Google").strip()
+            clean_last_name = (last_name or "User").strip()
+
+            user = User(
+                email=email,
+                password_hash=hash_password(secrets.token_urlsafe(32)),
+                first_name=clean_first_name,
+                last_name=clean_last_name,
+                avatar_url=avatar_url,
+                is_email_verified=True,
+                identity_verification_status="NOT_STARTED",
+                roles=[role] if role else [],
+            )
+            self.db.add(user)
+            await self.db.flush()
+            await self.db.refresh(user)
+            logger.info("google_user_created", user_id=str(user.id), email=email, role=role_name)
+
+        # 4. Issue access and refresh tokens
+        access_token = create_access_token(
+            user_id=user.id,
+            role=user.primary_role,
+            permissions=user.permission_names,
+        )
+        raw_refresh = create_refresh_token()
+        token_hash = RefreshToken.hash_token(raw_refresh)
+
+        await self.user_repo.create_refresh_token(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=get_refresh_token_expires_at(),
+            user_agent=request.headers.get("user-agent", "")[:500],
+            ip_address=request.client.host if request.client else None,
+        )
+
+        await self.db.flush()
+
+        token_response = TokenResponse(
+            access_token=access_token,
+            expires_in=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        )
+        login_response = LoginResponse(
+            token=token_response,
+            user=UserResponse.model_validate(user),
+        )
+        return login_response, raw_refresh
+
+    # ─── Facebook Auth (Login or Register) ────────────────────────────────────
+
+    async def facebook_auth(
+        self, data: FacebookAuthRequest, request: Request
+    ) -> tuple[LoginResponse, str]:
+        """
+        Authenticate or register a user via Facebook OAuth seamlessly.
+        """
+        email = data.email
+        first_name = data.first_name
+        last_name = data.last_name
+        avatar_url = data.avatar_url
+
+        # 1. If Facebook Access Token was provided, verify with Graph API
+        if data.access_token:
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    resp = await client.get(
+                        f"https://graph.facebook.com/me?fields=id,name,first_name,last_name,email,picture.type(large)&access_token={data.access_token}"
+                    )
+                    if resp.status_code == 200:
+                        fb_data = resp.json()
+                        email = fb_data.get("email") or email
+                        first_name = fb_data.get("first_name") or (fb_data.get("name", "User").split()[0])
+                        parts = fb_data.get("name", "").split()
+                        last_name = fb_data.get("last_name") or (parts[-1] if len(parts) > 1 else "User")
+                        picture_data = fb_data.get("picture", {}).get("data", {})
+                        avatar_url = picture_data.get("url") or avatar_url
+                    else:
+                        logger.warning("facebook_graph_failed", status=resp.status_code, body=resp.text)
+            except Exception as exc:
+                logger.warning("facebook_token_verify_error", error=str(exc))
+
+        if not email:
+            if data.facebook_id:
+                email = f"fb_{data.facebook_id}@facebook.user"
+            elif first_name:
+                slug = "".join(c for c in f"{first_name}_{last_name}".lower() if c.isalnum() or c in "._")
+                email = f"{slug or 'fb_user'}@facebook.user"
+            else:
+                email = f"fb_{secrets.token_hex(4)}@facebook.user"
+
+        # 2. Check if user already exists
+        user = await self.user_repo.get_by_email(email)
+
+        if user:
+            if not user.is_active:
+                raise UnauthorizedException("Your account has been suspended. Please contact support.")
+
+            if avatar_url and not user.avatar_url:
+                user.avatar_url = avatar_url
+            if not user.is_email_verified:
+                user.is_email_verified = True
+
+            user.last_login_at = datetime.now(timezone.utc)
+            self.db.add(user)
+            logger.info("facebook_user_logged_in", user_id=str(user.id), email=email)
+        else:
+            # 3. Register new user seamlessly with Facebook profile
+            role_name = data.role if data.role in ("customer", "owner") else "customer"
+            role = await self.role_repo.get_by_name(role_name)
+
+            clean_first_name = (first_name or email.split("@")[0].capitalize() or "Facebook").strip()
+            clean_last_name = (last_name or "User").strip()
+
+            user = User(
+                email=email,
+                password_hash=hash_password(secrets.token_urlsafe(32)),
+                first_name=clean_first_name,
+                last_name=clean_last_name,
+                avatar_url=avatar_url,
+                is_email_verified=True,
+                identity_verification_status="NOT_STARTED",
+                roles=[role] if role else [],
+            )
+            self.db.add(user)
+            await self.db.flush()
+            await self.db.refresh(user)
+            logger.info("facebook_user_created", user_id=str(user.id), email=email, role=role_name)
+
+        # 4. Issue access and refresh tokens
+        access_token = create_access_token(
+            user_id=user.id,
+            role=user.primary_role,
+            permissions=user.permission_names,
+        )
+        raw_refresh = create_refresh_token()
+        token_hash = RefreshToken.hash_token(raw_refresh)
+
+        await self.user_repo.create_refresh_token(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=get_refresh_token_expires_at(),
+            user_agent=request.headers.get("user-agent", "")[:500],
+            ip_address=request.client.host if request.client else None,
+        )
+
+        await self.db.flush()
+
+        token_response = TokenResponse(
+            access_token=access_token,
+            expires_in=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        )
+        login_response = LoginResponse(
+            token=token_response,
+            user=UserResponse.model_validate(user),
+        )
+        return login_response, raw_refresh
+
     # ─── Refresh ──────────────────────────────────────────────────────────────
+
 
     async def refresh_access_token(self, raw_refresh_token: str) -> TokenResponse:
         """

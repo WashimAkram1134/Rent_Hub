@@ -7,19 +7,23 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingBag, ChevronRight } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useFlyToCart } from "@/context/FlyToCartContext";
+import { useAuthStore } from "@/features/auth/authStore";
 
 export function FloatingCartBar() {
   const pathname = usePathname();
   const { items } = useCartStore();
   const { isCartBouncing } = useFlyToCart();
+  const { user, isAuthenticated } = useAuthStore();
+  const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
 
-  // Hide on /cart page itself or when empty
-  if (pathname === "/cart" || items.length === 0) {
+  // Hide on /cart page itself or when empty or when unauthenticated
+  if (pathname === "/cart" || items.length === 0 || (!isAuthenticated && !token) || !user) {
     return (
       // Invisible anchor element with ID so coordinates can still be calculated if needed
       <div id="floating-cart-pill" className="fixed bottom-6 right-6 pointer-events-none w-1 h-1 opacity-0" />
     );
   }
+
 
   const latestItem = items[0];
   const totalAmount = items.reduce((acc, item) => acc + (item.price_per_day || 0) * 3, 0);

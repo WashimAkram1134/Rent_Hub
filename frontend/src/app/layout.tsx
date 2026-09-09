@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { FlyToCartProvider } from "@/context/FlyToCartContext";
@@ -65,6 +66,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${outfit.variable} antialiased`} suppressHydrationWarning>
+        <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
         <WebSocketProvider>
           <FlyToCartProvider>
             <FlyToCartOverlay />

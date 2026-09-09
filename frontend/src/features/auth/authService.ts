@@ -19,7 +19,43 @@ export interface LoginResponse {
   user: User;
 }
 
+export interface GoogleAuthPayload {
+  credential?: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  google_id?: string;
+  role?: "customer" | "owner";
+}
+
+export interface FacebookAuthPayload {
+  access_token?: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  facebook_id?: string;
+  role?: "customer" | "owner";
+}
+
 const AuthService = {
+  /**
+   * Login or register seamlessly using Google account.
+   */
+  googleAuth: async (payload: GoogleAuthPayload): Promise<LoginResponse> => {
+    const response = await apiPost<ApiSuccessResponse<LoginResponse>>("/auth/google", payload);
+    return response.data!;
+  },
+
+  /**
+   * Login or register seamlessly using Facebook account.
+   */
+  facebookAuth: async (payload: FacebookAuthPayload): Promise<LoginResponse> => {
+    const response = await apiPost<ApiSuccessResponse<LoginResponse>>("/auth/facebook", payload);
+    return response.data!;
+  },
+
   /**
    * Register a new user account.
    */
@@ -36,6 +72,7 @@ const AuthService = {
     const response = await apiPost<ApiSuccessResponse<LoginResponse>>("/auth/login", credentials);
     return response.data!;
   },
+
 
   /**
    * Silently refresh the access token using the httpOnly refresh cookie.

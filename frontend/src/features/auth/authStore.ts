@@ -13,7 +13,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import AuthService from "./authService";
+import AuthService, { type GoogleAuthPayload, type FacebookAuthPayload } from "./authService";
 import type { LoginCredentials, RegisterData, User } from "@/types";
 
 interface AuthState {
@@ -27,6 +27,8 @@ interface AuthState {
 
 interface AuthActions {
   login: (credentials: LoginCredentials) => Promise<void>;
+  loginWithGoogle: (payload: GoogleAuthPayload) => Promise<User>;
+  loginWithFacebook: (payload: FacebookAuthPayload) => Promise<User>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -52,7 +54,56 @@ export const useAuthStore = create<AuthStore>()(
 
       // ─── Actions ──────────────────────────────────────────────────────────
 
+      loginWithGoogle: async (payload) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { token, user } = await AuthService.googleAuth(payload);
+          localStorage.setItem("access_token", token.access_token);
+
+          const isOwnerUser = user.is_owner || user.primary_role === "owner" || user.role_names?.includes("owner");
+          const defaultRole = isOwnerUser ? "owner" : "customer";
+
+          set({
+            user,
+            accessToken: token.access_token,
+            isAuthenticated: true,
+            isLoading: false,
+            activeRole: defaultRole,
+          });
+          return user;
+        } catch (err: any) {
+          const message = err?.response?.data?.error?.message ?? "Google authentication failed. Please try again.";
+          set({ isLoading: false, error: message });
+          throw err;
+        }
+      },
+
+      loginWithFacebook: async (payload) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { token, user } = await AuthService.facebookAuth(payload);
+          localStorage.setItem("access_token", token.access_token);
+
+          const isOwnerUser = user.is_owner || user.primary_role === "owner" || user.role_names?.includes("owner");
+          const defaultRole = isOwnerUser ? "owner" : "customer";
+
+          set({
+            user,
+            accessToken: token.access_token,
+            isAuthenticated: true,
+            isLoading: false,
+            activeRole: defaultRole,
+          });
+          return user;
+        } catch (err: any) {
+          const message = err?.response?.data?.error?.message ?? "Facebook authentication failed. Please try again.";
+          set({ isLoading: false, error: message });
+          throw err;
+        }
+      },
+
       login: async (credentials) => {
+
         set({ isLoading: true, error: null });
         try {
           const { token, user } = await AuthService.login(credentials);

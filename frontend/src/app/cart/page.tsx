@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
@@ -18,6 +18,14 @@ export default function RentalCartPage() {
   const { items, removeItem, updateDates, clearCart } = useCartStore();
   
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const hasToken = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    if (!isAuthenticated && !hasToken) {
+      router.push(`/login?returnUrl=${encodeURIComponent("/cart")}`);
+    }
+  }, [isAuthenticated, router]);
+
   const [successResponse, setSuccessResponse] = useState<any>(null);
   const [chatWarningOwner, setChatWarningOwner] = useState<string | null>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);

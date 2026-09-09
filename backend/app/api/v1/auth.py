@@ -24,7 +24,9 @@ from app.core.exceptions import UnauthorizedException
 from app.database.session import get_db
 from app.schemas.auth import (
     ChangePasswordRequest,
+    FacebookAuthRequest,
     ForgotPasswordRequest,
+    GoogleAuthRequest,
     LoginRequest,
     LoginResponse,
     RegisterRequest,
@@ -90,7 +92,60 @@ async def login(
     )
 
 
+# ─── Google Auth ──────────────────────────────────────────────────────────────
+
+@router.post(
+    "/google",
+    response_model=dict,
+    summary="Login or register seamlessly with Google account",
+)
+async def google_auth(
+    data: GoogleAuthRequest,
+    request: Request,
+    response: Response,
+    svc: AuthService = Depends(_get_auth_service),
+) -> dict:
+    login_resp, raw_refresh = await svc.google_auth(data, request)
+
+    # Set refresh token in httpOnly cookie
+    response.set_cookie(
+        **REFRESH_COOKIE_PARAMS,
+        value=raw_refresh,
+    )
+
+    return success(
+        data=login_resp.model_dump(),
+        message="Google authentication successful.",
+    )
+
+
+@router.post(
+    "/facebook",
+    response_model=dict,
+    summary="Login or register seamlessly with Facebook account",
+)
+async def facebook_auth(
+    data: FacebookAuthRequest,
+    request: Request,
+    response: Response,
+    svc: AuthService = Depends(_get_auth_service),
+) -> dict:
+    login_resp, raw_refresh = await svc.facebook_auth(data, request)
+
+    # Set refresh token in httpOnly cookie
+    response.set_cookie(
+        **REFRESH_COOKIE_PARAMS,
+        value=raw_refresh,
+    )
+
+    return success(
+        data=login_resp.model_dump(),
+        message="Facebook authentication successful.",
+    )
+
+
 # ─── Refresh ──────────────────────────────────────────────────────────────────
+
 
 @router.post(
     "/refresh",

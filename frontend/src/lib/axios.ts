@@ -74,11 +74,16 @@ apiClient.interceptors.response.use(
       _retry?: boolean;
     };
 
-    // Handle 401 — attempt token refresh
+    // Handle 401 — attempt token refresh only if the user was previously authenticated
+    const hasStoredAuth =
+      typeof window !== "undefined" &&
+      (Boolean(localStorage.getItem("access_token")) || Boolean(localStorage.getItem("renthub-auth")));
+
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
-      originalRequest.url !== "/auth/refresh"
+      originalRequest.url !== "/auth/refresh" &&
+      hasStoredAuth
     ) {
       if (isRefreshing) {
         // Queue this request until refresh completes
@@ -119,6 +124,7 @@ apiClient.interceptors.response.use(
         // Clear auth state
         if (typeof window !== "undefined") {
           localStorage.removeItem("access_token");
+          localStorage.removeItem("renthub-auth");
 
           // Only redirect if on a protected route
           const protectedPrefixes = [

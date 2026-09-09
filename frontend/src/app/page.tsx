@@ -1,5 +1,6 @@
 import Navbar from "@/components/common/Navbar";
 import Footer from "@/components/common/Footer";
+import { DemoNoticeBanner, DemoCornerBadge } from "@/components/landing/DemoNoticeBanner";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { StatsBarSection } from "@/components/landing/StatsBarSection";
 import { CategoriesSection } from "@/components/landing/CategoriesSection";
@@ -12,6 +13,7 @@ import { CTABannerSection } from "@/components/landing/CTABannerSection";
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#07070F] text-white overflow-x-hidden selection:bg-indigo-500 selection:text-white">
+      <DemoNoticeBanner />
       <Navbar />
       <HeroSection />
       <StatsBarSection />
@@ -22,6 +24,7 @@ export default function HomePage() {
       <TestimonialsSection />
       <CTABannerSection />
       <Footer />
+      <DemoCornerBadge />
     </div>
   );
 }

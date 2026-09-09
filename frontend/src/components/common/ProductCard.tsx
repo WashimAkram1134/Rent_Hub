@@ -2,10 +2,12 @@
 
 import React, { useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import { Heart, Star, MapPin, Tag, Plus, Check } from "lucide-react";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { useCartStore } from "@/store/cartStore";
 import { useFlyToCart } from "@/context/FlyToCartContext";
+import { useAuthStore } from "@/features/auth/authStore";
 
 export interface ProductCardProps {
   id: string;
@@ -40,6 +42,10 @@ export function ProductCard({
   isWishlisted: explicitIsWishlisted,
   onToggleWishlist: explicitOnToggleWishlist,
 }: ProductCardProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { user, isAuthenticated } = useAuthStore();
+
   const imgRef = useRef<HTMLImageElement>(null);
   const { toggleWishlist, isWishlisted: checkIsWishlisted } = useWishlistStore();
   const { isInCart } = useCartStore();
@@ -77,8 +83,15 @@ export function ProductCard({
     e.preventDefault();
     e.stopPropagation();
 
+    // Require authentication to add items to cart
+    if (!isAuthenticated || !user) {
+      router.push(`/login?returnUrl=${encodeURIComponent(pathname || "/")}`);
+      return;
+    }
+
     // Trigger fly animation
     triggerFlyToCart({
+
       image: image_url,
       startElement: imgRef.current || (e.currentTarget as HTMLElement),
       item: {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { registerSchema, type RegisterFormData } from "@/features/auth/schemas";
 import { useAuthStore } from "@/features/auth/authStore";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 
 type Step = 1 | 2;
 
@@ -48,7 +49,7 @@ const ROLE_OPTIONS = [
   },
 ];
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
   const { register: storeRegister, isLoading, error, clearError } = useAuthStore();
   const [step, setStep] = useState<Step>(1);
@@ -242,6 +243,21 @@ export default function RegisterPage() {
               Continue to Details
               <ChevronRight className="w-4 h-4" />
             </button>
+
+            <div className="relative my-3">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/[0.08]" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-slate-900/90 px-3 text-slate-400">or fast sign up with</span>
+              </div>
+            </div>
+
+            <GoogleAuthButton
+              role={selectedRole}
+              label={`Sign Up with Google (${selectedRole === "owner" ? "Owner" : "Renter"})`}
+              className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl border border-white/[0.12] bg-white/[0.05] hover:bg-white/[0.1] text-white font-semibold text-xs transition-all hover:scale-[1.01]"
+            />
           </div>
         )}
 
@@ -435,9 +451,40 @@ export default function RegisterPage() {
                 </>
               )}
             </button>
+
+            <div className="relative my-3">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/[0.08]" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-slate-900/90 px-3 text-slate-400">or continue with</span>
+              </div>
+            </div>
+
+            <div>
+              <GoogleAuthButton
+                role={selectedRole}
+                label="Continue with Google"
+                className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] text-white font-semibold text-xs transition-all hover:scale-[1.01]"
+              />
+            </div>
           </form>
         )}
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="w-full min-h-[500px] flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
   );
 }

@@ -86,6 +86,41 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 
+class GoogleAuthRequest(BaseModel):
+    """Payload for Google OAuth login/signup."""
+    credential: str | None = None
+    email: EmailStr | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    avatar_url: str | None = None
+    google_id: str | None = None
+    role: str = Field(default="customer", pattern=r"^(customer|owner)$")
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def lowercase_email(cls, v: str | None) -> str | None:
+        if v:
+            return v.strip().lower()
+        return None
+class FacebookAuthRequest(BaseModel):
+    """Payload for Facebook OAuth login/signup."""
+    access_token: str | None = None
+    email: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    avatar_url: str | None = None
+    facebook_id: str | None = None
+    role: str = Field(default="customer", pattern=r"^(customer|owner)$")
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def lowercase_email(cls, v: str | None) -> str | None:
+        if v:
+            return v.strip().lower()
+        return None
+
+
+
 # ─── Responses ────────────────────────────────────────────────────────────────
 
 class TokenResponse(BaseModel):

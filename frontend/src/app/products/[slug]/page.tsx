@@ -433,6 +433,134 @@ export default function ProductDetailsPage() {
     }
   };
 
+// ── Fallback Product Resolver ────────────────────────────────────────────────
+const FALLBACK_PRODUCT_CATALOG: Record<string, any> = {
+  "range-rover-velar-360": {
+    id: "range-rover-velar-360",
+    slug: "range-rover-velar-360",
+    title: "Range Rover Velar R-Dynamic 2024 (360° View)",
+    description: "Flagship luxury SUV with intelligent AWD, panoramic sliding sunroof, 3D surround camera, Meridian sound system, and perforated Windsor leather interior. Includes full 360° interactive rotation and dedicated front, back, inside, outside viewing angles. Perfect for executive transport, VIP events, and weddings.",
+    price_per_day: 14000,
+    security_deposit: 25000,
+    condition: "Like New",
+    delivery_option: "both",
+    city: "Dhaka",
+    area: "Gulshan",
+    avg_rating: 4.95,
+    review_count: 86,
+    is_featured: true,
+    category: { id: "vehicles", name: "Vehicles", slug: "vehicles" },
+    owner: { id: "owner-wa", first_name: "Washim", last_name: "Akram", email: "washim@renthub.com.bd", is_identity_verified: true, rating: 4.98 },
+    images: [
+      { url: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1600&q=85", is_primary: true },
+      { url: "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=1600&q=85", is_primary: false },
+      { url: "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=1600&q=85", is_primary: false },
+      { url: "https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=1600&q=85", is_primary: false },
+      { url: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1600&q=85", is_primary: false },
+      { url: "https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=1600&q=85", is_primary: false },
+    ],
+  },
+  "bmw-m5-competition-360": {
+    id: "bmw-m5-competition-360",
+    slug: "bmw-m5-competition-360",
+    title: "BMW M5 Competition 2024 (360° View)",
+    description: "High performance sports executive sedan with 617hp twin-turbo V8, carbon ceramic brakes, Bowers & Wilkins audio, and Merino leather bucket seats. Interactive 360° view with front, back, interior, and exterior angles.",
+    price_per_day: 16500,
+    security_deposit: 30000,
+    condition: "Brand New",
+    delivery_option: "both",
+    city: "Dhaka",
+    area: "Banani",
+    avg_rating: 5.0,
+    review_count: 52,
+    is_featured: true,
+    category: { id: "vehicles", name: "Vehicles", slug: "vehicles" },
+    owner: { id: "owner-bmw", first_name: "Tanvir", last_name: "Hasan", email: "tanvir@renthub.com.bd", is_identity_verified: true, rating: 4.95 },
+    images: [
+      { url: "https://images.unsplash.com/photo-1555353540-64580b51c258?auto=format&fit=crop&w=1600&q=85", is_primary: true },
+      { url: "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1600&q=85", is_primary: false },
+      { url: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=1600&q=85", is_primary: false },
+      { url: "https://images.unsplash.com/photo-1544636331-e26879cd4d9b?auto=format&fit=crop&w=1600&q=85", is_primary: false },
+      { url: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1600&q=85", is_primary: false },
+    ],
+  },
+  "sony-a7-iv": {
+    id: "sony-a7-iv",
+    slug: "sony-a7-iv",
+    title: "Sony Alpha A7 IV + 24-70mm GM Lens",
+    description: "Flagship hybrid mirrorless full-frame camera with 33MP sensor, 4K 60p 10-bit recording, real-time eye autofocus, and Sony G-Master 24-70mm f/2.8 lens. Ideal for commercial shoots, events, and cinematic documentaries.",
+    price_per_day: 3000,
+    security_deposit: 10000,
+    condition: "Like New",
+    delivery_option: "both",
+    city: "Dhaka",
+    area: "Banani",
+    avg_rating: 4.9,
+    review_count: 64,
+    is_featured: true,
+    category: { id: "cameras", name: "Cameras", slug: "cameras" },
+    owner: { id: "owner-cam", first_name: "Sadia", last_name: "Rahman", email: "sadia@renthub.com.bd", is_identity_verified: true, rating: 4.92 },
+    images: [
+      { url: "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?auto=format&fit=crop&w=1600&q=80", is_primary: true },
+      { url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1600&q=80", is_primary: false },
+    ],
+  },
+  "macbook-air-m2": {
+    id: "macbook-air-m2",
+    slug: "macbook-air-m2",
+    title: "MacBook Pro 16\" M3 Max (36GB Unified RAM / 1TB SSD)",
+    description: "Extreme performance Apple workstation with 16-core CPU, 40-core GPU, Liquid Retina XDR display, and 22-hour battery life. Preloaded with Final Cut Pro, Adobe Premiere Pro, and Xcode for developer and video pros.",
+    price_per_day: 3200,
+    security_deposit: 12000,
+    condition: "Flawless",
+    delivery_option: "both",
+    city: "Dhaka",
+    area: "Dhanmondi",
+    avg_rating: 4.95,
+    review_count: 76,
+    is_featured: true,
+    category: { id: "electronics", name: "Electronics", slug: "electronics" },
+    owner: { id: "owner-tech", first_name: "Farhan", last_name: "Masud", email: "farhan@renthub.com.bd", is_identity_verified: true, rating: 4.96 },
+    images: [
+      { url: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=1600&q=80", is_primary: true },
+      { url: "https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?auto=format&fit=crop&w=1600&q=80", is_primary: false },
+    ],
+  },
+};
+
+function getFallbackProduct(slug: string) {
+  if (FALLBACK_PRODUCT_CATALOG[slug]) {
+    return FALLBACK_PRODUCT_CATALOG[slug];
+  }
+
+  // Generic fallback generator for deal or dynamic slugs
+  const readableTitle = slug
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (l) => l.toUpperCase());
+
+  return {
+    id: slug,
+    slug: slug,
+    title: readableTitle,
+    description: `Verified rental item on RentHub Bangladesh. Thoroughly inspected, sanitized, and ready for pickup or doorstep delivery with 100% escrow security deposit protection.`,
+    price_per_day: 2500,
+    security_deposit: 5000,
+    condition: "Good",
+    delivery_option: "both",
+    city: "Dhaka",
+    area: "Gulshan",
+    avg_rating: 4.85,
+    review_count: 24,
+    is_featured: false,
+    category: { id: "general", name: "General", slug: "general" },
+    owner: { id: "owner-general", first_name: "Verified", last_name: "Host", email: "host@renthub.com.bd", is_identity_verified: true, rating: 4.9 },
+    images: [
+      { url: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1600&q=85", is_primary: true },
+      { url: "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?auto=format&fit=crop&w=1600&q=80", is_primary: false },
+    ],
+  };
+}
+
   useEffect(() => {
     if (!slug) return;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -453,7 +581,15 @@ export default function ProductDetailsPage() {
             }).catch(() => {});
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        // Fallback to local catalog if backend is offline or slug not in DB
+        const fallback = getFallbackProduct(String(slug));
+        if (fallback) {
+          setProduct(fallback);
+          setIsWishlisted(false);
+          useRecentlyViewedStore.getState().recordView(fallback);
+        }
+      })
       .finally(() => setLoading(false));
   }, [slug]);
 
@@ -1380,6 +1516,7 @@ export default function ProductDetailsPage() {
 
                       <MagneticButton
                         onClick={(e: React.MouseEvent) => {
+                          if (!requireAuth()) return;
                           const primaryImg = product.image_url || product.images?.find((img: any) => img.is_primary)?.url || product.images?.[0]?.url || "";
                           triggerFlyToCart({
                             image: primaryImg,

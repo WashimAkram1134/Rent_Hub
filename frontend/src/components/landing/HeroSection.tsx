@@ -254,21 +254,32 @@ export function HeroSection() {
       <div className="relative z-10 max-w-[1340px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
         {/* ── Top Announcement & Live Badge ─────────────────────────────────── */}
         <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+          {/* Demo Mode Flag Badge */}
           <motion.div
             initial={{ opacity: 0, y: -15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 backdrop-blur-md shadow-lg shadow-indigo-500/10"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 backdrop-blur-md shadow-lg shadow-amber-500/10"
           >
             <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400" />
             </span>
-            <span className="text-indigo-200 text-xs sm:text-sm font-semibold tracking-wide">
-              Bangladesh&apos;s #1 Peer-to-Peer Rental Network
+            <span className="px-1.5 py-0.5 rounded bg-amber-500/25 text-amber-300 text-[10px] font-extrabold uppercase tracking-wider">
+              Demo Mode
             </span>
-            <span className="text-white/30 text-xs hidden sm:inline">•</span>
-            <span className="text-emerald-300 text-xs font-bold hidden sm:inline">25,000+ Verified Members</span>
+            <span className="text-amber-200/90 text-xs sm:text-sm font-medium">
+              Information on this landing page is simulated for demonstration
+            </span>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: -15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="hidden md:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 backdrop-blur-md text-indigo-200 text-xs font-semibold"
+          >
+            <span>Peer-to-Peer Rental Network</span>
           </motion.div>
 
           {/* Live Activity Toast Pill */}
@@ -279,7 +290,9 @@ export function HeroSection() {
               animate={{ opacity: 1, scale: 1, x: 0 }}
               exit={{ opacity: 0, scale: 0.9, x: -10 }}
               transition={{ duration: 0.35 }}
-              className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 backdrop-blur-md text-[11px] text-white/80"
+              onClick={() => router.push(`/search?q=${encodeURIComponent(currentActivity.item)}`)}
+              className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 hover:border-indigo-400/40 cursor-pointer backdrop-blur-md text-[11px] text-white/80 transition-all"
+              title={`View ${currentActivity.item}`}
             >
               <div className={`w-4 h-4 rounded-full ${currentActivity.color} flex items-center justify-center text-[9px] font-bold text-white`}>
                 {currentActivity.avatar}
@@ -306,16 +319,22 @@ export function HeroSection() {
             <br className="hidden sm:inline" />
             <span className="inline-block mt-1">
               <AnimatePresence mode="wait">
-                <motion.span
+                <Link
                   key={wordIdx}
-                  initial={{ opacity: 0, y: 20, filter: "blur(8px)" }}
-                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                  exit={{ opacity: 0, y: -20, filter: "blur(8px)" }}
-                  transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                  className={`inline-block bg-gradient-to-r ${ROTATING_WORDS[wordIdx].color} bg-clip-text text-transparent drop-shadow-sm font-extrabold`}
+                  href={ROTATING_WORDS[wordIdx].href}
+                  className="inline-block cursor-pointer hover:scale-102 transition-transform"
+                  title="Explore category"
                 >
-                  {ROTATING_WORDS[wordIdx].text}
-                </motion.span>
+                  <motion.span
+                    initial={{ opacity: 0, y: 20, filter: "blur(8px)" }}
+                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                    exit={{ opacity: 0, y: -20, filter: "blur(8px)" }}
+                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                    className={`inline-block bg-gradient-to-r ${ROTATING_WORDS[wordIdx].color} bg-clip-text text-transparent drop-shadow-sm font-extrabold`}
+                  >
+                    {ROTATING_WORDS[wordIdx].text}
+                  </motion.span>
+                </Link>
               </AnimatePresence>
             </span>
           </motion.h1>

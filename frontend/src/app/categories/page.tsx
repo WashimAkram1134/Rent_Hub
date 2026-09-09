@@ -100,6 +100,97 @@ function RequestModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+const DEFAULT_FALLBACK_CATEGORIES: Category[] = [
+  {
+    id: "vehicles",
+    name: "Vehicles & 360° Cars",
+    slug: "vehicles",
+    description: "Range Rovers, BMWs, Sedans, Bikes & Microbuses with 360° rotation.",
+    product_count: 450,
+    sort_order: 1,
+    is_active: true,
+    created_at: "2026-01-01T00:00:00Z",
+    image_url: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    id: "cameras",
+    name: "Cameras & Cinema Lenses",
+    slug: "cameras",
+    description: "Sony A7 IV, Canon EOS R6, Blackmagic 6K, DJI Drones & Prime Lenses.",
+    product_count: 380,
+    sort_order: 2,
+    is_active: true,
+    created_at: "2026-01-01T00:00:00Z",
+    image_url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    id: "electronics",
+    name: "Electronics & MacBooks",
+    slug: "electronics",
+    description: "MacBook Pro M3 Max, iPads, PS5 Consoles, VR Headsets & Audio.",
+    product_count: 620,
+    sort_order: 3,
+    is_active: true,
+    created_at: "2026-01-01T00:00:00Z",
+    image_url: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    id: "apartments",
+    name: "Apartments & Vacation Stays",
+    slug: "apartments",
+    description: "Gulshan lakeview flats, Cox's Bazar beach villas & studios.",
+    product_count: 290,
+    sort_order: 4,
+    is_active: true,
+    created_at: "2026-01-01T00:00:00Z",
+    image_url: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    id: "furniture",
+    name: "Furniture & Decor",
+    slug: "furniture",
+    description: "Herman Miller ergonomic chairs, dining sets & electric recliners.",
+    product_count: 180,
+    sort_order: 5,
+    is_active: true,
+    created_at: "2026-01-01T00:00:00Z",
+    image_url: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    id: "fashion",
+    name: "Fashion & Designer Wear",
+    slug: "fashion",
+    description: "Wedding lehengas, tuxedo suits, luxury watches & designer jewelry.",
+    product_count: 310,
+    sort_order: 6,
+    is_active: true,
+    created_at: "2026-01-01T00:00:00Z",
+    image_url: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    id: "sports",
+    name: "Sports & Fitness Gear",
+    slug: "sports",
+    description: "Trek mountain bikes, camping tents, cricket kits & treadmills.",
+    product_count: 220,
+    sort_order: 7,
+    is_active: true,
+    created_at: "2026-01-01T00:00:00Z",
+    image_url: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    id: "books",
+    name: "Books & Educational Kits",
+    slug: "books",
+    description: "Medical, engineering textbooks, rare fiction & self-improvement books.",
+    product_count: 540,
+    sort_order: 8,
+    is_active: true,
+    created_at: "2026-01-01T00:00:00Z",
+    image_url: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=600&q=80",
+  },
+];
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -111,8 +202,14 @@ export default function CategoriesPage() {
   useEffect(() => {
     categoryService
       .list(false)
-      .then((data) => setCategories(Array.isArray(data) ? data : []))
-      .catch(() => setCategories([]))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCategories(data);
+        } else {
+          setCategories(DEFAULT_FALLBACK_CATEGORIES);
+        }
+      })
+      .catch(() => setCategories(DEFAULT_FALLBACK_CATEGORIES))
       .finally(() => setLoading(false));
   }, []);
 

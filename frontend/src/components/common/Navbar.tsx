@@ -39,17 +39,18 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [search, setSearch] = useState("");
-  const { user, logout, activeRole, setActiveRole, toggleActiveRole } = useAuthStore();
+  const { user, isAuthenticated, logout, activeRole, setActiveRole, toggleActiveRole } = useAuthStore();
   const { latestNotification } = useWebSocket();
 
   const isOwnerUser = user?.is_owner || user?.primary_role === "owner" || user?.role_names?.includes("owner") || user?.primary_role === "admin";
   const isPendingLister = !isOwnerUser && user?.lister_status === "pending";
 
   useEffect(() => {
-    if (user) {
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    if (user && isAuthenticated && token) {
       fetchNotifications();
     }
-  }, [user]);
+  }, [user, isAuthenticated]);
 
   useEffect(() => {
     if (latestNotification) {
@@ -59,13 +60,28 @@ export default function Navbar() {
   }, [latestNotification]);
 
   const fetchNotifications = async () => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    if (!user || !isAuthenticated || !token) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
     try {
       const res = await api.get("/notifications");
-      // Assuming API returns array directly based on FastAPI endpoint setup
-      setNotifications(res.data);
-      setUnreadCount(res.data.filter((n: Notification) => !n.is_read).length);
-    } catch (error) {
-      console.error("Failed to fetch notifications", error);
+      if (Array.isArray(res.data)) {
+        setNotifications(res.data);
+        setUnreadCount(res.data.filter((n: Notification) => !n.is_read).length);
+      } else {
+        setNotifications([]);
+        setUnreadCount(0);
+      }
+    } catch (error: any) {
+      setNotifications([]);
+      setUnreadCount(0);
+      // Suppress 401 console.error in development to prevent red error overlay
+      if (error?.response?.status !== 401) {
+        console.warn("Notifications unavailable:", error?.message || error);
+      }
     }
   };
 
@@ -75,8 +91,10 @@ export default function Navbar() {
         await api.put(`/notifications/${notification.id}/read`);
         setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n));
         setUnreadCount(prev => Math.max(0, prev - 1));
-      } catch (error) {
-        console.error("Failed to mark as read", error);
+      } catch (error: any) {
+        if (error?.response?.status !== 401) {
+          console.warn("Failed to mark notification as read", error?.message || error);
+        }
       }
     }
     setShowNotifications(false);
