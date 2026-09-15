@@ -126,8 +126,8 @@ export function CustomerDashboard() {
       {/* ── Right Side (Header + Content) ───────────────────────────────── */}
       <div className="flex flex-col min-w-0 overflow-hidden h-full" style={{ fontFamily: "'Inter', sans-serif" }}>
 
-        {/* Top Header */}
-        <header className="bg-white border-b border-gray-100 px-5 py-3 flex items-center gap-3 shrink-0">
+        {/* Top Header — slides in from top */}
+        <header className="anim-fade-in anim-delay-0 bg-white border-b border-gray-100 px-5 py-3 flex items-center gap-3 shrink-0">
           {/* Search Bar */}
           <div className="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 max-w-sm focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
             <Search size={16} className="text-slate-400 shrink-0" />
@@ -180,12 +180,18 @@ export function CustomerDashboard() {
             {/* ── Center Content ──────────────────────────────────── */}
             <div className="flex-1 min-w-0 space-y-5">
 
-              <HeroSlider slides={heroSlides} />
+              {/* Hero Slider — scale in */}
+              <div className="anim-scale-in anim-delay-100">
+                <HeroSlider slides={heroSlides} />
+              </div>
               
-              <CategoryGrid categories={categories} />
+              {/* Category Grid — fade up */}
+              <div className="anim-fade-up anim-delay-200">
+                <CategoryGrid categories={categories} />
+              </div>
 
-              {/* Trending Near You */}
-              <div>
+              {/* Trending Near You — fade up */}
+              <div className="anim-fade-up anim-delay-300">
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-sm font-bold text-slate-900">Trending Near You</h2>
                   <Link href="/products" className="text-xs font-semibold text-blue-600 hover:text-blue-700">View all</Link>
@@ -209,8 +215,8 @@ export function CustomerDashboard() {
                 </div>
               </div>
 
-              {/* Continue Browsing + Recommended */}
-              <div className="grid grid-cols-2 gap-5">
+              {/* Continue Browsing + Recommended — fade up */}
+              <div className="anim-fade-up anim-delay-400 grid grid-cols-2 gap-5">
 
                 {/* Continue Browsing */}
                 <div>
@@ -308,18 +314,21 @@ export function CustomerDashboard() {
                 </div>
               </div>
 
-              <CityExplorer cities={cities} />
+              {/* City Explorer — fade up */}
+              <div className="anim-fade-up anim-delay-500">
+                <CityExplorer cities={cities} />
+              </div>
             </div>
 
-            {/* ── Right Column ─────────────────────────────────────── */}
-            <div className="w-[270px] shrink-0 space-y-4">
+            {/* ── Right Column — slides in from right ──────────────── */}
+            <div className="anim-slide-right anim-delay-200 w-[270px] shrink-0 space-y-4">
               
               <UpcomingBookingWidget booking={upcomingBooking} />
               
               <DealsWidget deals={deals} />
 
               {/* Wishlist Widget */}
-              <div>
+              <div className="anim-fade-up anim-delay-350">
                 <div className="flex items-center justify-between mb-2.5">
                   <h3 className="text-xs font-bold text-slate-900">Wishlist</h3>
                   <Link href="/wishlist" className="text-[10px] font-semibold text-blue-600 hover:text-blue-700">View all</Link>
@@ -337,7 +346,7 @@ export function CustomerDashboard() {
               </div>
 
               {/* Top Owners */}
-              <div>
+              <div className="anim-fade-up anim-delay-500">
                 <div className="flex items-center justify-between mb-2.5">
                   <h3 className="text-xs font-bold text-slate-900">Top Owners</h3>
                   <Link href="/owners" className="text-[10px] font-semibold text-blue-600 hover:text-blue-700">View all</Link>

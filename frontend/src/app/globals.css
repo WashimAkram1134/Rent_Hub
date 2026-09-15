@@ -173,3 +173,51 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground));
 }
+
+/* ─── Dashboard Entrance Animations ───────────────────────────────────────── */
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Base animation classes */
+.anim-fade-up    { opacity: 0; animation: fadeUp      0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.anim-fade-in    { opacity: 0; animation: fadeIn      0.45s ease forwards; }
+.anim-slide-left { opacity: 0; animation: slideInLeft 0.5s  cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.anim-slide-right{ opacity: 0; animation: slideInRight 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.anim-scale-in   { opacity: 0; animation: scaleIn     0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+/* Stagger delay utilities */
+.anim-delay-0   { animation-delay:   0ms; }
+.anim-delay-50  { animation-delay:  50ms; }
+.anim-delay-100 { animation-delay: 100ms; }
+.anim-delay-150 { animation-delay: 150ms; }
+.anim-delay-200 { animation-delay: 200ms; }
+.anim-delay-250 { animation-delay: 250ms; }
+.anim-delay-300 { animation-delay: 300ms; }
+.anim-delay-350 { animation-delay: 350ms; }
+.anim-delay-400 { animation-delay: 400ms; }
+.anim-delay-500 { animation-delay: 500ms; }
+.anim-delay-600 { animation-delay: 600ms; }
+.anim-delay-700 { animation-delay: 700ms; }
