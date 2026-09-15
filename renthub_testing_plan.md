@@ -6,6 +6,309 @@
 
 ---
 
+## 📊 Master Test Tracker
+
+> **Legend:** ✅ Done &nbsp;|&nbsp; 🚧 In Progress &nbsp;|&nbsp; 🔲 Upcoming &nbsp;|&nbsp; ⏭ Skipped
+
+### 🔐 Authentication & Authorization
+
+| ID | Test Case | Type | Priority | Status | Notes |
+|---|---|---|---|---|---|
+| AUTH-01 | Register — success | Integration | 🔴 Critical | ✅ Done | `test_auth.py` |
+| AUTH-02 | Register — duplicate email | Integration | 🔴 Critical | ✅ Done | `test_auth.py` |
+| AUTH-03 | Register — weak password | Integration | 🔴 Critical | ✅ Done | `test_auth.py` |
+| AUTH-04 | Register — missing required fields | Integration | 🔴 Critical | 🔲 Upcoming | |
+| AUTH-05 | Register — XSS payload in name | Integration | 🟠 High | 🔲 Upcoming | |
+| AUTH-06 | Login — success | Integration | 🔴 Critical | ✅ Done | `test_auth.py` |
+| AUTH-07 | Login — invalid credentials | Integration | 🔴 Critical | ✅ Done | `test_auth.py` |
+| AUTH-08 | Login — inactive account | Integration | 🔴 Critical | ✅ Done | `test_auth.py` |
+| AUTH-09 | Login — JWT access token expiry (15 min) | Integration | 🔴 Critical | 🔲 Upcoming | |
+| AUTH-10 | Token refresh — valid | Integration | 🔴 Critical | ✅ Done | `test_auth.py` |
+| AUTH-11 | Token refresh — expired/tampered | Integration | 🔴 Critical | 🔲 Upcoming | |
+| AUTH-12 | Logout | Integration | 🟠 High | ✅ Done | `test_auth.py` |
+| AUTH-13 | Email verification flow | Integration | 🟠 High | ✅ Done | `test_auth.py` |
+| AUTH-14 | Forgot / reset password | Integration | 🟠 High | ✅ Done | `test_auth.py` |
+| AUTH-15 | Password reset link expires after 1 use | Integration | 🟠 High | 🔲 Upcoming | |
+| AUTH-16 | Google OAuth login — valid credential | Integration | 🟠 High | 🔲 Upcoming | |
+| AUTH-17 | Google OAuth — existing user re-auth | Integration | 🟠 High | 🔲 Upcoming | |
+| AUTH-18 | Protected route — no token → 401 | Integration | 🔴 Critical | 🔲 Upcoming | |
+| AUTH-19 | Protected route — expired token → 401 | Integration | 🔴 Critical | 🔲 Upcoming | |
+| AUTH-20 | Admin-only route — customer role → 403 | Integration | 🔴 Critical | 🔲 Upcoming | |
+| AUTH-21 | Owner-only route — customer role → 403 | Integration | 🔴 Critical | 🔲 Upcoming | |
+| AUTH-22 | Login loading screen shows ~2.5s | E2E | 🟡 Medium | ✅ Done | Manual verified |
+| AUTH-23 | Google button NOT spinning during email login | E2E | 🟡 Medium | ✅ Done | Manual verified |
+| AUTH-24 | Global overlay persists through route change | E2E | 🟠 High | ✅ Done | Manual verified |
+| AUTH-25 | Login redirects to `returnUrl` (public flows) | E2E | 🟡 Medium | 🔲 Upcoming | |
+
+---
+
+### 👤 User Profile & Roles
+
+| ID | Test Case | Type | Priority | Status | Notes |
+|---|---|---|---|---|---|
+| USER-01 | GET /users/me — returns full user | Integration | 🟠 High | 🔲 Upcoming | |
+| USER-02 | Update profile fields | Integration | 🟠 High | 🔲 Upcoming | |
+| USER-03 | Upload avatar — valid JPEG/PNG ≤ 10MB | Integration | 🟡 Medium | 🔲 Upcoming | |
+| USER-04 | Upload avatar — file too large | Integration | 🟡 Medium | 🔲 Upcoming | |
+| USER-05 | Upload avatar — invalid file type | Integration | 🟡 Medium | 🔲 Upcoming | |
+| USER-06 | Toggle active role customer ↔ owner | Unit | 🟠 High | 🔲 Upcoming | |
+| USER-07 | Deactivated user cannot log in | Integration | 🔴 Critical | 🔲 Upcoming | |
+| USER-08 | Profile page renders for both roles | E2E | 🟡 Medium | 🔲 Upcoming | |
+| USER-09 | Change password — correct old password | Integration | 🟠 High | 🔲 Upcoming | |
+| USER-10 | Change password — wrong old password | Integration | 🟠 High | 🔲 Upcoming | |
+
+---
+
+### 🏠 Products / Listings
+
+| ID | Test Case | Type | Priority | Status | Notes |
+|---|---|---|---|---|---|
+| PROD-01 | Create listing — all required fields | Integration | 🔴 Critical | 🔲 Upcoming | |
+| PROD-02 | Create listing — missing price | Integration | 🔴 Critical | 🔲 Upcoming | |
+| PROD-03 | Create listing — negative price | Integration | 🟠 High | 🔲 Upcoming | |
+| PROD-04 | Create listing — non-owner user → 403 | Integration | 🔴 Critical | 🔲 Upcoming | |
+| PROD-05 | Get all listings — paginated | Integration | 🟠 High | 🔲 Upcoming | |
+| PROD-06 | Get listing by ID | Integration | 🟠 High | 🔲 Upcoming | |
+| PROD-07 | Get listing — non-existent ID → 404 | Integration | 🟠 High | 🔲 Upcoming | |
+| PROD-08 | Update own listing | Integration | 🟠 High | 🔲 Upcoming | |
+| PROD-09 | Update another owner's listing → 403 | Integration | 🔴 Critical | 🔲 Upcoming | |
+| PROD-10 | Delete own listing | Integration | 🟠 High | 🔲 Upcoming | |
+| PROD-11 | Search by keyword | Integration | 🟡 Medium | 🔲 Upcoming | |
+| PROD-12 | Filter by category slug | Integration | 🟡 Medium | 🔲 Upcoming | |
+| PROD-13 | Filter by city | Integration | 🟡 Medium | 🔲 Upcoming | |
+| PROD-14 | Filter by price range | Integration | 🟡 Medium | 🔲 Upcoming | |
+| PROD-15 | Upload product images (multi-image) | Integration | 🟡 Medium | 🔲 Upcoming | |
+| PROD-16 | Mark listing as unavailable | Integration | 🟠 High | 🔲 Upcoming | |
+| PROD-17 | Product detail page loads correctly | E2E | 🟡 Medium | 🔲 Upcoming | |
+| PROD-18 | Recently viewed tracked per user | Integration | 🟢 Normal | 🔲 Upcoming | |
+| PROD-19 | Trending filter respected | Integration | 🟢 Normal | 🔲 Upcoming | |
+
+---
+
+### 📅 Bookings
+
+| ID | Test Case | Type | Priority | Status | Notes |
+|---|---|---|---|---|---|
+| BOOK-01 | Create booking — valid dates | Integration | 🔴 Critical | 🔲 Upcoming | |
+| BOOK-02 | Create booking — unavailable dates → 409 | Integration | 🔴 Critical | 🔲 Upcoming | |
+| BOOK-03 | Create booking — past start date → 422 | Integration | 🔴 Critical | 🔲 Upcoming | |
+| BOOK-04 | Create booking — end before start → 422 | Integration | 🔴 Critical | 🔲 Upcoming | |
+| BOOK-05 | Owner approves booking | Integration | 🔴 Critical | 🔲 Upcoming | |
+| BOOK-06 | Owner rejects booking | Integration | 🔴 Critical | 🔲 Upcoming | |
+| BOOK-07 | Customer cancels pending booking | Integration | 🟠 High | 🔲 Upcoming | |
+| BOOK-08 | Customer cancels confirmed (within policy) | Integration | 🟠 High | 🔲 Upcoming | |
+| BOOK-09 | Booking auto-expires if unpaid | Integration | 🟠 High | 🔲 Upcoming | |
+| BOOK-10 | Booking list — customer filter | Integration | 🟠 High | 🔲 Upcoming | |
+| BOOK-11 | Booking list — owner filter | Integration | 🟠 High | 🔲 Upcoming | |
+| BOOK-12 | Upcoming booking widget | E2E | 🟡 Medium | 🔲 Upcoming | |
+| BOOK-13 | Double booking blocked → 409 | Integration | 🔴 Critical | 🔲 Upcoming | |
+| BOOK-14 | Booking creates notification for owner | Integration | 🟠 High | 🔲 Upcoming | |
+
+---
+
+### 💳 Payments
+
+| ID | Test Case | Type | Priority | Status | Notes |
+|---|---|---|---|---|---|
+| PAY-01 | Create payment for booking | Integration | 🔴 Critical | 🔲 Upcoming | |
+| PAY-02 | Payment — invalid booking ID → 404 | Integration | 🔴 Critical | 🔲 Upcoming | |
+| PAY-03 | Duplicate payment → 400 | Integration | 🔴 Critical | 🔲 Upcoming | |
+| PAY-04 | Webhook — success → booking confirmed | Integration | 🔴 Critical | 🔲 Upcoming | |
+| PAY-05 | Webhook — failed → payment_failed status | Integration | 🔴 Critical | 🔲 Upcoming | |
+| PAY-06 | Payment history — customer filter | Integration | 🟠 High | 🔲 Upcoming | |
+| PAY-07 | Payment detail page — correct amount | E2E | 🟡 Medium | 🔲 Upcoming | |
+| PAY-08 | Fee calculation accuracy | Integration | 🟠 High | 🔲 Upcoming | |
+
+---
+
+### 💰 Payouts
+
+| ID | Test Case | Type | Priority | Status | Notes |
+|---|---|---|---|---|---|
+| POUT-01 | Owner requests payout — sufficient balance | Integration | 🟠 High | 🔲 Upcoming | |
+| POUT-02 | Owner requests payout — insufficient → 400 | Integration | 🟠 High | 🔲 Upcoming | |
+| POUT-03 | Admin approves payout | Integration | 🟠 High | 🔲 Upcoming | |
+| POUT-04 | Admin rejects payout — balance restored | Integration | 🟠 High | 🔲 Upcoming | |
+| POUT-05 | Payout history page | E2E | 🟡 Medium | 🔲 Upcoming | |
+| POUT-06 | Customer cannot request payout → 403 | Integration | 🔴 Critical | 🔲 Upcoming | |
+
+---
+
+### ⭐ Reviews & Ratings
+
+| ID | Test Case | Type | Priority | Status | Notes |
+|---|---|---|---|---|---|
+| REV-01 | Submit review — completed booking | Integration | 🟠 High | 🔲 Upcoming | |
+| REV-02 | Submit review — booking not completed → 403 | Integration | 🟠 High | 🔲 Upcoming | |
+| REV-03 | Submit duplicate review → 409 | Integration | 🟠 High | 🔲 Upcoming | |
+| REV-04 | Rating outside 1–5 → 422 | Integration | 🟠 High | 🔲 Upcoming | |
+| REV-05 | Get reviews — paginated | Integration | 🟡 Medium | 🔲 Upcoming | |
+| REV-06 | Average rating recalculated | Integration | 🟠 High | 🔲 Upcoming | |
+| REV-07 | Review with XSS comment — sanitized | Integration | 🔴 Critical | 🔲 Upcoming | |
+| REV-08 | Reviews visible on product detail | E2E | 🟡 Medium | 🔲 Upcoming | |
+
+---
+
+### 💬 Messaging & Notifications
+
+| ID | Test Case | Type | Priority | Status | Notes |
+|---|---|---|---|---|---|
+| MSG-01 | Send message — valid conversation | Integration | 🟡 Medium | 🔲 Upcoming | |
+| MSG-02 | Send message — unauthenticated → 401 | Integration | 🟠 High | 🔲 Upcoming | |
+| MSG-03 | Get conversation messages — paginated | Integration | 🟡 Medium | 🔲 Upcoming | |
+| MSG-04 | WebSocket connects on authentication | E2E | 🟡 Medium | 🔲 Upcoming | |
+| MSG-05 | Real-time message appears < 1s | E2E | 🟡 Medium | 🔲 Upcoming | |
+| MSG-06 | Notification created on new message | Integration | 🟡 Medium | 🔲 Upcoming | |
+| NOTIF-01 | Get notifications — unread count correct | Integration | 🟡 Medium | 🔲 Upcoming | |
+| NOTIF-02 | Mark notification as read | Integration | 🟡 Medium | 🔲 Upcoming | |
+| NOTIF-03 | Mark all as read | Integration | 🟡 Medium | 🔲 Upcoming | |
+| NOTIF-04 | Notification dropdown functional | E2E | 🟡 Medium | 🔲 Upcoming | |
+
+---
+
+### 🪪 Identity Verification
+
+| ID | Test Case | Type | Priority | Status | Notes |
+|---|---|---|---|---|---|
+| IDV-01 | Submit — valid NID + selfie | Integration | 🟠 High | 🔲 Upcoming | |
+| IDV-02 | Submit — file too large → 413 | Integration | 🟠 High | 🔲 Upcoming | |
+| IDV-03 | Submit — unsupported format → 400 | Integration | 🟠 High | 🔲 Upcoming | |
+| IDV-04 | Face match above threshold → auto-approve | Integration | 🟠 High | 🔲 Upcoming | |
+| IDV-05 | Face match between thresholds → manual | Integration | 🟠 High | 🔲 Upcoming | |
+| IDV-06 | Face match below min → rejected | Integration | 🟠 High | 🔲 Upcoming | |
+| IDV-07 | Exceed max retry (3) → locked | Integration | 🟠 High | 🔲 Upcoming | |
+| IDV-08 | Admin views pending verifications | Integration | 🟠 High | 🔲 Upcoming | |
+| IDV-09 | Admin approves verification | Integration | 🟠 High | 🔲 Upcoming | |
+| IDV-10 | Admin rejects with reason | Integration | 🟠 High | 🔲 Upcoming | |
+| IDV-11 | Verified badge visible on profile | E2E | 🟡 Medium | 🔲 Upcoming | |
+| IDV-12 | ID documents encrypted at rest | Unit | 🔴 Critical | 🔲 Upcoming | |
+
+---
+
+### 📊 Analytics & Dashboard
+
+| ID | Test Case | Type | Priority | Status | Notes |
+|---|---|---|---|---|---|
+| ANLT-01 | Owner stats — correct totals | Integration | 🟠 High | 🔲 Upcoming | |
+| ANLT-02 | Earnings chart date range | Integration | 🟠 High | 🔲 Upcoming | |
+| ANLT-03 | Booking trend data populated | Integration | 🟠 High | 🔲 Upcoming | |
+| ANLT-04 | Customer dashboard trending products | E2E | 🟡 Medium | 🔲 Upcoming | |
+| ANLT-05 | Owner KPI cards match API data | E2E | 🟡 Medium | 🔲 Upcoming | |
+| ANLT-06 | Dashboard loading screen appears on first load | E2E | 🟡 Medium | ✅ Done | Manual verified |
+| ANLT-07 | Dashboard entrance animations smooth | E2E | 🟡 Medium | ✅ Done | Manual verified |
+| ANLT-08 | Dashboard LCP ≤ 3s | Performance | 🟠 High | 🔲 Upcoming | |
+
+---
+
+### 🗂️ CMS (Hero Slides, Categories, Cities, Deals)
+
+| ID | Test Case | Type | Priority | Status | Notes |
+|---|---|---|---|---|---|
+| CMS-01 | Get hero slides | Integration | 🟡 Medium | 🔲 Upcoming | |
+| CMS-02 | Get categories list | Integration | 🟡 Medium | 🔲 Upcoming | |
+| CMS-03 | Get cities list | Integration | 🟡 Medium | 🔲 Upcoming | |
+| CMS-04 | Get deals list | Integration | 🟡 Medium | 🔲 Upcoming | |
+| CMS-05 | Admin creates hero slide | Integration | 🟡 Medium | 🔲 Upcoming | |
+| CMS-06 | Admin deletes hero slide | Integration | 🟡 Medium | 🔲 Upcoming | |
+| CMS-07 | Category grid renders (+1 More) | E2E | 🟢 Normal | 🔲 Upcoming | |
+
+---
+
+### 🔍 Search
+
+| ID | Test Case | Type | Priority | Status | Notes |
+|---|---|---|---|---|---|
+| SRCH-01 | Search by keyword — results returned | Integration | 🟡 Medium | 🔲 Upcoming | |
+| SRCH-02 | Search — no results | Integration | 🟡 Medium | 🔲 Upcoming | |
+| SRCH-03 | Search — SQL injection payload | Integration | 🔴 Critical | 🔲 Upcoming | |
+| SRCH-04 | Search results page renders | E2E | 🟡 Medium | 🔲 Upcoming | |
+| SRCH-05 | Search — special characters (é, ক, #) | Integration | 🟡 Medium | 🔲 Upcoming | |
+
+---
+
+### 🔒 Security
+
+| ID | Test Case | Type | Priority | Status | Notes |
+|---|---|---|---|---|---|
+| SEC-01 | SQL Injection — all user inputs | Automated | 🔴 Critical | 🔲 Upcoming | OWASP ZAP |
+| SEC-02 | XSS — review/search fields | Automated | 🔴 Critical | 🔲 Upcoming | OWASP ZAP |
+| SEC-03 | CSRF — state-changing endpoints | Manual | 🔴 Critical | 🔲 Upcoming | |
+| SEC-04 | JWT token tampering → 401 | Manual | 🔴 Critical | 🔲 Upcoming | |
+| SEC-05 | JWT `alg: none` attack | Manual | 🔴 Critical | 🔲 Upcoming | |
+| SEC-06 | Rate limiting triggers after threshold | Manual | 🔴 Critical | 🔲 Upcoming | |
+| SEC-07 | IDOR — access another user's booking | Manual | 🔴 Critical | 🔲 Upcoming | |
+| SEC-08 | Mass assignment — inject `is_admin: true` | Manual | 🔴 Critical | 🔲 Upcoming | |
+| SEC-09 | No stack traces in production errors | Automated | 🔴 Critical | 🔲 Upcoming | |
+| SEC-10 | Password stored as bcrypt (12 rounds) | Unit | 🔴 Critical | 🔲 Upcoming | |
+| SEC-11 | Refresh token rotation — old token invalid | Integration | 🔴 Critical | 🔲 Upcoming | |
+| SEC-12 | File upload — executable disguised as image | Integration | 🔴 Critical | 🔲 Upcoming | |
+| SEC-13 | CORS — untrusted origin rejected | Integration | 🟠 High | 🔲 Upcoming | |
+| SEC-14 | API docs disabled in production | Config | 🟠 High | 🔲 Upcoming | |
+
+---
+
+### ⚡ Performance & Load
+
+| ID | Test Case | Type | Priority | Status | Notes |
+|---|---|---|---|---|---|
+| PERF-01 | Baseline load — 50 users, 5 min | Load (Locust) | 🟠 High | 🔲 Upcoming | |
+| PERF-02 | Peak load — 500 users, 15 min | Load (Locust) | 🟠 High | 🔲 Upcoming | |
+| PERF-03 | Spike test — 1000 users, 2 min | Load | 🟠 High | 🔲 Upcoming | |
+| PERF-04 | Soak test — 100 users, 1 hour | Load | 🟡 Medium | 🔲 Upcoming | |
+| PERF-05 | Login + redirect total ≤ 4s | E2E Perf | 🟠 High | 🔲 Upcoming | |
+| PERF-06 | DB search query < 200ms (10k records) | Backend | 🟡 Medium | 🔲 Upcoming | |
+
+---
+
+### ♿ Accessibility
+
+| ID | Test Case | Type | Priority | Status | Notes |
+|---|---|---|---|---|---|
+| A11Y-01 | Login page — keyboard navigation | Manual | 🟡 Medium | 🔲 Upcoming | |
+| A11Y-02 | Login page — screen reader labels | axe | 🟡 Medium | 🔲 Upcoming | |
+| A11Y-03 | Dashboard — color contrast ≥ 4.5:1 | axe | 🟡 Medium | 🔲 Upcoming | |
+| A11Y-04 | Loading screen `role="status"` present | Code Review | 🟡 Medium | ✅ Done | Implemented |
+| A11Y-05 | Image alt attributes present | axe | 🟡 Medium | 🔲 Upcoming | |
+
+---
+
+### 🌐 Health & Infrastructure
+
+| ID | Test Case | Type | Priority | Status | Notes |
+|---|---|---|---|---|---|
+| HLTH-01 | Health endpoint returns 200 | Integration | 🟠 High | ✅ Done | `test_health.py` |
+| HLTH-02 | Health includes DB + Redis status | Integration | 🟠 High | ✅ Done | `test_health.py` |
+| HLTH-03 | Health accessible without auth | Integration | 🟠 High | ✅ Done | `test_health.py` |
+
+---
+
+## 📈 Progress Summary
+
+| Module | Total | ✅ Done | 🚧 In Progress | 🔲 Upcoming |
+|---|---|---|---|---|
+| Auth & Authorization | 25 | 9 | 0 | 16 |
+| User Profile & Roles | 10 | 0 | 0 | 10 |
+| Products / Listings | 19 | 0 | 0 | 19 |
+| Bookings | 14 | 0 | 0 | 14 |
+| Payments | 8 | 0 | 0 | 8 |
+| Payouts | 6 | 0 | 0 | 6 |
+| Reviews & Ratings | 8 | 0 | 0 | 8 |
+| Messaging & Notifications | 10 | 0 | 0 | 10 |
+| Identity Verification | 12 | 0 | 0 | 12 |
+| Analytics & Dashboard | 8 | 3 | 0 | 5 |
+| CMS | 7 | 0 | 0 | 7 |
+| Search | 5 | 0 | 0 | 5 |
+| Security | 14 | 0 | 0 | 14 |
+| Performance & Load | 6 | 0 | 0 | 6 |
+| Accessibility | 5 | 1 | 0 | 4 |
+| Health & Infrastructure | 3 | 3 | 0 | 0 |
+| **TOTAL** | **160** | **16** | **0** | **144** |
+
+> **Overall completion: 16 / 160 (10%)**  
+> Update this table as tests are written and executed.
+
+---
+
 ## 1. Testing Strategy Overview
 
 ```mermaid
