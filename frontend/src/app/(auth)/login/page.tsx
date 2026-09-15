@@ -84,6 +84,11 @@ function LoginForm() {
     router.push(redirectTarget);
   }, [router, redirectTarget]);
 
+  const handleGoogleLoaderShow = useCallback((destination: string) => {
+    setRedirectTarget(destination);
+    setShowLoginLoader(true);
+  }, []);
+
   return (
     <div className="w-full">
       {/* Full-screen login loading animation */}
@@ -271,6 +276,7 @@ function LoginForm() {
           <GoogleAuthButton
             role="customer"
             label="Continue with Google"
+            onShowLoader={handleGoogleLoaderShow}
             className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 font-medium text-xs transition-all hover:scale-[1.01] active:scale-98"
           />
         </div>

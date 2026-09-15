@@ -10,6 +10,8 @@ interface GoogleAuthButtonProps {
   className?: string;
   label?: string;
   onSuccess?: () => void;
+  /** Called with the redirect destination so the parent can show a loading screen */
+  onShowLoader?: (destination: string) => void;
 }
 
 interface SavedGoogleAccount {
@@ -23,12 +25,13 @@ export function GoogleAuthButton({
   className = "",
   label = "Google",
   onSuccess,
+  onShowLoader,
 }: GoogleAuthButtonProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl");
 
-  const { loginWithGoogle, isLoading } = useAuthStore();
+  const { loginWithGoogle } = useAuthStore();
   const [modalOpen, setModalOpen] = useState(false);
   const [customEmail, setCustomEmail] = useState("");
   const [customName, setCustomName] = useState("");
@@ -147,12 +150,18 @@ export function GoogleAuthButton({
         returnUrl.startsWith("/offers") ||
         returnUrl.startsWith("/verify-identity"));
 
+    let destination = "/dashboard";
     if (isAdmin && returnUrl?.startsWith("/admin")) {
-      router.push(returnUrl);
+      destination = returnUrl;
     } else if (isPublicActionFlow) {
-      router.push(returnUrl);
+      destination = returnUrl;
+    }
+
+    // If parent wants to show loading screen, delegate navigation to it
+    if (onShowLoader) {
+      onShowLoader(destination);
     } else {
-      router.push("/dashboard");
+      router.push(destination);
     }
   };
 
@@ -298,13 +307,13 @@ export function GoogleAuthButton({
         type="button"
         id="login-google"
         onClick={handleButtonClick}
-        disabled={isLoading || submitting}
+        disabled={submitting}
         className={
           className ||
           "flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-xl border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.08] text-slate-200 font-medium text-xs transition-all hover:scale-[1.01] active:scale-98 disabled:opacity-50"
         }
       >
-        {submitting || isLoading ? (
+        {submitting ? (
           <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
         ) : (
           <svg className="w-4 h-4" viewBox="0 0 24 24">

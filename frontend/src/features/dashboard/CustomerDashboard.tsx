@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/features/auth/authStore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Search, MapPin, LogOut, CheckCircle, Star, Plus, Clock } from "lucide-react";
+import LoginLoadingScreen from "@/components/auth/LoginLoadingScreen";
 
 import { ProductCard } from "@/components/common/ProductCard";
 import AppShell from "@/components/layout/AppShell";
@@ -49,6 +50,8 @@ export function CustomerDashboard() {
   const [cities, setCities] = useState<any[]>([]);
   const [deals, setDeals] = useState<any[]>([]);
   const [upcomingBooking, setUpcomingBooking] = useState<any>(null);
+  const [isDashboardLoading, setIsDashboardLoading] = useState(true);
+  const [showDashboardLoader, setShowDashboardLoader] = useState(true);
 
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState("");
@@ -83,10 +86,25 @@ export function CustomerDashboard() {
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
+      } finally {
+        // Data is ready — let the loading screen finish its minimum display
+        setIsDashboardLoading(false);
       }
     };
     fetchData();
   }, [user?.id]);
+
+  // Once data is loaded, let the loader run for at least ~1.2s so it doesn't flash
+  useEffect(() => {
+    if (!isDashboardLoading) {
+      const t = setTimeout(() => setShowDashboardLoader(false), 300);
+      return () => clearTimeout(t);
+    }
+  }, [isDashboardLoading]);
+
+  const handleDashboardLoaderComplete = useCallback(() => {
+    setShowDashboardLoader(false);
+  }, []);
 
   const toggleWishlist = (id: string) => {
     setWishlist((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
@@ -116,6 +134,13 @@ export function CustomerDashboard() {
 
   return (
     <AppShell showHeader={false}>
+      {/* Dashboard loading overlay — shown while initial data fetches */}
+      {showDashboardLoader && (
+        <LoginLoadingScreen
+          onComplete={handleDashboardLoaderComplete}
+          delay={isDashboardLoading ? 99999 : 400}
+        />
+      )}
 
       {/* ── Right Side (Header + Content) ───────────────────────────────── */}
       <div className="flex flex-col min-w-0 overflow-hidden h-full" style={{ fontFamily: "'Inter', sans-serif" }}>

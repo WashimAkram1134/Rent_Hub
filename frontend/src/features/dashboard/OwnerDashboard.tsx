@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuthStore } from "@/features/auth/authStore";
 import AppShell from "@/components/layout/AppShell";
+import LoginLoadingScreen from "@/components/auth/LoginLoadingScreen";
 import { OwnerHeaderWidget } from "@/features/dashboard/components/owner/OwnerHeaderWidget";
 import { StatCardsWidget } from "@/features/dashboard/components/owner/StatCardsWidget";
 import { TrendingCategoriesWidget } from "@/features/dashboard/components/owner/TrendingCategoriesWidget";
@@ -32,6 +33,11 @@ export function OwnerDashboard() {
   const [recentBookings, setRecentBookings] = useState<any[]>([]);
   const [myListings, setMyListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showOwnerLoader, setShowOwnerLoader] = useState(true);
+
+  const handleOwnerLoaderComplete = useCallback(() => {
+    setShowOwnerLoader(false);
+  }, []);
 
   const fetchOwnerData = async () => {
     try {
@@ -76,11 +82,25 @@ export function OwnerDashboard() {
   };
 
   useEffect(() => {
+    if (!loading) {
+      const t = setTimeout(() => setShowOwnerLoader(false), 300);
+      return () => clearTimeout(t);
+    }
+  }, [loading]);
+
+  useEffect(() => {
     fetchOwnerData();
   }, [user?.id]);
 
   return (
     <AppShell>
+      {/* Owner dashboard loading overlay */}
+      {showOwnerLoader && (
+        <LoginLoadingScreen
+          onComplete={handleOwnerLoaderComplete}
+          delay={loading ? 99999 : 400}
+        />
+      )}
       <div className="p-6 font-sans text-slate-800 space-y-6 max-w-[1440px] mx-auto pb-16">
         {/* 1. Rich Welcome & Host Performance Header (Full Width) */}
         <OwnerHeaderWidget
