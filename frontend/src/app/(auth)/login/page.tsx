@@ -3,7 +3,7 @@
 import { useState, Suspense, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import LoginLoadingScreen from "@/components/auth/LoginLoadingScreen";
+import { useTransitionStore } from "@/store/transitionStore";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -29,10 +29,9 @@ function LoginForm() {
   const reason = searchParams.get("reason");
 
   const { login, isLoading, error, clearError } = useAuthStore();
+  const { showLoader } = useTransitionStore();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const [showLoginLoader, setShowLoginLoader] = useState(false);
-  const [redirectTarget, setRedirectTarget] = useState("/dashboard");
 
   const {
     register,
@@ -72,29 +71,22 @@ function LoginForm() {
         destination = returnUrl;
       }
 
-      // Show animated loading screen for ~2.5s before redirecting
-      setRedirectTarget(destination);
-      setShowLoginLoader(true);
+      // Show global overlay (lives in root layout, survives route change)
+      // then navigate immediately — dashboard will hide the overlay when ready
+      showLoader();
+      router.push(destination);
     } catch {
       // Error is set in the store
     }
   };
 
-  const handleLoaderComplete = useCallback(() => {
-    router.push(redirectTarget);
-  }, [router, redirectTarget]);
-
   const handleGoogleLoaderShow = useCallback((destination: string) => {
-    setRedirectTarget(destination);
-    setShowLoginLoader(true);
-  }, []);
+    showLoader();
+    router.push(destination);
+  }, [showLoader, router]);
 
   return (
     <div className="w-full">
-      {/* Full-screen login loading animation */}
-      {showLoginLoader && (
-        <LoginLoadingScreen onComplete={handleLoaderComplete} delay={2500} />
-      )}
       {/* Glassmorphic Login Card */}
       <div className="relative rounded-3xl p-7 sm:p-10 bg-slate-900/70 backdrop-blur-2xl border border-white/[0.1] shadow-[0_20px_60px_rgba(0,0,0,0.7)] overflow-hidden">
         {/* Ambient Top Glow Border Accent */}

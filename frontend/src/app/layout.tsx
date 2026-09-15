@@ -6,6 +6,7 @@ import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { FlyToCartProvider } from "@/context/FlyToCartContext";
 import { FlyToCartOverlay } from "@/components/cart/FlyToCartOverlay";
 import { FloatingCartBar } from "@/components/cart/FloatingCartBar";
+import GlobalTransitionOverlay from "@/components/common/GlobalTransitionOverlay";
 
 // ─── Fonts ─────────────────────────────────────────────────────────────────
 const inter = Inter({
@@ -69,6 +70,8 @@ export default function RootLayout({
         <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
         <WebSocketProvider>
           <FlyToCartProvider>
+            {/* Global overlay — persists across all route changes, controlled by transitionStore */}
+            <GlobalTransitionOverlay />
             <FlyToCartOverlay />
             <FloatingCartBar />
             {children}
