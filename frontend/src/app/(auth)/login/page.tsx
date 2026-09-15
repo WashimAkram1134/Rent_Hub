@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import LoginLoadingScreen from "@/components/auth/LoginLoadingScreen";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -30,6 +31,8 @@ function LoginForm() {
   const { login, isLoading, error, clearError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [showLoginLoader, setShowLoginLoader] = useState(false);
+  const [redirectTarget, setRedirectTarget] = useState("/dashboard");
 
   const {
     register,
@@ -61,20 +64,32 @@ function LoginForm() {
          returnUrl.startsWith("/categories") ||
          returnUrl.startsWith("/verify-identity"));
 
+      // Determine redirect destination
+      let destination = "/dashboard";
       if (isAdmin && returnUrl.startsWith("/admin")) {
-        router.push(returnUrl);
+        destination = returnUrl;
       } else if (isPublicActionFlow) {
-        router.push(returnUrl);
-      } else {
-        router.push("/dashboard");
+        destination = returnUrl;
       }
+
+      // Show animated loading screen for ~2.5s before redirecting
+      setRedirectTarget(destination);
+      setShowLoginLoader(true);
     } catch {
       // Error is set in the store
     }
   };
 
+  const handleLoaderComplete = useCallback(() => {
+    router.push(redirectTarget);
+  }, [router, redirectTarget]);
+
   return (
     <div className="w-full">
+      {/* Full-screen login loading animation */}
+      {showLoginLoader && (
+        <LoginLoadingScreen onComplete={handleLoaderComplete} delay={2500} />
+      )}
       {/* Glassmorphic Login Card */}
       <div className="relative rounded-3xl p-7 sm:p-10 bg-slate-900/70 backdrop-blur-2xl border border-white/[0.1] shadow-[0_20px_60px_rgba(0,0,0,0.7)] overflow-hidden">
         {/* Ambient Top Glow Border Accent */}
