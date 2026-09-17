@@ -92,6 +92,9 @@ class ProductOwnerOut(BaseModel):
     first_name: str
     last_name: str
     email: Optional[str] = None
+    phone: Optional[str] = None
+    avatar_url: Optional[str] = None
+    identity_verification_status: Optional[str] = "NOT_STARTED"
     created_at: datetime
     
     class Config:

@@ -349,6 +349,8 @@ export default function ProductDetailsPage() {
   const router = useRouter();
   const [product, setProduct] = useState<any>(null);
   const [similarProducts, setSimilarProducts] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [ownerProfile, setOwnerProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
   const [activeTab, setActiveTab] = useState("Overview");
@@ -570,6 +572,32 @@ function getFallbackProduct(slug: string) {
         setProduct(data);
         setIsWishlisted(data.is_wishlisted || false);
         useRecentlyViewedStore.getState().recordView(data);
+
+        // Fetch actual reviews for this product
+        if (data.id) {
+          fetch(`${apiUrl}/api/v1/reviews?product_id=${data.id}`)
+            .then((r) => r.json())
+            .then((revData) => {
+              if (revData && Array.isArray(revData.items)) {
+                setReviews(revData.items);
+              }
+            })
+            .catch(() => {});
+        }
+
+        // Fetch owner public profile for dynamic stats
+        const ownerId = data.owner?.id || data.owner_id;
+        if (ownerId) {
+          fetch(`${apiUrl}/api/v1/users/${ownerId}/public-profile`)
+            .then((r) => r.json())
+            .then((op) => {
+              if (op && op.id) {
+                setOwnerProfile(op);
+              }
+            })
+            .catch(() => {});
+        }
+
         const catSlug = data.category?.name?.toLowerCase();
         if (catSlug) {
           fetch(`${apiUrl}/api/v1/products?category_slug=${catSlug}&limit=5`)
@@ -1120,9 +1148,17 @@ function getFallbackProduct(slug: string) {
                       <div className="flex items-start gap-4">
                         <motion.div
                           whileHover={{ scale: 1.08 }}
-                          className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-md shadow-indigo-200"
+                          className="w-14 h-14 rounded-full overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-md shadow-indigo-200"
                         >
-                          {ownerInitials}
+                          {product.owner?.avatar_url || ownerProfile?.avatar_url ? (
+                            <img
+                              src={product.owner?.avatar_url || ownerProfile?.avatar_url}
+                              alt={product.owner?.first_name || "Owner"}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            ownerInitials
+                          )}
                         </motion.div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
@@ -1134,25 +1170,26 @@ function getFallbackProduct(slug: string) {
                             </span>
                           </div>
                           <div className="text-xs text-slate-500 mb-1">
-                            ⭐ {(product.avg_rating || 4.9).toFixed(1)} ({product.review_count || 86} Reviews) • {Math.max(50, (product.review_count || 86) + 39)} Listings
+                            ⭐ {(ownerProfile?.stats?.avg_rating || product.avg_rating || 5.0).toFixed(1)} ({ownerProfile?.stats?.review_count ?? product.review_count ?? 0} Reviews) • {ownerProfile?.stats?.total_listings ?? 1} Listings
                           </div>
                           <div className="text-xs text-slate-400">
                             Response time: within 1 hour<br />
                             Member since: {dayjs(product.owner?.created_at).format("MMM YYYY")}
                           </div>
                           <div className="flex gap-2 mt-3">
-                            <button
-                              onClick={() => requireAuth(() => setChatWarning(true))}
-                              className="flex-1 border border-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg hover:border-indigo-400 hover:text-indigo-600 transition-colors"
+                            <Link
+                              href={`/owners/${product.owner?.id || product.owner_id}`}
+                              className="flex-1 text-center border border-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg hover:border-indigo-400 hover:text-indigo-600 transition-colors"
                             >
                               View Profile
-                            </button>
-                            <button
-                              onClick={() => requireAuth(() => setChatWarning(true))}
+                            </Link>
+                            <Link
+                              href={`/messages?user=${product.owner?.id || product.owner_id}`}
                               className="w-9 h-[30px] border border-slate-200 rounded-lg flex items-center justify-center text-slate-500 hover:border-indigo-400 hover:text-indigo-600 transition-colors"
+                              title="Send Message"
                             >
                               <MessageCircle size={14} />
-                            </button>
+                            </Link>
                           </div>
                         </div>
                       </div>
@@ -1165,7 +1202,15 @@ function getFallbackProduct(slug: string) {
                       viewport={{ once: true }}
                       className="md:col-span-2 bg-white border border-slate-100 rounded-2xl p-5 shadow-sm"
                     >
-                      <h3 className="font-bold text-slate-900 mb-4 text-sm">Customer Reviews</h3>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-bold text-slate-900 text-sm">Customer Reviews</h3>
+                        <button
+                          onClick={() => setActiveTab("Reviews")}
+                          className="text-xs font-bold text-indigo-600 hover:underline"
+                        >
+                          {reviews.length > 0 ? `View all (${reviews.length}) →` : "View reviews →"}
+                        </button>
+                      </div>
                       <div className="flex gap-8">
                         <div className="text-center shrink-0">
                           <motion.div
@@ -1175,17 +1220,23 @@ function getFallbackProduct(slug: string) {
                             transition={{ type: "spring", delay: 0.2 }}
                             className="text-5xl font-black text-slate-900 leading-none"
                           >
-                            {(product.avg_rating || 4.8).toFixed(1)}
+                            {(product.avg_rating || 0).toFixed(1)}
                           </motion.div>
                           <div className="flex items-center gap-0.5 justify-center mt-2 mb-1">
                             {[1, 2, 3, 4, 5].map((s) => (
                               <Star key={s} size={14} className={s <= Math.round(product.avg_rating || 0) ? "fill-amber-400 text-amber-400" : "text-slate-200"} />
                             ))}
                           </div>
-                          <div className="text-xs text-slate-400">({product.review_count || 0} Reviews)</div>
+                          <div className="text-xs text-slate-400">({product.review_count || reviews.length || 0} Reviews)</div>
                         </div>
                         <div className="flex-1 space-y-2">
-                          {[{ stars: 5, pct: 85 }, { stars: 4, pct: 10 }, { stars: 3, pct: 3 }, { stars: 2, pct: 1 }, { stars: 1, pct: 1 }].map(({ stars, pct }) => (
+                          {[
+                            { stars: 5, pct: reviews.length > 0 ? Math.round((reviews.filter((r: any) => r.rating >= 4.5).length / reviews.length) * 100) : 0 },
+                            { stars: 4, pct: reviews.length > 0 ? Math.round((reviews.filter((r: any) => r.rating >= 3.5 && r.rating < 4.5).length / reviews.length) * 100) : 0 },
+                            { stars: 3, pct: reviews.length > 0 ? Math.round((reviews.filter((r: any) => r.rating >= 2.5 && r.rating < 3.5).length / reviews.length) * 100) : 0 },
+                            { stars: 2, pct: 0 },
+                            { stars: 1, pct: 0 }
+                          ].map(({ stars, pct }) => (
                             <div key={stars} className="flex items-center gap-2">
                               <span className="text-xs text-slate-500 w-3 text-right font-semibold">{stars}</span>
                               <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -1202,20 +1253,38 @@ function getFallbackProduct(slug: string) {
                           ))}
                         </div>
                       </div>
-                      <div className="mt-5 pt-4 border-t border-slate-100 flex gap-3">
-                        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600 shrink-0">SA</div>
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-bold text-slate-800">Sabir Ahmed</span>
-                            <div className="flex items-center gap-0.5">
-                              {[1, 2, 3, 4, 5].map((s) => <Star key={s} size={10} className="fill-amber-400 text-amber-400" />)}
+
+                      {reviews.length > 0 ? (
+                        <div className="mt-5 pt-4 border-t border-slate-100 flex gap-3">
+                          {reviews[0].reviewer?.avatar_url ? (
+                            <img
+                              src={reviews[0].reviewer.avatar_url}
+                              alt={reviews[0].reviewer.name}
+                              className="w-8 h-8 rounded-full object-cover shrink-0"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600 shrink-0">
+                              {(reviews[0].reviewer?.name || "U").slice(0, 2).toUpperCase()}
                             </div>
-                            <span className="text-[10px] text-slate-400">2 days ago</span>
+                          )}
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-bold text-slate-800">{reviews[0].reviewer?.name || "Verified Customer"}</span>
+                              <div className="flex items-center gap-0.5">
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                  <Star key={s} size={10} className={s <= reviews[0].rating ? "fill-amber-400 text-amber-400" : "text-slate-200"} />
+                                ))}
+                              </div>
+                              <span className="text-[10px] text-slate-400">{reviews[0].created_at}</span>
+                            </div>
+                            <p className="text-xs text-slate-600">{reviews[0].comment}</p>
                           </div>
-                          <p className="text-xs text-slate-600">Car was in excellent condition. Very smooth ride and owner was very helpful.</p>
                         </div>
-                      </div>
-                      <button className="mt-3 text-xs font-bold text-indigo-600 hover:underline">View all reviews →</button>
+                      ) : (
+                        <div className="mt-5 pt-4 border-t border-slate-100 text-center py-2 text-xs text-slate-400">
+                          No customer reviews yet for this listing.
+                        </div>
+                      )}
                     </motion.div>
                   </div>
                 )}
@@ -1268,10 +1337,68 @@ function getFallbackProduct(slug: string) {
                 )}
 
                 {activeTab === "Reviews" && (
-                  <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm text-center py-12 text-slate-400">
-                    <Star size={36} className="mx-auto mb-3 text-slate-200" />
-                    <p className="font-semibold text-slate-600">Reviews feature coming soon</p>
-                    <p className="text-xs mt-1">This product has {product.review_count || 0} reviews</p>
+                  <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-5">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                      <div>
+                        <h3 className="font-bold text-slate-900 text-base">Customer Reviews</h3>
+                        <p className="text-xs text-slate-500">
+                          {reviews.length} {reviews.length === 1 ? "review" : "reviews"} recorded for this listing
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
+                        <Star size={16} className="fill-amber-400 text-amber-400" />
+                        <span className="text-base font-black">{(product.avg_rating || 0).toFixed(1)}</span>
+                        <span className="text-xs text-slate-400 font-normal">/ 5.0</span>
+                      </div>
+                    </div>
+
+                    {reviews.length === 0 ? (
+                      <div className="text-center py-12 text-slate-400">
+                        <Star size={40} className="mx-auto mb-3 text-slate-200" />
+                        <p className="font-semibold text-slate-700 text-sm">No reviews yet for this item</p>
+                        <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                          Be the first to rent and review this item from {product.owner?.first_name || "the owner"}!
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-100 space-y-4">
+                        {reviews.map((rev: any) => (
+                          <div key={rev.id} className="pt-4 first:pt-0">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div className="flex items-center gap-2.5">
+                                {rev.reviewer?.avatar_url ? (
+                                  <img
+                                    src={rev.reviewer.avatar_url}
+                                    alt={rev.reviewer.name}
+                                    className="w-8 h-8 rounded-full object-cover border border-slate-100"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs">
+                                    {(rev.reviewer?.name || "U").slice(0, 2).toUpperCase()}
+                                  </div>
+                                )}
+                                <div>
+                                  <span className="text-xs font-bold text-slate-800">{rev.reviewer?.name || "Customer"}</span>
+                                  <span className="text-[10px] text-slate-400 ml-2">{rev.created_at}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-0.5">
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                  <Star
+                                    key={s}
+                                    size={12}
+                                    className={s <= rev.rating ? "fill-amber-400 text-amber-400" : "text-slate-200"}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            <p className="text-xs text-slate-600 pl-10 leading-relaxed">
+                              "{rev.comment}"
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 

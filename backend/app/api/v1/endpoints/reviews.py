@@ -110,11 +110,19 @@ async def get_reviews_list(
     search: Optional[str] = Query(None),
     rating: Optional[str] = Query("all"),
     status_filter: Optional[str] = Query("all", alias="status"),
+    product_id: Optional[uuid.UUID] = Query(None),
+    reviewee_id: Optional[uuid.UUID] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db)
 ):
     clauses = []
+
+    # Filter by specific product or reviewee
+    if product_id:
+        clauses.append(Review.product_id == product_id)
+    if reviewee_id:
+        clauses.append(Review.reviewee_id == reviewee_id)
 
     # 1. Tab filter
     if tab == "product":
@@ -138,6 +146,9 @@ async def get_reviews_list(
     # 3. Status filter
     if status_filter and status_filter != "all":
         clauses.append(Review.status == status_filter)
+    elif product_id or reviewee_id:
+        # For public product or owner reviews, default to published only
+        clauses.append(Review.status == "published")
 
     # 4. Search query
     if search and search.strip():

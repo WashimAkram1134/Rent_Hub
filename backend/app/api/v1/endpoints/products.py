@@ -3,13 +3,14 @@ import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.orm import selectinload
 
 from app.database.session import get_db
 from app.models.product import Product, ProductImage
 from app.models.category import Category
 from app.models.user import User
+from app.models.booking import Review
 from app.auth.dependencies import get_current_user_optional
 from app.schemas.product import (
     ProductOut,
@@ -357,6 +358,16 @@ async def get_product(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
         
+    # Dynamically compute real review count and average rating from reviews table
+    rev_count = await db.scalar(
+        select(func.count(Review.id)).where(Review.product_id == product.id, Review.status == "published")
+    ) or 0
+    avg_r = await db.scalar(
+        select(func.avg(Review.rating)).where(Review.product_id == product.id, Review.status == "published")
+    )
+    product.review_count = rev_count
+    product.avg_rating = round(float(avg_r), 1) if avg_r is not None else 0.0
+
     return product
 
 @router.patch("/{id}/status", response_model=ProductOut)
