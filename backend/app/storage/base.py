@@ -76,6 +76,9 @@ def get_storage() -> StorageBackend:
     if settings.STORAGE_BACKEND == "s3":
         from app.storage.s3 import S3StorageBackend  # type: ignore[import]
         return S3StorageBackend()
+    elif settings.STORAGE_BACKEND == "cloudinary":
+        from app.storage.cloudinary_backend import CloudinaryStorageBackend
+        return CloudinaryStorageBackend()
     else:
         from app.storage.local import LocalStorageBackend
         return LocalStorageBackend()

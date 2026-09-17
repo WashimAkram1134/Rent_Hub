@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     EMAIL_FROM_NAME: str = "RentHub"
 
     # ─── Storage ───────────────────────────────────────────────────────────
-    STORAGE_BACKEND: Literal["local", "s3"] = "local"
+    STORAGE_BACKEND: Literal["local", "s3", "cloudinary"] = "local"
     LOCAL_STORAGE_PATH: str = "uploads"
     LOCAL_STORAGE_URL: str = "http://localhost:8000/uploads"
 
@@ -79,6 +79,11 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str = ""
     AWS_REGION: str = "ap-southeast-1"
     AWS_S3_BASE_URL: str = ""
+
+    # Cloudinary (used when STORAGE_BACKEND=cloudinary)
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
 
     # ─── Rate Limiting ─────────────────────────────────────────────────────
     RATE_LIMIT_PER_MINUTE: int = 1000
