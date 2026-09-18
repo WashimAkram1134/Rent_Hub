@@ -32,6 +32,20 @@ export function OwnerDashboard() {
   const [trendingCategories, setTrendingCategories] = useState<any[]>([]);
   const [recentBookings, setRecentBookings] = useState<any[]>([]);
   const [myListings, setMyListings] = useState<any[]>([]);
+  const [payoutInfo, setPayoutInfo] = useState<{
+    available_settlement: number;
+    pending_amount: number;
+    paid_amount: number;
+    total_earnings: number;
+    connected_account: any;
+  }>({
+    available_settlement: 0,
+    pending_amount: 0,
+    paid_amount: 0,
+    total_earnings: 0,
+    connected_account: null,
+  });
+  const [topPerformingItems, setTopPerformingItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const { hideLoader } = useTransitionStore();
@@ -67,6 +81,8 @@ export function OwnerDashboard() {
         if (statsRes.booking_trend) setBookingTrendData(statsRes.booking_trend);
         if (statsRes.todays_business) setTodaysBusinessData(statsRes.todays_business);
         if (statsRes.trending_categories) setTrendingCategories(statsRes.trending_categories);
+        if (statsRes.payout_info) setPayoutInfo(statsRes.payout_info);
+        if (statsRes.top_performing_items) setTopPerformingItems(statsRes.top_performing_items);
       }
 
       setRecentBookings(Array.isArray(bookingsRes) ? bookingsRes : []);
@@ -159,14 +175,15 @@ export function OwnerDashboard() {
 
             {/* Quick Payout Balance & Disbursal Card */}
             <OwnerPayoutCard
-              pendingAmount={22050}
-              paidAmount={34650}
+              pendingAmount={payoutInfo.available_settlement}
+              paidAmount={payoutInfo.paid_amount}
+              connectedAccount={payoutInfo.connected_account}
             />
           </div>
         </div>
 
         {/* 5. Top Performing Revenue Generating Items (Full Width Horizontal Grid) */}
-        <TopPerformingItemsWidget />
+        <TopPerformingItemsWidget items={topPerformingItems} />
       </div>
     </AppShell>
   );

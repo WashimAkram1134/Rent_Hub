@@ -2,17 +2,26 @@
 
 import React from "react";
 import Link from "next/link";
-import { Wallet, ArrowUpRight, CheckCircle2, Building, Clock, ChevronRight } from "lucide-react";
+import { Wallet, CheckCircle2, Building, Clock, ChevronRight } from "lucide-react";
 
 interface OwnerPayoutCardProps {
   pendingAmount?: number;
   paidAmount?: number;
+  connectedAccount?: {
+    bank_name?: string;
+    payout_method?: string;
+    account_number?: string;
+    account_name?: string;
+  } | null;
 }
 
 export function OwnerPayoutCard({
-  pendingAmount = 22050,
-  paidAmount = 34650,
+  pendingAmount = 0,
+  paidAmount = 0,
+  connectedAccount,
 }: OwnerPayoutCardProps) {
+  const hasAccount = Boolean(connectedAccount && connectedAccount.account_number);
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-4">
       {/* Header */}
@@ -36,7 +45,7 @@ export function OwnerPayoutCard({
       <div className="p-4 rounded-xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white space-y-1 relative overflow-hidden">
         <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-emerald-500/10 rounded-full blur-xl pointer-events-none"></div>
         <p className="text-[10px] font-bold text-slate-300 uppercase tracking-wide">Available Settlement</p>
-        <h2 className="text-2xl font-black text-white">৳ {Number(pendingAmount).toLocaleString()}</h2>
+        <h2 className="text-2xl font-black text-white">৳ {Number(pendingAmount || 0).toLocaleString()}</h2>
         <div className="flex items-center justify-between pt-2 border-t border-white/10 text-[10px] text-slate-300">
           <span className="flex items-center gap-1">
             <Clock size={11} className="text-amber-400" />
@@ -48,16 +57,38 @@ export function OwnerPayoutCard({
 
       {/* Connected Account & Fast CTA */}
       <div className="space-y-2 text-xs">
-        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-          <div className="flex items-center gap-2">
-            <Building size={14} className="text-slate-500" />
-            <div>
-              <p className="font-bold text-slate-800 text-[11px]">BRAC Bank (EFTN)</p>
-              <p className="text-[10px] font-mono text-slate-400">A/C: 150120••••001</p>
+        {hasAccount ? (
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center gap-2">
+              <Building size={14} className="text-slate-500" />
+              <div>
+                <p className="font-bold text-slate-800 text-[11px]">
+                  {connectedAccount?.bank_name || connectedAccount?.payout_method?.toUpperCase() || "Connected Account"}
+                </p>
+                <p className="text-[10px] font-mono text-slate-400">
+                  A/C: {connectedAccount?.account_number}
+                </p>
+              </div>
             </div>
+            <CheckCircle2 size={14} className="text-emerald-500" />
           </div>
-          <CheckCircle2 size={14} className="text-emerald-500" />
-        </div>
+        ) : (
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center gap-2">
+              <Building size={14} className="text-slate-400" />
+              <div>
+                <p className="font-bold text-slate-700 text-[11px]">No Payout Method Linked</p>
+                <p className="text-[10px] text-slate-400">Add Bank or bKash to receive payouts</p>
+              </div>
+            </div>
+            <Link
+              href="/payouts"
+              className="text-indigo-600 hover:text-indigo-700 font-bold text-[11px] hover:underline"
+            >
+              Setup
+            </Link>
+          </div>
+        )}
 
         <Link
           href="/payouts"

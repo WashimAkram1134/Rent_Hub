@@ -254,7 +254,7 @@ export default function OwnerPayoutsPage() {
             <div>
               <p className="text-slate-400 text-xs font-medium">Total Paid to You</p>
               <h3 className="text-xl font-bold text-slate-900 mt-0.5">
-                ৳ {Number(totalPaid || 34650).toLocaleString()}
+                ৳ {Number(totalPaid || 0).toLocaleString()}
               </h3>
               <p className="text-emerald-600 text-[11px] font-semibold mt-0.5">Cleared to bank / bKash</p>
             </div>

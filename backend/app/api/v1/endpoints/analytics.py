@@ -7,10 +7,11 @@ from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta, timezone
 
 from app.database.session import get_db
-from app.models.product import Product
+from app.models.product import Product, ProductImage
 from app.models.booking import Booking
 from app.models.user import User
 from app.models.category import Category
+from app.models.payout import Payout
 
 router = APIRouter()
 
@@ -167,6 +168,99 @@ async def get_owner_stats(
             "demand": f"{pct}% of Total Bookings ({growth} Growth)"
         })
 
+    # 9. Real Payout Balance & Disbursal info for Owner
+    all_time_subtotal = 0.0
+    total_paid_payouts = 0.0
+    pending_payouts = 0.0
+    connected_account = None
+
+    if target_owner_id:
+        all_time_subtotal = await db.scalar(
+            select(func.sum(Booking.subtotal)).where(
+                Booking.owner_id == target_owner_id,
+                Booking.status.in_(["confirmed", "completed", "active", "approved"])
+            )
+        ) or 0.0
+
+        total_paid_payouts = float(await db.scalar(
+            select(func.sum(Payout.net_amount)).where(
+                Payout.owner_id == target_owner_id,
+                Payout.status == "paid"
+            )
+        ) or 0.0)
+
+        pending_payouts = float(await db.scalar(
+            select(func.sum(Payout.net_amount)).where(
+                Payout.owner_id == target_owner_id,
+                Payout.status.in_(["pending", "processing"])
+            )
+        ) or 0.0)
+
+        # Get latest payout method
+        latest_payout = (await db.execute(
+            select(Payout).where(Payout.owner_id == target_owner_id).order_by(Payout.created_at.desc()).limit(1)
+        )).scalars().first()
+        if latest_payout:
+            connected_account = {
+                "payout_method": latest_payout.payout_method,
+                "account_name": latest_payout.account_name,
+                "account_number": latest_payout.account_number,
+                "bank_name": latest_payout.bank_name,
+            }
+
+    total_net_earnings = round(float(all_time_subtotal or 0.0) * 0.9, 2)
+    available_settlement = max(0.0, round(total_net_earnings - total_paid_payouts - pending_payouts, 2))
+
+    # 10. Real Top Performing Items for Owner from DB (Ranked by highest earnings)
+    top_performing_items = []
+    if target_owner_id:
+        stmt_top = (
+            select(
+                Product.id,
+                Product.slug,
+                Product.title,
+                Product.price_per_day,
+                Product.avg_rating,
+                func.count(Booking.id).label("rentals_count"),
+                func.coalesce(func.sum(Booking.subtotal), 0.0).label("gross_earned")
+            )
+            .outerjoin(
+                Booking,
+                and_(
+                    Booking.product_id == Product.id,
+                    Booking.status.in_(["confirmed", "completed", "active", "approved"])
+                )
+            )
+            .where(
+                Product.owner_id == target_owner_id,
+                Product.deleted_at.is_(None)
+            )
+            .group_by(Product.id)
+            .order_by(
+                func.coalesce(func.sum(Booking.subtotal), 0.0).desc(),
+                func.count(Booking.id).desc(),
+                Product.created_at.desc()
+            )
+            .limit(8)
+        )
+        prod_rows = (await db.execute(stmt_top)).all()
+
+        for p_id, p_slug, p_title, p_daily_rate, p_rating, p_rentals_cnt, p_gross_earned in prod_rows:
+            p_img = await db.scalar(
+                select(ProductImage.url).where(ProductImage.product_id == p_id).order_by(ProductImage.is_primary.desc()).limit(1)
+            )
+            net_earned = round(float(p_gross_earned) * 0.9, 2)
+            top_performing_items.append({
+                "id": str(p_id),
+                "slug": p_slug,
+                "title": p_title,
+                "image_url": p_img,
+                "rentals_count": int(p_rentals_cnt or 0),
+                "total_earned": net_earned,
+                "price_per_day": float(p_daily_rate or 0),
+                "rating": float(p_rating or 5.0),
+            })
+
     return {
         "total_listings": products_count,
         "active_rentals": active_rentals,
@@ -180,7 +274,15 @@ async def get_owner_stats(
             "returns_today": returns_today_cnt,
             "new_messages": 0
         },
-        "trending_categories": trending_cats
+        "trending_categories": trending_cats,
+        "payout_info": {
+            "available_settlement": available_settlement,
+            "pending_amount": round(pending_payouts, 2),
+            "paid_amount": round(total_paid_payouts, 2),
+            "total_earnings": total_net_earnings,
+            "connected_account": connected_account,
+        },
+        "top_performing_items": top_performing_items,
     }
 
 @router.get("/admin-stats")

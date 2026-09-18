@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.database.session import get_db
 from app.models.payout import Payout
 from app.models.user import User
+from app.models.booking import Booking
 from app.auth.dependencies import get_current_user_optional
 
 router = APIRouter()
@@ -59,8 +60,23 @@ async def get_payouts_overview(
     failed_sum = float(await db.scalar(select(func.sum(Payout.net_amount)).where(*failed_conditions)) or 0)
     failed_count = await db.scalar(select(func.count(Payout.id)).where(*failed_conditions)) or 0
 
+    # 5. Real Owner earnings & available settlement calculation
+    owner_earnings = 0.0
+    if owner_id:
+        booking_subtotal = await db.scalar(
+            select(func.sum(Booking.subtotal)).where(
+                Booking.owner_id == owner_id,
+                Booking.status.in_(["confirmed", "completed", "approved", "active"])
+            )
+        ) or 0.0
+        owner_earnings = round(float(booking_subtotal) * 0.9, 2)
+
+    available_settlement = max(0.0, round(owner_earnings - paid_sum - pending_sum, 2)) if owner_id else pending_sum
+
     return {
         "summary": {
+            "available_settlement": available_settlement,
+            "owner_earnings": owner_earnings,
             "total_pending_payouts": pending_sum,
             "pending_count": pending_count,
             "pending_change": "+5.2%",
