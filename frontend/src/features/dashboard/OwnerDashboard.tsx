@@ -162,11 +162,11 @@ export function OwnerDashboard() {
               pendingAmount={22050}
               paidAmount={34650}
             />
-
-            {/* Top Performing Revenue Generating Items */}
-            <TopPerformingItemsWidget />
           </div>
         </div>
+
+        {/* 5. Top Performing Revenue Generating Items (Full Width Horizontal Grid) */}
+        <TopPerformingItemsWidget />
       </div>
     </AppShell>
   );
