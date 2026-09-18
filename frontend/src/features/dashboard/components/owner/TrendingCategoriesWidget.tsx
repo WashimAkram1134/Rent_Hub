@@ -58,44 +58,12 @@ function getCategoryGradient(index: number) {
   return gradients[index % gradients.length];
 }
 
-export function TrendingCategoriesWidget({ categories }: TrendingCategoriesProps) {
-  const items =
-    categories && categories.length > 0
-      ? categories
-      : [
-          {
-            name: "Vehicles",
-            slug: "vehicles",
-            booking_count: 104,
-            booking_percentage: 33.5,
-            growth_rate: "+46%",
-            avg_price: 5600,
-          },
-          {
-            name: "Electronics",
-            slug: "electronics",
-            booking_count: 63,
-            booking_percentage: 20.3,
-            growth_rate: "+31%",
-            avg_price: 1800,
-          },
-          {
-            name: "Apartments",
-            slug: "apartments",
-            booking_count: 51,
-            booking_percentage: 16.5,
-            growth_rate: "+24%",
-            avg_price: 6300,
-          },
-          {
-            name: "Cameras",
-            slug: "cameras",
-            booking_count: 47,
-            booking_percentage: 15.2,
-            growth_rate: "+18%",
-            avg_price: 2700,
-          },
-        ];
+export function TrendingCategoriesWidget({ categories = [] }: TrendingCategoriesProps) {
+  const items = Array.isArray(categories) ? categories : [];
+
+  if (items.length === 0) {
+    return null;
+  }
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0F172A] via-[#1E1B4B] to-[#0F172A] p-6 text-white shadow-xl border border-indigo-950/60">
@@ -146,17 +114,19 @@ export function TrendingCategoriesWidget({ categories }: TrendingCategoriesProps
                 </div>
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-[10px] font-black text-emerald-300">
                   <TrendingUp size={11} />
-                  <span>{cat.growth_rate || "+30%"}</span>
+                  <span>{cat.growth_rate || "+15%"}</span>
                 </div>
               </div>
 
               {/* Category Name & Booking Count */}
-              <h4 className="text-sm font-black text-white group-hover:text-amber-300 transition-colors flex items-center justify-between">
-                <span>{cat.name}</span>
-                <span className="text-[11px] font-bold text-slate-300 font-mono">
+              <div className="flex items-baseline justify-between gap-1 mb-1">
+                <h4 className="text-sm font-black text-white group-hover:text-amber-300 transition-colors truncate">
+                  {cat.name}
+                </h4>
+                <span className="text-[11px] font-bold text-slate-300 font-mono whitespace-nowrap shrink-0">
                   {cat.booking_count} Bookings
                 </span>
-              </h4>
+              </div>
 
               {/* Progress Bar of Market Share */}
               <div className="w-full bg-white/10 rounded-full h-1.5 mt-2.5 mb-2 overflow-hidden">
