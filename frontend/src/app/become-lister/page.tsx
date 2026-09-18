@@ -73,6 +73,7 @@ export default function BecomeListerPage() {
   const [experienceBio, setExperienceBio] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>(["vehicles", "cameras"]);
   const [agreedTerms, setAgreedTerms] = useState(false);
+  const [applyWithNid, setApplyWithNid] = useState(true);
 
   const [uploadingFront, setUploadingFront] = useState(false);
   const [uploadingBack, setUploadingBack] = useState(false);
@@ -160,8 +161,16 @@ export default function BecomeListerPage() {
     setErrorMsg("");
     setSuccessMsg("");
 
-    if (!fullName || !email || !phone || !addressLine || !idNumber) {
-      setErrorMsg("Please fill in all required fields (Name, Email, Phone, Address, ID Number).");
+    const isAlreadyVerified =
+      user?.identity_verification_status === "VERIFIED" || user?.is_identity_verified;
+
+    if (!fullName || !email || !phone || !addressLine) {
+      setErrorMsg("Please fill in all required fields (Name, Email, Phone, Address).");
+      return;
+    }
+
+    if (!isAlreadyVerified && applyWithNid && !idNumber) {
+      setErrorMsg("Please provide your ID Number or select 'Apply without NID for now'.");
       return;
     }
 
@@ -182,9 +191,9 @@ export default function BecomeListerPage() {
         postal_code: postalCode || null,
         country: "Bangladesh",
         id_type: idType,
-        id_number: idNumber,
-        id_front_url: idFrontUrl || null,
-        id_back_url: idBackUrl || null,
+        id_number: (!isAlreadyVerified && !applyWithNid) ? null : (idNumber || null),
+        id_front_url: (!isAlreadyVerified && !applyWithNid) ? null : (idFrontUrl || null),
+        id_back_url: (!isAlreadyVerified && !applyWithNid) ? null : (idBackUrl || null),
         experience_bio: experienceBio || null,
         categories_intended: selectedCategories,
         agreed_terms: true,
@@ -511,121 +520,224 @@ export default function BecomeListerPage() {
                 </div>
 
                 {/* ── STEP 3: Identity Verification ── */}
-                <div className="space-y-4 pt-4 border-t border-slate-100">
-                  <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
-                    <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">3</span>
-                    <h3>Identity & Trust Verification</h3>
-                  </div>
-                  <p className="text-slate-500 text-xs">
-                    To maintain trust on RentHub, all listers must provide a valid government-issued ID.
-                  </p>
+                {(() => {
+                  const isAlreadyVerified =
+                    user?.identity_verification_status === "VERIFIED" || user?.is_identity_verified;
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">Document Type *</label>
-                      <select
-                        value={idType}
-                        onChange={(e) => setIdType(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs sm:text-sm text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all font-medium"
-                      >
-                        <option value="National ID (NID)">National ID (NID)</option>
-                        <option value="Passport">Passport</option>
-                        <option value="Driving License">Driving License</option>
-                        <option value="Trade License">Trade License / Business Reg</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">ID / Document Number *</label>
-                      <input
-                        type="text"
-                        value={idNumber}
-                        onChange={(e) => setIdNumber(e.target.value)}
-                        placeholder="e.g. 19942692589000123"
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs sm:text-sm text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* ID Upload Boxes */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                    {/* Front Upload */}
-                    <div className="border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center hover:border-indigo-300 transition-colors">
-                      <input
-                        type="file"
-                        ref={frontFileRef}
-                        accept="image/*"
-                        onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], "front")}
-                        className="hidden"
-                      />
-                      {idFrontUrl ? (
-                        <div className="relative group">
-                          <img
-                            src={idFrontUrl}
-                            alt="Front Document"
-                            className="w-full h-32 object-cover rounded-xl border border-slate-200"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setIdFrontUrl("")}
-                            className="absolute top-2 right-2 p-1 bg-rose-600 text-white rounded-lg shadow"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                      ) : (
-                        <div
-                          onClick={() => frontFileRef.current?.click()}
-                          className="py-4 cursor-pointer flex flex-col items-center justify-center gap-1.5"
-                        >
-                          <UploadCloud size={24} className="text-slate-400" />
-                          <span className="text-xs font-bold text-indigo-600">
-                            {uploadingFront ? "Uploading..." : "Upload Document Front"}
+                  if (isAlreadyVerified) {
+                    return (
+                      <div className="space-y-4 pt-4 border-t border-slate-100">
+                        <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                          <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">
+                            3
                           </span>
-                          <span className="text-[10px] text-slate-400">JPG, PNG (Max 5MB)</span>
+                          <h3>Identity & Trust Verification</h3>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-start gap-3">
+                          <ShieldCheck size={24} className="text-emerald-600 shrink-0 mt-0.5" />
+                          <div>
+                            <h4 className="text-sm font-bold text-emerald-900">
+                              Identity Already Verified
+                            </h4>
+                            <p className="text-xs text-emerald-700 mt-0.5">
+                              Your National ID and face recognition verification are already complete! Once your application is approved by an administrator, your listing permissions will be active immediately.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-4 pt-4 border-t border-slate-100">
+                      <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                        <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">
+                          3
+                        </span>
+                        <h3>Identity & Trust Verification</h3>
+                      </div>
+                      <p className="text-slate-500 text-xs">
+                        You can provide your NID now for fast approval, or apply first and complete identity verification before listing items.
+                      </p>
+
+                      {/* Choice cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setApplyWithNid(true)}
+                          className={`p-3.5 rounded-2xl border text-left transition-all ${
+                            applyWithNid
+                              ? "border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-600/20"
+                              : "border-slate-200 bg-white hover:border-slate-300"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                              <ShieldCheck size={15} className="text-indigo-600" /> Apply with NID / ID Document
+                            </span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-700">
+                              Recommended
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500">
+                            Upload ID details now so listing permission is ready upon admin approval.
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setApplyWithNid(false)}
+                          className={`p-3.5 rounded-2xl border text-left transition-all ${
+                            !applyWithNid
+                              ? "border-amber-500 bg-amber-50/60 ring-2 ring-amber-500/20"
+                              : "border-slate-200 bg-white hover:border-slate-300"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                              <Clock size={15} className="text-amber-600" /> Apply without NID for now
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500">
+                            Open your owner account first. NID verification will be required before listing items.
+                          </p>
+                        </button>
+                      </div>
+
+                      {applyWithNid ? (
+                        <>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                                Document Type *
+                              </label>
+                              <select
+                                value={idType}
+                                onChange={(e) => setIdType(e.target.value)}
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs sm:text-sm text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all font-medium"
+                              >
+                                <option value="National ID (NID)">National ID (NID)</option>
+                                <option value="Passport">Passport</option>
+                                <option value="Driving License">Driving License</option>
+                                <option value="Trade License">Trade License / Business Reg</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                                ID / Document Number *
+                              </label>
+                              <input
+                                type="text"
+                                value={idNumber}
+                                onChange={(e) => setIdNumber(e.target.value)}
+                                placeholder="e.g. 19942692589000123"
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs sm:text-sm text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                                required={applyWithNid}
+                              />
+                            </div>
+                          </div>
+
+                          {/* ID Upload Boxes */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                            {/* Front Upload */}
+                            <div className="border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center hover:border-indigo-300 transition-colors">
+                              <input
+                                type="file"
+                                ref={frontFileRef}
+                                accept="image/*"
+                                onChange={(e) =>
+                                  e.target.files?.[0] && handleFileUpload(e.target.files[0], "front")
+                                }
+                                className="hidden"
+                              />
+                              {idFrontUrl ? (
+                                <div className="relative group">
+                                  <img
+                                    src={idFrontUrl}
+                                    alt="Front Document"
+                                    className="w-full h-32 object-cover rounded-xl border border-slate-200"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setIdFrontUrl("")}
+                                    className="absolute top-2 right-2 p-1 bg-rose-600 text-white rounded-lg shadow"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div
+                                  onClick={() => frontFileRef.current?.click()}
+                                  className="py-4 cursor-pointer flex flex-col items-center justify-center gap-1.5"
+                                >
+                                  <UploadCloud size={24} className="text-slate-400" />
+                                  <span className="text-xs font-bold text-indigo-600">
+                                    {uploadingFront ? "Uploading..." : "Upload Document Front"}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400">JPG, PNG (Max 5MB)</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Back Upload */}
+                            <div className="border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center hover:border-indigo-300 transition-colors">
+                              <input
+                                type="file"
+                                ref={backFileRef}
+                                accept="image/*"
+                                onChange={(e) =>
+                                  e.target.files?.[0] && handleFileUpload(e.target.files[0], "back")
+                                }
+                                className="hidden"
+                              />
+                              {idBackUrl ? (
+                                <div className="relative group">
+                                  <img
+                                    src={idBackUrl}
+                                    alt="Back Document"
+                                    className="w-full h-32 object-cover rounded-xl border border-slate-200"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setIdBackUrl("")}
+                                    className="absolute top-2 right-2 p-1 bg-rose-600 text-white rounded-lg shadow"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div
+                                  onClick={() => backFileRef.current?.click()}
+                                  className="py-4 cursor-pointer flex flex-col items-center justify-center gap-1.5"
+                                >
+                                  <UploadCloud size={24} className="text-slate-400" />
+                                  <span className="text-xs font-bold text-indigo-600">
+                                    {uploadingBack ? "Uploading..." : "Upload Document Back"}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400">
+                                    JPG, PNG (Optional for passport)
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+                          <AlertCircle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+                          <div>
+                            <h4 className="text-xs font-bold text-amber-900">
+                              Applying Without Identification
+                            </h4>
+                            <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                              You can submit your application and get your Owner account approved by our administrators. However, when you navigate to add a listing, you must complete NID & Face verification before your items can be published.
+                            </p>
+                          </div>
                         </div>
                       )}
                     </div>
-
-                    {/* Back Upload */}
-                    <div className="border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center hover:border-indigo-300 transition-colors">
-                      <input
-                        type="file"
-                        ref={backFileRef}
-                        accept="image/*"
-                        onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], "back")}
-                        className="hidden"
-                      />
-                      {idBackUrl ? (
-                        <div className="relative group">
-                          <img
-                            src={idBackUrl}
-                            alt="Back Document"
-                            className="w-full h-32 object-cover rounded-xl border border-slate-200"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setIdBackUrl("")}
-                            className="absolute top-2 right-2 p-1 bg-rose-600 text-white rounded-lg shadow"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                      ) : (
-                        <div
-                          onClick={() => backFileRef.current?.click()}
-                          className="py-4 cursor-pointer flex flex-col items-center justify-center gap-1.5"
-                        >
-                          <UploadCloud size={24} className="text-slate-400" />
-                          <span className="text-xs font-bold text-indigo-600">
-                            {uploadingBack ? "Uploading..." : "Upload Document Back"}
-                          </span>
-                          <span className="text-[10px] text-slate-400">JPG, PNG (Optional for passport)</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* ── STEP 4: Rental Categories & Bio ── */}
                 <div className="space-y-4 pt-4 border-t border-slate-100">

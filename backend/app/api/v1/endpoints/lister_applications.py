@@ -39,8 +39,8 @@ class ListerApplyIn(BaseModel):
     state: Optional[str] = None
     postal_code: Optional[str] = None
     country: str = "Bangladesh"
-    id_type: str = "National ID (NID)"
-    id_number: str
+    id_type: Optional[str] = "National ID (NID)"
+    id_number: Optional[str] = None
     id_front_url: Optional[str] = None
     id_back_url: Optional[str] = None
     experience_bio: Optional[str] = None
@@ -167,8 +167,8 @@ async def submit_lister_application(
         application.state = payload.state
         application.postal_code = payload.postal_code
         application.country = payload.country
-        application.id_type = payload.id_type
-        application.id_number = payload.id_number
+        application.id_type = payload.id_type or "National ID (NID)"
+        application.id_number = payload.id_number or "NOT_PROVIDED"
         if payload.id_front_url:
             application.id_front_url = payload.id_front_url
         if payload.id_back_url:
@@ -194,8 +194,8 @@ async def submit_lister_application(
             state=payload.state,
             postal_code=payload.postal_code,
             country=payload.country,
-            id_type=payload.id_type,
-            id_number=payload.id_number,
+            id_type=payload.id_type or "National ID (NID)",
+            id_number=payload.id_number or "NOT_PROVIDED",
             id_front_url=payload.id_front_url,
             id_back_url=payload.id_back_url,
             experience_bio=payload.experience_bio,
@@ -313,6 +313,8 @@ async def list_lister_applications_admin(
                 "avatar_url": app.user.avatar_url,
                 "created_at": app.user.created_at.isoformat() if app.user.created_at else None,
                 "role_names": [r.name for r in app.user.roles] if app.user.roles else ["customer"],
+                "identity_verification_status": app.user.identity_verification_status,
+                "is_identity_verified": app.user.is_identity_verified,
             }
 
         items.append({
@@ -339,6 +341,8 @@ async def list_lister_applications_admin(
             "created_at": app.created_at.isoformat() if app.created_at else None,
             "reviewed_at": app.reviewed_at.isoformat() if app.reviewed_at else None,
             "user": user_info,
+            "identity_verification_status": app.user.identity_verification_status if app.user else "NOT_STARTED",
+            "is_identity_verified": app.user.is_identity_verified if app.user else False,
         })
 
     return {
@@ -470,13 +474,28 @@ async def approve_lister_application(
         if "owner" not in existing_role_names:
             applicant.roles.append(owner_role)
 
-        applicant.identity_verification_status = "VERIFIED"
+        has_id_docs = bool(
+            app.id_number
+            and app.id_number.strip()
+            and app.id_number.strip().upper() != "NOT_PROVIDED"
+        )
+        if has_id_docs or applicant.is_identity_verified:
+            applicant.identity_verification_status = "VERIFIED"
+            notif_body = (
+                "You are now a verified RentHub Owner! You can switch to Owner Mode at any time "
+                "from your profile or menu to list products, view booking requests, and manage earnings."
+            )
+        else:
+            notif_body = (
+                "Your RentHub Owner account has been approved! Before creating your first rental listing, "
+                "please complete identity verification (NID & face recognition)."
+            )
 
         # 3. Create celebratory notification
         notif = Notification(
             user_id=applicant.id,
             title="🎉 Congratulations! Your Lister Application is Approved",
-            body="You are now a verified RentHub Owner! You can switch to Owner Mode at any time from your profile or menu to list products, view booking requests, and manage earnings.",
+            body=notif_body,
             type="lister_approved",
             is_read=False,
         )

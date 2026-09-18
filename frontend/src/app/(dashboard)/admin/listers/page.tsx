@@ -19,12 +19,9 @@ import {
   Phone,
   Mail,
   Building2,
-  Layers,
-  ChevronRight,
   ExternalLink,
   Award,
 } from "lucide-react";
-import AppShell from "@/components/layout/AppShell";
 import apiClient from "@/lib/axios";
 import { useAuthStore } from "@/features/auth/authStore";
 import type { ListerApplication } from "@/types";
@@ -165,10 +162,9 @@ export default function AdminListersPage() {
   };
 
   return (
-    <AppShell>
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
-        {/* Header Title */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 p-6 max-w-[1400px] mx-auto animate-in fade-in duration-500">
+      {/* Header Title */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-black text-slate-900 tracking-tight">Lister Applications</h1>
@@ -308,6 +304,7 @@ export default function AdminListersPage() {
                   <th className="py-3 px-3">Location</th>
                   <th className="py-3 px-3">Document</th>
                   <th className="py-3 px-3">Categories</th>
+                  <th className="py-3 px-3">Identity / NID</th>
                   <th className="py-3 px-3">Status</th>
                   <th className="py-3 px-3 text-right">Actions</th>
                 </tr>
@@ -315,14 +312,14 @@ export default function AdminListersPage() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400">
+                    <td colSpan={8} className="py-8 text-center text-slate-400">
                       <RefreshCw size={20} className="animate-spin mx-auto mb-2 text-indigo-600" />
                       Loading applications...
                     </td>
                   </tr>
                 ) : applications.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400">
+                    <td colSpan={8} className="py-8 text-center text-slate-400">
                       No applications found for this filter.
                     </td>
                   </tr>
@@ -388,6 +385,21 @@ export default function AdminListersPage() {
                             <span className="text-[10px] text-slate-400">+{app.categories_intended.length - 2}</span>
                           )}
                         </div>
+                      </td>
+
+                      {/* Identity / NID Verification */}
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        {app.user?.identity_verification_status === "VERIFIED" || app.is_identity_verified || app.identity_verification_status === "VERIFIED" ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
+                            <ShieldCheck size={12} className="text-emerald-600" />
+                            NID Verified
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200" title="Applied without verification. Listing will require verification.">
+                            <AlertCircle size={12} className="text-amber-600" />
+                            Unverified
+                          </span>
+                        )}
                       </td>
 
                       {/* Status */}
@@ -472,6 +484,41 @@ export default function AdminListersPage() {
                   </span>
                 )}
               </div>
+
+              {/* Identity Verification Status Card */}
+              {(() => {
+                const isVerified =
+                  selectedApp.user?.identity_verification_status === "VERIFIED" ||
+                  selectedApp.is_identity_verified ||
+                  selectedApp.identity_verification_status === "VERIFIED";
+                return (
+                  <div
+                    className={`p-3.5 rounded-xl border flex items-start gap-3 text-xs ${
+                      isVerified
+                        ? "bg-emerald-50/80 border-emerald-200 text-emerald-900"
+                        : "bg-amber-50/80 border-amber-200 text-amber-900"
+                    }`}
+                  >
+                    {isVerified ? (
+                      <ShieldCheck size={20} className="text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+                    )}
+                    <div>
+                      <p className="font-bold text-sm">
+                        {isVerified
+                          ? "NID & Face Recognition Verified"
+                          : "Applied Without Identity Verification"}
+                      </p>
+                      <p className="text-[11px] mt-0.5 leading-relaxed opacity-90">
+                        {isVerified
+                          ? "Applicant has completed official identity verification. Upon approval, they can immediately publish rental listings."
+                          : "Applicant applied without NID verification. You can approve this account to grant Owner dashboard access, but the user will be strictly required to complete identity verification before listing any items."}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Details Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -637,7 +684,6 @@ export default function AdminListersPage() {
             </div>
           </div>
         )}
-      </div>
-    </AppShell>
+    </div>
   );
 }

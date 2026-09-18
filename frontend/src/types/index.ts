@@ -91,6 +91,8 @@ export interface ListerApplication {
   admin_notes?: string;
   created_at?: string;
   reviewed_at?: string;
+  identity_verification_status?: string;
+  is_identity_verified?: boolean;
   user?: {
     id: string;
     full_name: string;
@@ -98,6 +100,8 @@ export interface ListerApplication {
     avatar_url?: string;
     created_at?: string;
     role_names?: string[];
+    identity_verification_status?: string;
+    is_identity_verified?: boolean;
   };
 }
 

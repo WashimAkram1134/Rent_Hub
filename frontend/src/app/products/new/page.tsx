@@ -283,6 +283,113 @@ export default function AddListingPage() {
     );
   }
 
+  const isOwner =
+    user?.is_owner ||
+    user?.primary_role === "owner" ||
+    user?.role_names?.includes("owner") ||
+    user?.primary_role === "admin";
+  const isVerified =
+    user?.identity_verification_status === "VERIFIED" ||
+    user?.is_identity_verified ||
+    user?.primary_role === "admin";
+
+  if (!isAuthenticated) return null;
+
+  // Gate 1: Non-owners must apply to become a lister
+  if (!isOwner) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] font-sans flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-slate-200/80 shadow-sm text-center space-y-5">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto text-indigo-600">
+              <Sparkles size={32} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Owner Account Required</h2>
+              <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                To create and publish rental listings on RentHub, you need an approved Owner account. You can apply in less than 2 minutes.
+              </p>
+            </div>
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => router.push("/become-lister")}
+                className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
+              >
+                Apply to Become a Lister
+              </button>
+              <button
+                onClick={() => router.push("/dashboard")}
+                className="w-full py-2.5 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Gate 2: Owners who applied without NID must verify identity before listing
+  if (!isVerified) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] font-sans flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center p-4">
+          <div className="max-w-lg w-full bg-white rounded-3xl p-8 border border-slate-200/80 shadow-sm text-center space-y-6">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto text-amber-600">
+              <ShieldCheck size={32} />
+            </div>
+            <div>
+              <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                Action Required Before Listing
+              </span>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-2">
+                Identity Verification Required
+              </h2>
+              <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                Your Owner account is approved! However, to protect our rental community and prevent fraud, you must complete your one-time identity verification (National ID & Face Recognition) before creating and publishing your first listing.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-left space-y-2 text-xs">
+              <div className="flex items-center gap-2 text-slate-700 font-semibold">
+                <CheckCircle size={14} className="text-emerald-500" />
+                <span>Verified Lister badge displayed on all your products</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-700 font-semibold">
+                <CheckCircle size={14} className="text-emerald-500" />
+                <span>Enables direct bank & bKash rental payouts</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-700 font-semibold">
+                <CheckCircle size={14} className="text-emerald-500" />
+                <span>Up to ৳50,000 marketplace damage protection</span>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => router.push(`/verify-identity?returnUrl=${encodeURIComponent("/products/new")}`)}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
+              >
+                Complete Identity Verification Now
+              </button>
+              <button
+                onClick={() => router.push("/dashboard")}
+                className="w-full py-2.5 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans pb-16">
       <Navbar />

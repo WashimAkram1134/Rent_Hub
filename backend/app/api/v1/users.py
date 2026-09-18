@@ -323,6 +323,10 @@ async def update_staff_member(
     await db.commit()
     return {"message": f"Staff user {u.email} updated successfully!"}
 
+class UpdateUserRolePayload(BaseModel):
+    role: str
+
+
 @router.get(
     "",
     response_model=list[UserResponse],
@@ -332,8 +336,81 @@ async def list_users(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_role("admin")),
 ):
-    result = await db.execute(select(User))
+    result = await db.execute(
+        select(User).options(selectinload(User.roles)).order_by(User.created_at.desc())
+    )
     return result.scalars().all()
+
+
+@router.patch(
+    "/{user_id}/role",
+    response_model=UserResponse,
+    summary="Update user role (Admin only)",
+)
+async def update_user_role(
+    user_id: uuid.UUID,
+    payload: UpdateUserRolePayload,
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(require_role("admin")),
+):
+    target_role = payload.role.strip().lower()
+    if target_role not in ["customer", "owner", "admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Role must be one of: customer, owner, admin",
+        )
+
+    # Protect against self-demoting admin
+    if str(current_admin.id) == str(user_id) and target_role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot revoke your own admin role.",
+        )
+
+    stmt = (
+        select(User)
+        .options(selectinload(User.roles))
+        .where(User.id == user_id, User.deleted_at.is_(None))
+    )
+    user = (await db.execute(stmt)).scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    # Fetch available roles from DB
+    roles_res = await db.execute(select(Role))
+    all_roles = {r.name: r for r in roles_res.scalars().all()}
+
+    # Ensure roles exist in DB
+    for r_name in ["customer", "owner", "admin"]:
+        if r_name not in all_roles:
+            new_r = Role(name=r_name, description=f"{r_name.capitalize()} role")
+            db.add(new_r)
+            await db.flush()
+            all_roles[r_name] = new_r
+
+    if target_role == "owner":
+        if not any(r.name == "owner" for r in user.roles):
+            user.roles.append(all_roles["owner"])
+        if not any(r.name == "customer" for r in user.roles):
+            user.roles.append(all_roles["customer"])
+    elif target_role == "customer":
+        user.roles = [r for r in user.roles if r.name not in ["owner", "admin"]]
+        if not any(r.name == "customer" for r in user.roles):
+            user.roles.append(all_roles["customer"])
+    elif target_role == "admin":
+        if not any(r.name == "admin" for r in user.roles):
+            user.roles.append(all_roles["admin"])
+
+    await db.commit()
+
+    # Reload with roles
+    stmt_reload = (
+        select(User)
+        .options(selectinload(User.roles))
+        .where(User.id == user_id)
+    )
+    updated_user = (await db.execute(stmt_reload)).scalars().first()
+    return updated_user
 
 
 @router.delete(

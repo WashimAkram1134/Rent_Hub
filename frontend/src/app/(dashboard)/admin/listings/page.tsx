@@ -236,7 +236,14 @@ export default function AdminListingsPage() {
         if (selectedOfferStatus === "no_offers" && p.offer_active && p.discount_percentage > 0) return false;
 
         // Status Filter
-        if (statusFilter !== "all" && p.status !== statusFilter) return false;
+        if (statusFilter !== "all") {
+          const s = String(p.status || "").toUpperCase();
+          if (statusFilter === "APPROVED") {
+            if (s !== "APPROVED" && s !== "ACTIVE") return false;
+          } else if (s !== statusFilter) {
+            return false;
+          }
+        }
 
         return true;
       })
@@ -439,9 +446,25 @@ export default function AdminListingsPage() {
           </div>
         </div>
 
-        {/* Row 2: Price Range, Rating, Offer Status, and Sort */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-          {/* 4. Price Range */}
+        {/* Row 2: Price Range, Rating, Offer Status, Approval Status, and Sort */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-1">
+          {/* 4. Approval Status */}
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Approval Status</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-indigo-500 cursor-pointer"
+            >
+              <option value="all">All Statuses</option>
+              <option value="APPROVED">Approved / Active</option>
+              <option value="PENDING">Pending Approval</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="SUSPENDED">Suspended</option>
+            </select>
+          </div>
+
+          {/* 5. Price Range */}
           <div>
             <label className="text-[11px] font-bold text-slate-600 block mb-1">Price Range</label>
             <select
