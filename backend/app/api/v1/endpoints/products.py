@@ -473,14 +473,19 @@ async def update_product(
 
     update_data = product_update.model_dump(exclude_unset=True)
     images_data = update_data.pop("images", None)
+    single_image_url = update_data.pop("image_url", None)
     
     for key, val in update_data.items():
         if hasattr(product, key) and val is not None:
             setattr(product, key, val)
 
-    if images_data is not None and len(images_data) > 0:
+    if images_data is None and single_image_url is not None:
+        images_data = [single_image_url]
+
+    if images_data is not None:
         for old_img in list(product.images):
             await db.delete(old_img)
+        await db.flush()
         for idx, img_url in enumerate(images_data):
             if img_url and img_url.strip():
                 new_img = ProductImage(
@@ -490,10 +495,19 @@ async def update_product(
                     is_primary=(idx == 0)
                 )
                 db.add(new_img)
-        product.image_url = images_data[0]
 
     await db.commit()
-    await db.refresh(product)
+
+    stmt_reload = (
+        select(Product)
+        .options(
+            selectinload(Product.images),
+            selectinload(Product.owner),
+            selectinload(Product.category)
+        )
+        .where(Product.id == product.id)
+    )
+    product = (await db.execute(stmt_reload)).scalars().first()
     
     imgs = sorted(product.images, key=lambda i: i.sort_order) if product.images else []
     img_url = next((img.url for img in imgs if img.is_primary), imgs[0].url if imgs else None)

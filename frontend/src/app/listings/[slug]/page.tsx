@@ -36,6 +36,9 @@ import {
   Loader2,
   ArrowLeft,
   Tag,
+  Upload,
+  Image as ImageIcon,
+  Plus,
 } from "lucide-react";
 
 export default function OwnerListingDetailPage() {
@@ -55,6 +58,10 @@ export default function OwnerListingDetailPage() {
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [editImages, setEditImages] = useState<string[]>([]);
+  const [newImageUrl, setNewImageUrl] = useState("");
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [editForm, setEditForm] = useState({
     title: "",
     price_per_day: "",
@@ -88,6 +95,13 @@ export default function OwnerListingDetailPage() {
         area: prodData.area || "Gulshan-2",
         description: prodData.description || "",
       });
+      const initialImgs = [
+        ...(prodData.images?.map((img: any) => img.url) || []),
+        ...(prodData.image_url && !prodData.images?.some((i: any) => i.url === prodData.image_url)
+          ? [prodData.image_url]
+          : []),
+      ].filter(Boolean);
+      setEditImages(initialImgs);
 
       // Load bookings for this product
       if (prodData.id) {
@@ -113,8 +127,83 @@ export default function OwnerListingDetailPage() {
         ...(product.image_url && !product.images?.some((i: any) => i.url === product.image_url)
           ? [product.image_url]
           : []),
-      ]
+      ].filter(Boolean)
     : [];
+
+  const openEditModal = () => {
+    if (product) {
+      setEditForm({
+        title: product.title || "",
+        price_per_day: product.price_per_day?.toString() || "",
+        security_deposit: product.security_deposit?.toString() || "",
+        condition: product.condition || "Good",
+        delivery_option: product.delivery_option || "both",
+        city: product.city || "Dhaka",
+        area: product.area || "Gulshan-2",
+        description: product.description || "",
+      });
+      const currentImgs = [
+        ...(product.images?.map((img: any) => img.url) || []),
+        ...(product.image_url && !product.images?.some((i: any) => i.url === product.image_url)
+          ? [product.image_url]
+          : []),
+      ].filter(Boolean);
+      setEditImages(currentImgs);
+    }
+    setIsEditModalOpen(true);
+  };
+
+  const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploadingImage(true);
+    try {
+      const uploaded: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await apiClient.post("/upload", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        if (res.data?.url) {
+          uploaded.push(res.data.url);
+        }
+      }
+      setEditImages((prev) => [...prev, ...uploaded]);
+      showToast(`${uploaded.length} image(s) uploaded successfully!`);
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Failed to upload image. Please try again.");
+    } finally {
+      setIsUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleAddImageUrl = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = newImageUrl.trim();
+    if (!trimmed) return;
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://") && !trimmed.startsWith("/")) {
+      alert("Please enter a valid image URL starting with http:// or https://");
+      return;
+    }
+    setEditImages((prev) => [...prev, trimmed]);
+    setNewImageUrl("");
+  };
+
+  const handleRemoveImage = (idxToRemove: number) => {
+    setEditImages((prev) => prev.filter((_, idx) => idx !== idxToRemove));
+  };
+
+  const handleSetPrimaryImage = (idxToPrimary: number) => {
+    setEditImages((prev) => {
+      const copy = [...prev];
+      const [item] = copy.splice(idxToPrimary, 1);
+      return [item, ...copy];
+    });
+  };
 
   const handleToggleActive = async () => {
     if (!product) return;
@@ -154,11 +243,13 @@ export default function OwnerListingDetailPage() {
         city: editForm.city.trim(),
         area: editForm.area.trim(),
         description: editForm.description.trim(),
+        images: editImages,
+        image_url: editImages[0] || null,
       };
       const res = await apiClient.patch(`/products/${product.id}`, payload);
       setProduct({ ...product, ...res.data });
       setIsEditModalOpen(false);
-      showToast("Listing details updated successfully!");
+      showToast("Listing details & photos updated successfully!");
     } catch (err: any) {
       alert(err.response?.data?.detail || "Failed to update listing.");
     } finally {
@@ -715,7 +806,7 @@ export default function OwnerListingDetailPage() {
 
               {/* Edit Listing (Primary Blue) */}
               <button
-                onClick={() => setIsEditModalOpen(true)}
+                onClick={openEditModal}
                 className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-98 cursor-pointer"
               >
                 <Edit2 size={14} /> Edit Listing
@@ -769,13 +860,123 @@ export default function OwnerListingDetailPage() {
               </h2>
               <button
                 onClick={() => setIsEditModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleSaveEdit} className="space-y-4 pt-4 text-xs">
+              {/* Listing Images Section */}
+              <div className="space-y-2.5 p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                    <ImageIcon size={14} className="text-blue-600" />
+                    <span>Listing Images ({editImages.length})</span>
+                  </div>
+                  <span className="text-[10px] font-medium text-slate-500">
+                    First photo is your cover image
+                  </span>
+                </div>
+
+                {/* Thumbnails grid */}
+                {editImages.length > 0 ? (
+                  <div className="grid grid-cols-4 gap-2 pt-1">
+                    {editImages.map((imgUrl, idx) => (
+                      <div
+                        key={idx}
+                        className="relative group rounded-xl overflow-hidden aspect-square border-2 border-slate-200 bg-slate-100 shadow-2xs"
+                      >
+                        <img
+                          src={imgUrl}
+                          alt={`Listing photo ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+
+                        {/* Cover Badge */}
+                        {idx === 0 ? (
+                          <span className="absolute top-1 left-1 bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-xs">
+                            Cover
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleSetPrimaryImage(idx)}
+                            className="absolute top-1 left-1 bg-slate-900/80 hover:bg-slate-950 text-white text-[9px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                            title="Set as Cover photo"
+                          >
+                            Set Cover
+                          </button>
+                        )}
+
+                        {/* Delete button */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(idx)}
+                          className="absolute top-1 right-1 bg-rose-600 hover:bg-rose-700 text-white p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity shadow-xs cursor-pointer"
+                          title="Remove image"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-slate-400 text-[11px] border border-dashed border-slate-200 rounded-xl bg-white">
+                    No images added yet. Upload or add an image URL below.
+                  </div>
+                )}
+
+                {/* Upload or Add URL controls */}
+                <div className="pt-2 flex flex-col sm:flex-row items-center gap-2">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageFileUpload}
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    multiple
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    disabled={isUploadingImage}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full sm:w-auto px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-200 rounded-xl flex items-center justify-center gap-1.5 text-xs shadow-2xs transition-colors cursor-pointer shrink-0"
+                  >
+                    {isUploadingImage ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin text-blue-600" />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={13} className="text-blue-600" />
+                        <span>Upload Photos</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div className="flex items-center gap-1.5 w-full">
+                    <input
+                      type="url"
+                      placeholder="Or paste image URL..."
+                      value={newImageUrl}
+                      onChange={(e) => setNewImageUrl(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-blue-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddImageUrl}
+                      disabled={!newImageUrl.trim()}
+                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 disabled:opacity-40 text-white font-bold rounded-xl text-xs shrink-0 transition-colors cursor-pointer flex items-center gap-1"
+                    >
+                      <Plus size={13} />
+                      <span>Add</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="font-bold text-slate-700 mb-1 block">Item Title</label>
                 <input
@@ -884,7 +1085,7 @@ export default function OwnerListingDetailPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSaving}
+                  disabled={isSaving || isUploadingImage}
                   className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
                 >
                   {isSaving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
