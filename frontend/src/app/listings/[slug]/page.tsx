@@ -313,8 +313,8 @@ export default function OwnerListingDetailPage() {
   // Derive brand & year from title
   const titleParts = product.title.split(" ");
   const possibleYear = titleParts.find((w: string) => /^(19|20)\d{2}$/.test(w)) || "2024";
-  const brand = isVehicle ? titleParts[0] || "Toyota" : "Premium Brand";
-  const model = isVehicle ? titleParts.slice(1).filter((w: string) => !/^(19|20)\d{2}$/.test(w)).join(" ") || "Standard" : "Standard Model";
+  const brand = titleParts[0] || (isVehicle ? "Toyota" : "Canon");
+  const model = titleParts.slice(1).filter((w: string) => !/^(19|20)\d{2}$/.test(w)).join(" ") || (isVehicle ? "Standard" : "Equipment");
 
   return (
     <AppShell>
@@ -363,96 +363,109 @@ export default function OwnerListingDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* ── Left Column (col-span-8): Image Showcase, Specs, Tabs ─────────── */}
           <div className="lg:col-span-8 space-y-6">
-            {/* Image Showcase Card */}
-            <div className="bg-white rounded-3xl border border-slate-100 p-5 shadow-xs space-y-4">
-              {/* Main Image Container */}
-              <div className="relative aspect-[16/10] sm:aspect-[16/9] w-full rounded-2xl overflow-hidden bg-slate-100 group border border-slate-100">
-                {images.length > 0 ? (
-                  <img
-                    src={resolveImageUrl(images[activeImageIdx] || images[0])}
-                    alt={product.title}
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      if (!target.src.includes("unsplash")) {
-                        target.src = DEFAULT_IMAGE_FALLBACK;
-                      }
-                    }}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102"
-                  />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2">
-                    <Package size={36} />
-                    <span className="text-xs font-semibold">No Image Available</span>
-                  </div>
-                )}
-
-                {/* Status Badge (Top-Left) */}
-                <div className="absolute top-3.5 left-3.5 z-10">
-                  {product.status === "APPROVED" && product.is_active ? (
-                    <span className="bg-white/95 backdrop-blur-md text-emerald-700 font-bold px-3 py-1 rounded-full text-xs flex items-center gap-1.5 shadow-md border border-emerald-100">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                      Active
-                    </span>
-                  ) : product.status === "PENDING" ? (
-                    <span className="bg-white/95 backdrop-blur-md text-amber-700 font-bold px-3 py-1 rounded-full text-xs flex items-center gap-1.5 shadow-md border border-amber-100">
-                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                      Pending Approval
-                    </span>
-                  ) : product.status === "REJECTED" ? (
-                    <span className="bg-white/95 backdrop-blur-md text-rose-700 font-bold px-3 py-1 rounded-full text-xs flex items-center gap-1.5 shadow-md border border-rose-100">
-                      <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                      Rejected
-                    </span>
+            {/* Hero Image Gallery + Specs Header Card (Booking Page Style) */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+              
+              {/* Left Column: Gallery (6 cols) */}
+              <div className="md:col-span-6 space-y-3">
+                {/* Main Large Display Image (Controlled Height, not huge) */}
+                <div className="relative h-64 sm:h-72 rounded-2xl overflow-hidden bg-slate-100 border border-slate-100 shadow-inner group">
+                  {images.length > 0 ? (
+                    <img
+                      src={resolveImageUrl(images[activeImageIdx] || images[0])}
+                      alt={product.title}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        if (!target.src.includes("unsplash")) {
+                          target.src = DEFAULT_IMAGE_FALLBACK;
+                        }
+                      }}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102"
+                    />
                   ) : (
-                    <span className="bg-white/95 backdrop-blur-md text-slate-600 font-bold px-3 py-1 rounded-full text-xs flex items-center gap-1.5 shadow-md border border-slate-200">
-                      <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-                      Paused
-                    </span>
+                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2">
+                      <Package size={36} />
+                      <span className="text-xs font-semibold">No Image Available</span>
+                    </div>
+                  )}
+
+                  {/* Status Badge (Top-Left) */}
+                  <div className="absolute top-3 left-3 z-10">
+                    {product.status === "APPROVED" && product.is_active ? (
+                      <span className="bg-white/95 backdrop-blur-md text-emerald-700 font-bold px-2.5 py-1 rounded-full text-[11px] flex items-center gap-1.5 shadow-sm border border-emerald-100">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        Active
+                      </span>
+                    ) : product.status === "PENDING" ? (
+                      <span className="bg-white/95 backdrop-blur-md text-amber-700 font-bold px-2.5 py-1 rounded-full text-[11px] flex items-center gap-1.5 shadow-sm border border-amber-100">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                        Pending Approval
+                      </span>
+                    ) : product.status === "REJECTED" ? (
+                      <span className="bg-white/95 backdrop-blur-md text-rose-700 font-bold px-2.5 py-1 rounded-full text-[11px] flex items-center gap-1.5 shadow-md border border-rose-100">
+                        <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                        Rejected
+                      </span>
+                    ) : (
+                      <span className="bg-white/95 backdrop-blur-md text-slate-600 font-bold px-2.5 py-1 rounded-full text-[11px] flex items-center gap-1.5 shadow-md border border-slate-200">
+                        <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                        Paused
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Quick Edit Photos Button (Top-Right) */}
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="absolute top-3 right-3 bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-sm border border-slate-200 transition-all cursor-pointer opacity-90 group-hover:opacity-100"
+                    title="Change Photos"
+                  >
+                    <ImageIcon size={13} className="text-indigo-600" />
+                    <span>Change Photos</span>
+                  </button>
+
+                  {/* Left / Right Carousel Controls */}
+                  {images.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => setActiveImageIdx((prev) => (prev === 0 ? images.length - 1 : prev - 1))}
+                        className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-slate-800 flex items-center justify-center shadow-md backdrop-blur-md transition-transform active:scale-95 cursor-pointer opacity-80 group-hover:opacity-100"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      <button
+                        onClick={() => setActiveImageIdx((prev) => (prev === images.length - 1 ? 0 : prev + 1))}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-slate-800 flex items-center justify-center shadow-md backdrop-blur-md transition-transform active:scale-95 cursor-pointer opacity-80 group-hover:opacity-100"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </>
+                  )}
+
+                  {/* Image Counter (Bottom-Right) */}
+                  {images.length > 0 && (
+                    <div className="absolute bottom-2.5 right-2.5 bg-slate-900/70 backdrop-blur-md text-white font-mono text-[10px] font-bold px-2 py-0.5 rounded-md">
+                      {activeImageIdx + 1} / {images.length}
+                    </div>
                   )}
                 </div>
 
-                {/* Left / Right Carousel Controls */}
-                {images.length > 1 && (
-                  <>
-                    <button
-                      onClick={() => setActiveImageIdx((prev) => (prev === 0 ? images.length - 1 : prev - 1))}
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-slate-800 flex items-center justify-center shadow-md backdrop-blur-md transition-transform active:scale-95 cursor-pointer opacity-90 group-hover:opacity-100"
-                    >
-                      <ChevronLeft size={18} />
-                    </button>
-                    <button
-                      onClick={() => setActiveImageIdx((prev) => (prev === images.length - 1 ? 0 : prev + 1))}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-slate-800 flex items-center justify-center shadow-md backdrop-blur-md transition-transform active:scale-95 cursor-pointer opacity-90 group-hover:opacity-100"
-                    >
-                      <ChevronRight size={18} />
-                    </button>
-                  </>
-                )}
-
-                {/* Image Counter (Bottom-Right) */}
-                {images.length > 0 && (
-                  <div className="absolute bottom-3.5 right-3.5 bg-slate-900/70 backdrop-blur-md text-white font-mono text-[11px] font-bold px-2.5 py-1 rounded-lg">
-                    {activeImageIdx + 1} / {images.length}
-                  </div>
-                )}
-              </div>
-
-              {/* Thumbnails Strip */}
-              {images.length > 1 && (
-                <div className="flex items-center gap-2.5 overflow-x-auto pb-1 custom-scrollbar">
-                  {images.map((imgUrl, idx) => (
+                {/* Thumbnail Strip (Others Small - Booking Page Style) */}
+                <div className="grid grid-cols-5 gap-2">
+                  {images.slice(0, 5).map((imgUrl, idx) => (
                     <button
                       key={idx}
                       onClick={() => setActiveImageIdx(idx)}
-                      className={`relative w-20 h-14 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${
+                      className={`relative h-12 sm:h-14 rounded-xl overflow-hidden bg-slate-100 border transition-all cursor-pointer ${
                         activeImageIdx === idx
-                          ? "border-blue-600 ring-2 ring-blue-500/20 shadow-sm scale-102"
-                          : "border-slate-200/80 hover:border-slate-300 opacity-70 hover:opacity-100"
+                          ? "ring-2 ring-indigo-600 border-indigo-600 shadow-xs"
+                          : "border-slate-200 hover:opacity-80"
                       }`}
                     >
                       <img
                         src={resolveImageUrl(imgUrl)}
-                        alt=""
+                        alt={`Thumb ${idx}`}
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           if (!target.src.includes("unsplash")) {
@@ -461,106 +474,150 @@ export default function OwnerListingDetailPage() {
                         }}
                         className="w-full h-full object-cover"
                       />
+                      {idx === 4 && images.length > 5 && (
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsEditModalOpen(true);
+                          }}
+                          className="absolute inset-0 bg-slate-900/70 flex items-center justify-center text-white text-xs font-extrabold hover:bg-slate-900/85 transition-colors"
+                        >
+                          +{images.length - 4}
+                        </div>
+                      )}
                     </button>
                   ))}
-                </div>
-              )}
-            </div>
 
-            {/* Product Specifications & Details Card (Image 2 style) */}
-            <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-xs space-y-6">
-              {/* Header Price & Tag */}
-              <div className="space-y-1 border-b border-slate-100 pb-5">
-                <h2 className="text-xl font-bold text-slate-900">{product.title}</h2>
-                <div className="flex items-center gap-3 pt-1">
-                  <div className="text-2xl font-black text-blue-600">
-                    ৳ {Number(product.price_per_day).toLocaleString()}{" "}
-                    <span className="text-xs font-semibold text-slate-400 font-sans">/ day</span>
+                  {/* If fewer than 5 images, show add photo slot */}
+                  {images.length < 5 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditModalOpen(true)}
+                      className="h-12 sm:h-14 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-400 flex flex-col items-center justify-center text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer bg-slate-50/50"
+                      title="Add more photos"
+                    >
+                      <Plus size={14} />
+                      <span className="text-[9px] font-bold">Add</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: Specifications & Details Info (6 cols) */}
+              <div className="md:col-span-6 flex flex-col justify-between space-y-3.5">
+                <div className="space-y-2.5">
+                  {/* Category & Condition Badges */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-md inline-block">
+                      {product.category?.name || "Equipment"}
+                    </span>
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/50 capitalize">
+                      {product.condition || "Good"}
+                    </span>
+                    <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1 ml-auto">
+                      <MapPin size={12} /> {product.city || "Dhaka"}
+                    </span>
                   </div>
-                  <span className="bg-blue-50 text-blue-700 font-bold px-2.5 py-0.5 rounded-md text-[11px]">
-                    Daily Rental
-                  </span>
+
+                  {/* Title */}
+                  <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">
+                    {product.title}
+                  </h2>
+
+                  {/* Pricing and Deposit Banner */}
+                  <div className="flex items-baseline justify-between bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <div>
+                      <div className="text-xl font-black text-indigo-600">
+                        ৳ {Number(product.price_per_day).toLocaleString()}{" "}
+                        <span className="text-xs font-semibold text-slate-400 font-sans">/ day</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-semibold">Standard daily rate</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs font-bold text-slate-800">
+                        ৳ {Number(product.security_deposit || 0).toLocaleString()}
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium">Refundable Deposit</span>
+                    </div>
+                  </div>
+
+                  {/* Quick Specs Grid (Booking Page Style) */}
+                  <div className="grid grid-cols-2 gap-2.5 pt-1 text-xs">
+                    <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <div className="text-slate-400"><Car size={15} /></div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] text-slate-400 font-medium">Brand</p>
+                        <p className="font-bold text-slate-800 text-xs truncate">{brand}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <div className="text-slate-400"><Package size={15} /></div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] text-slate-400 font-medium">Model</p>
+                        <p className="font-bold text-slate-800 text-xs truncate">{model}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <div className="text-slate-400"><Calendar size={15} /></div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] text-slate-400 font-medium">Release / Year</p>
+                        <p className="font-bold text-slate-800 text-xs">{possibleYear}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <div className="text-slate-400"><Shield size={15} /></div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] text-slate-400 font-medium">Condition</p>
+                        <p className="font-bold text-slate-800 text-xs truncate capitalize">{product.condition || "Good"}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div className="pt-1">
+                    <p
+                      className={`text-xs text-slate-600 leading-relaxed ${
+                        !showFullDesc && "line-clamp-2"
+                      }`}
+                    >
+                      {product.description ||
+                        `Well maintained ${product.title}. Smooth operation, perfect condition.`}
+                    </p>
+                    {product.description && product.description.length > 90 && (
+                      <button
+                        onClick={() => setShowFullDesc(!showFullDesc)}
+                        className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 mt-0.5 cursor-pointer"
+                      >
+                        {showFullDesc ? "Show less ▴" : "Show more ▾"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quick Owner Actions inside Hero Card */}
+                <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="flex-1 py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Edit2 size={13} />
+                    <span>Edit Listing & Photos</span>
+                  </button>
+                  <Link
+                    href={`/products/${product.slug || product.id}`}
+                    target="_blank"
+                    className="py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-colors flex items-center gap-1"
+                  >
+                    <span>Public View</span>
+                    <ExternalLink size={13} />
+                  </Link>
                 </div>
               </div>
 
-              {/* Key Specs Grid with Clean Icons */}
-              <div className="grid grid-cols-2 sm:grid-cols-2 gap-x-6 gap-y-3.5 text-xs">
-                <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                  <span className="flex items-center gap-2 text-slate-500 font-medium">
-                    <Car size={14} className="text-slate-400" /> Brand
-                  </span>
-                  <span className="font-bold text-slate-800">{brand}</span>
-                </div>
-
-                <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                  <span className="flex items-center gap-2 text-slate-500 font-medium">
-                    <Package size={14} className="text-slate-400" /> Model
-                  </span>
-                  <span className="font-bold text-slate-800">{model}</span>
-                </div>
-
-                <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                  <span className="flex items-center gap-2 text-slate-500 font-medium">
-                    <Calendar size={14} className="text-slate-400" /> Year
-                  </span>
-                  <span className="font-bold text-slate-800">{possibleYear}</span>
-                </div>
-
-                <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                  <span className="flex items-center gap-2 text-slate-500 font-medium">
-                    <Fuel size={14} className="text-slate-400" /> Fuel Type
-                  </span>
-                  <span className="font-bold text-slate-800">Petrol / Octane</span>
-                </div>
-
-                <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                  <span className="flex items-center gap-2 text-slate-500 font-medium">
-                    <Settings size={14} className="text-slate-400" /> Transmission
-                  </span>
-                  <span className="font-bold text-slate-800">Automatic</span>
-                </div>
-
-                <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                  <span className="flex items-center gap-2 text-slate-500 font-medium">
-                    <Users size={14} className="text-slate-400" /> Seating Capacity
-                  </span>
-                  <span className="font-bold text-slate-800">5 Persons</span>
-                </div>
-
-                <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                  <span className="flex items-center gap-2 text-slate-500 font-medium">
-                    <Shield size={14} className="text-slate-400" /> Condition
-                  </span>
-                  <span className="font-bold text-slate-800 capitalize">{product.condition || "Good"}</span>
-                </div>
-
-                <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                  <span className="flex items-center gap-2 text-slate-500 font-medium">
-                    <DollarSign size={14} className="text-slate-400" /> Security Deposit
-                  </span>
-                  <span className="font-bold text-slate-800">
-                    ৳ {Number(product.security_deposit || 0).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div className="pt-2">
-                <p
-                  className={`text-xs text-slate-600 leading-relaxed ${
-                    !showFullDesc && "line-clamp-2"
-                  }`}
-                >
-                  {product.description ||
-                    `Well maintained ${product.title}. Smooth drive, excellent fuel efficiency. Perfect for city and long trips. AC, power steering, and comfortable seats.`}
-                </p>
-                <button
-                  onClick={() => setShowFullDesc(!showFullDesc)}
-                  className="text-xs font-bold text-blue-600 hover:text-blue-700 mt-1 cursor-pointer"
-                >
-                  {showFullDesc ? "Show less ▴" : "Show more ▾"}
-                </button>
-              </div>
             </div>
 
             {/* ── Tabs Section: Booking History, Reviews, Analytics ────────────── */}
