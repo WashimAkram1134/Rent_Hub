@@ -55,6 +55,7 @@ export function CustomerDashboard() {
 
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState("");
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   // Fetch data
   useEffect(() => {
@@ -124,10 +125,10 @@ export function CustomerDashboard() {
     <AppShell showHeader={false}>
 
       {/* ── Right Side (Header + Content) ───────────────────────────────── */}
-      <div className="flex flex-col min-w-0 overflow-hidden h-full" style={{ fontFamily: "'Inter', sans-serif" }}>
+      <div className="flex flex-col min-w-0 h-full" style={{ fontFamily: "'Inter', sans-serif" }}>
 
-        {/* Top Header — slides in from top */}
-        <header className="anim-fade-in anim-delay-0 bg-white border-b border-gray-100 px-5 py-3 flex items-center gap-3 shrink-0">
+        {/* Top Header — high z-index (z-50) so dropdowns appear in front of page body */}
+        <header className="relative z-50 bg-white border-b border-gray-100 px-5 py-3 flex items-center gap-3 shrink-0 shadow-xs">
           {/* Search Bar */}
           <div className="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 max-w-sm focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
             <Search size={16} className="text-slate-400 shrink-0" />
@@ -148,23 +149,58 @@ export function CustomerDashboard() {
           
           <div className="w-px h-6 bg-slate-200 mx-2" />
 
-          {/* User Profile */}
-          <div className="relative group cursor-pointer">
-            <div className="flex items-center gap-2">
+          {/* User Profile Dropdown — Always appears in front */}
+          <div className="relative group">
+            <button
+              onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+              className="flex items-center gap-2 cursor-pointer focus:outline-none"
+              title={`${user.first_name} ${user.last_name}`}
+            >
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-md ring-2 ring-white">
-                {user.first_name[0]}{user.last_name[0]}
+                {user.first_name?.[0] || "U"}{user.last_name?.[0] || ""}
               </div>
-            </div>
-            {/* Dropdown Menu */}
-            <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-              <div className="p-3 border-b border-slate-100">
-                <p className="text-sm font-bold text-slate-900">{user.first_name} {user.last_name}</p>
-                <p className="text-xs text-slate-500 truncate">{user.email}</p>
+            </button>
+
+            {/* Dropdown Menu — z-50, elevated above any transformed page content */}
+            <div className={`absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 transition-all duration-150 ${
+              profileMenuOpen ? "opacity-100 visible" : "opacity-0 invisible group-hover:opacity-100 group-hover:visible"
+            }`}>
+              <div className="px-4 py-2.5 border-b border-slate-100">
+                <p className="text-xs font-bold text-slate-900">{user.first_name} {user.last_name}</p>
+                <p className="text-[11px] text-slate-400 truncate">{user.email}</p>
+                <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-50 text-indigo-600 uppercase">
+                  Customer
+                </span>
               </div>
-              <div className="p-1.5">
+
+              <div className="py-1">
+                <Link
+                  href="/profile"
+                  onClick={() => setProfileMenuOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2 transition-colors"
+                >
+                  My Profile
+                </Link>
+                <Link
+                  href="/bookings"
+                  onClick={() => setProfileMenuOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2 transition-colors"
+                >
+                  My Bookings
+                </Link>
+                <Link
+                  href="/wishlist"
+                  onClick={() => setProfileMenuOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2 transition-colors"
+                >
+                  Saved Wishlist
+                </Link>
+              </div>
+
+              <div className="p-1.5 border-t border-slate-100">
                 <button
                   onClick={handleSignOut}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 rounded-xl transition-colors font-bold cursor-pointer"
                 >
                   <LogOut size={14} /> Sign Out
                 </button>

@@ -45,7 +45,7 @@ export default function DashboardHeader() {
   };
 
   return (
-    <header className="bg-white border-b border-gray-100 px-5 py-3 flex items-center gap-3 shrink-0 h-[60px] z-30 font-sans">
+    <header className="relative z-50 bg-white border-b border-gray-100 px-5 py-3 flex items-center gap-3 shrink-0 h-[60px] font-sans shadow-xs">
       {/* Search */}
       <div className="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 max-w-sm focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
         <Search size={16} className="text-slate-400 shrink-0" />
