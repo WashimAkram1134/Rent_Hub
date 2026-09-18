@@ -41,6 +41,17 @@ import {
   Plus,
 } from "lucide-react";
 
+const DEFAULT_IMAGE_FALLBACK = "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80";
+
+const resolveImageUrl = (url?: string) => {
+  if (!url) return DEFAULT_IMAGE_FALLBACK;
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  return `${apiBase}${url.startsWith("/") ? "" : "/"}${url}`;
+};
+
 export default function OwnerListingDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -358,8 +369,14 @@ export default function OwnerListingDetailPage() {
               <div className="relative aspect-[16/10] sm:aspect-[16/9] w-full rounded-2xl overflow-hidden bg-slate-100 group border border-slate-100">
                 {images.length > 0 ? (
                   <img
-                    src={images[activeImageIdx] || images[0]}
+                    src={resolveImageUrl(images[activeImageIdx] || images[0])}
                     alt={product.title}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      if (!target.src.includes("unsplash")) {
+                        target.src = DEFAULT_IMAGE_FALLBACK;
+                      }
+                    }}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102"
                   />
                 ) : (
@@ -433,7 +450,17 @@ export default function OwnerListingDetailPage() {
                           : "border-slate-200/80 hover:border-slate-300 opacity-70 hover:opacity-100"
                       }`}
                     >
-                      <img src={imgUrl} alt="" className="w-full h-full object-cover" />
+                      <img
+                        src={resolveImageUrl(imgUrl)}
+                        alt=""
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          if (!target.src.includes("unsplash")) {
+                            target.src = DEFAULT_IMAGE_FALLBACK;
+                          }
+                        }}
+                        className="w-full h-full object-cover"
+                      />
                     </button>
                   ))}
                 </div>
@@ -888,8 +915,14 @@ export default function OwnerListingDetailPage() {
                         className="relative group rounded-xl overflow-hidden aspect-square border-2 border-slate-200 bg-slate-100 shadow-2xs"
                       >
                         <img
-                          src={imgUrl}
+                          src={resolveImageUrl(imgUrl)}
                           alt={`Listing photo ${idx + 1}`}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            if (!target.src.includes("unsplash")) {
+                              target.src = DEFAULT_IMAGE_FALLBACK;
+                            }
+                          }}
                           className="w-full h-full object-cover"
                         />
 
