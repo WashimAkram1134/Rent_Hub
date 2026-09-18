@@ -62,6 +62,13 @@ export function OwnerHeaderWidget({
 
   return (
     <div className="relative rounded-3xl bg-gradient-to-r from-white via-indigo-50/40 to-white p-6 border border-indigo-100/80 shadow-sm overflow-hidden mb-6">
+      {/* Hero Background Image — low opacity */}
+      <img
+        src="/images/hero_1.jpg"
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 w-full h-full object-cover object-center opacity-[0.08] pointer-events-none select-none"
+      />
       {/* Subtle Background Glow Accents */}
       <div className="absolute top-0 right-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-2xl pointer-events-none"></div>

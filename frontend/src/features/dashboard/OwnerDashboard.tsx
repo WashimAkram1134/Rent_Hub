@@ -97,8 +97,8 @@ export function OwnerDashboard() {
         {/* 2. Top 4 KPI Metric Cards (Full Width across 4 Columns) */}
         <StatCardsWidget stats={stats} />
 
-        {/* 3. High-Demand / Most Booked Categories (Full Width with spacious cards) */}
-        <TrendingCategoriesWidget categories={trendingCategories} />
+        {/* 3. My Listings Inventory (Full Width) */}
+        <MyListingsWidget listings={myListings} />
 
         {/* 4. Balanced 2-Column Analytics & Business Operations Split */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
@@ -116,8 +116,8 @@ export function OwnerDashboard() {
               onRequestUpdated={fetchOwnerData}
             />
 
-            {/* My Listings Inventory */}
-            <MyListingsWidget listings={myListings} />
+            {/* High-Demand Rental Categories */}
+            <TrendingCategoriesWidget categories={trendingCategories} />
           </div>
 
           {/* ── Right Column (col-span-4): Toolkit, Schedule, Balance & Top Items ── */}
