@@ -87,7 +87,7 @@ export default function OwnerPayoutsPage() {
     e.preventDefault();
     const reqAmount = parseFloat(amount);
     if (!reqAmount || reqAmount < 500) {
-      alert("Minimum withdrawal amount is ৳ 500.");
+      showToast("⚠️ Minimum withdrawal amount is ৳ 500.");
       return;
     }
 
@@ -104,25 +104,24 @@ export default function OwnerPayoutsPage() {
       };
 
       const res = await apiClient.post("/payouts/request", payload);
-      showToast(res.data?.message || "Payout request submitted to finance team!");
+      showToast(res.data?.message || "✓ Payout request submitted to finance team!");
       setRequestModalOpen(false);
       setNotes("");
       fetchPayoutData();
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Failed to submit payout request. Please try again.");
+      showToast(err.response?.data?.detail || "Failed to submit payout request. Please try again.");
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleCancelPayout = async (payoutId: string) => {
-    if (!confirm("Are you sure you want to cancel this pending payout request?")) return;
     try {
       await apiClient.delete(`/payouts/${payoutId}`);
-      showToast("Payout request cancelled successfully.");
+      showToast("✓ Payout request cancelled successfully.");
       fetchPayoutData();
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Failed to cancel payout request.");
+      showToast(err.response?.data?.detail || "Failed to cancel payout request.");
     }
   };
 

@@ -30,6 +30,7 @@ interface RecentRequestsProps {
 
 export function RecentRequestsWidget({ requests, onRequestUpdated }: RecentRequestsProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -53,9 +54,18 @@ export function RecentRequestsWidget({ requests, onRequestUpdated }: RecentReque
     try {
       setActionLoading(id);
       await apiClient.put(`/bookings/${id}/status`, { status: newStatus });
+      setFeedback({
+        type: "success",
+        message: `✓ Booking request successfully updated to ${newStatus}.`,
+      });
+      setTimeout(() => setFeedback(null), 4000);
       if (onRequestUpdated) onRequestUpdated();
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Failed to update booking status");
+      setFeedback({
+        type: "error",
+        message: err.response?.data?.detail || "Failed to update booking status.",
+      });
+      setTimeout(() => setFeedback(null), 5000);
     } finally {
       setActionLoading(null);
     }
@@ -63,6 +73,24 @@ export function RecentRequestsWidget({ requests, onRequestUpdated }: RecentReque
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      {feedback && (
+        <div
+          className={`mb-4 p-3 rounded-xl border text-xs font-semibold flex items-center justify-between ${
+            feedback.type === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : "bg-rose-50 border-rose-200 text-rose-800"
+          }`}
+        >
+          <span>{feedback.message}</span>
+          <button
+            onClick={() => setFeedback(null)}
+            className="text-slate-400 hover:text-slate-600 font-bold ml-2 cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-sm font-bold text-slate-900">Recent Rental Requests</h2>

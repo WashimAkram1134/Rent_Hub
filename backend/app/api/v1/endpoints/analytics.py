@@ -272,6 +272,27 @@ async def get_owner_stats(
                 "bank_name": latest_payout.bank_name,
             }
 
+        # Calculate dynamic next Friday payout date
+        days_ahead = (4 - now.weekday()) % 7
+        if days_ahead == 0 and now.hour >= 18:
+            days_ahead = 7
+        next_friday = (now + timedelta(days=days_ahead)).date()
+        next_payout_date_str = next_friday.strftime("Friday, %d %b")
+
+        # Ongoing rentals pending settlement
+        ongoing_subtotal = await db.scalar(
+            select(func.sum(Booking.subtotal)).where(
+                Booking.owner_id == target_owner_id,
+                Booking.status.in_(["confirmed", "active", "approved"]),
+                Booking.end_date >= today_date
+            )
+        ) or 0.0
+        ongoing_pending = round(float(ongoing_subtotal) * 0.9, 2)
+        total_pending = round(pending_payouts + ongoing_pending, 2)
+    else:
+        next_payout_date_str = "Friday, 25 Sep"
+        total_pending = 0.0
+
     total_net_earnings = round(float(all_time_subtotal or 0.0) * 0.9, 2)
     available_settlement = max(0.0, round(total_net_earnings - total_paid_payouts - pending_payouts, 2))
 
@@ -341,9 +362,10 @@ async def get_owner_stats(
         "trending_categories": trending_cats,
         "payout_info": {
             "available_settlement": available_settlement,
-            "pending_amount": round(pending_payouts, 2),
+            "pending_amount": total_pending,
             "paid_amount": round(total_paid_payouts, 2),
             "total_earnings": total_net_earnings,
+            "next_payout_date": next_payout_date_str,
             "connected_account": connected_account,
         },
         "top_performing_items": top_performing_items,
