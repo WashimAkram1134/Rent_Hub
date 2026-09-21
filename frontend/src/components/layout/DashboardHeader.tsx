@@ -52,7 +52,11 @@ export default function DashboardHeader() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search cars, cameras, apartments..."
+          placeholder={
+            activeRole === "owner"
+              ? "Search for listings, bookings, or anything..."
+              : "Search cars, cameras, apartments..."
+          }
           className="bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400 w-full"
         />
       </div>
@@ -130,8 +134,16 @@ export default function DashboardHeader() {
             className="flex items-center gap-2 pl-2 cursor-pointer"
           >
             <div className="relative">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-md ring-2 ring-white">
-                {user.first_name?.[0] || "U"}{user.last_name?.[0] || ""}
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-md ring-2 ring-white overflow-hidden">
+                {user.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt={user.first_name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  `${user.first_name?.[0] || "U"}${user.last_name?.[0] || ""}`
+                )}
               </div>
               {(user.identity_verification_status === "VERIFIED" || user.is_identity_verified) && (
                 <span className="absolute -bottom-0.5 -right-0.5 bg-emerald-500 rounded-full p-0.5 text-white ring-1 ring-white" title="Verified User">
@@ -142,7 +154,7 @@ export default function DashboardHeader() {
             <div className="hidden sm:block text-left">
               <p className="text-slate-900 text-sm font-bold leading-none">{user.first_name} {user.last_name}</p>
               <p className="text-slate-500 text-xs mt-1 capitalize">
-                {isOwnerUser ? (activeRole === "owner" ? "Owner Mode 🏪" : "Customer Mode 🛍️") : (user.primary_role || "Customer")}
+                {isOwnerUser ? (activeRole === "owner" ? "Owner" : "Customer") : (user.primary_role || "Customer")}
               </p>
             </div>
             <ChevronDown className="w-4 h-4 text-slate-400 hidden sm:block" />

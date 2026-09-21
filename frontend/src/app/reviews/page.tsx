@@ -45,8 +45,20 @@ export default function OwnerReviewsPage() {
   });
 
   const avgRating = reviews.length > 0
-    ? (reviews.reduce((sum, r) => sum + (Number(r.rating) || 5), 0) / reviews.length).toFixed(1)
-    : "4.9";
+    ? (reviews.reduce((sum, r) => sum + (Number(r.rating) || 0), 0) / reviews.length).toFixed(1)
+    : "0.0";
+
+  const satisfiedCount = reviews.filter((r) => Number(r.rating) >= 4).length;
+  const satisfactionRate = reviews.length > 0
+    ? ((satisfiedCount / reviews.length) * 100).toFixed(1)
+    : "0.0";
+
+  const avgNum = parseFloat(avgRating);
+  const hostStatus = avgNum >= 4.8 ? "Super Host" : avgNum >= 4.0 ? "Great Host" : avgNum > 0 ? "Host" : "New Host";
+  const hostStatusSub = avgNum >= 4.8 ? "Eligible for fee discounts" : avgNum >= 4.0 ? "Building strong reputation" : avgNum > 0 ? "Keep improving!" : "Start collecting reviews";
+  const platformRank = avgNum >= 4.8 ? "Top 5% Platform Host" : avgNum >= 4.5 ? "Top 10% Platform Host" : avgNum >= 4.0 ? "Top 25% Platform Host" : "Active Host";
+  const negativeCount = reviews.filter((r) => Number(r.rating) < 3).length;
+  const disputeText = negativeCount === 0 ? "Zero negative disputes" : `${negativeCount} negative review${negativeCount > 1 ? "s" : ""}`;
 
   return (
     <AppShell>
@@ -76,7 +88,7 @@ export default function OwnerReviewsPage() {
             <div>
               <p className="text-slate-400 text-xs font-medium">Average Rating</p>
               <h3 className="text-xl font-bold text-slate-900 mt-0.5">{avgRating} / 5.0</h3>
-              <p className="text-emerald-500 text-[11px] font-semibold mt-0.5">Top 5% Platform Host</p>
+              <p className="text-emerald-500 text-[11px] font-semibold mt-0.5">{platformRank}</p>
             </div>
           </div>
 
@@ -86,8 +98,8 @@ export default function OwnerReviewsPage() {
             </div>
             <div>
               <p className="text-slate-400 text-xs font-medium">Total Reviews</p>
-              <h3 className="text-xl font-bold text-slate-900 mt-0.5">{reviews.length || 24} Verified</h3>
-              <p className="text-indigo-600 text-[11px] font-semibold mt-0.5">100% verified rentals</p>
+              <h3 className="text-xl font-bold text-slate-900 mt-0.5">{reviews.length} Verified</h3>
+              <p className="text-indigo-600 text-[11px] font-semibold mt-0.5">{reviews.length > 0 ? "100% verified rentals" : "No reviews yet"}</p>
             </div>
           </div>
 
@@ -97,8 +109,8 @@ export default function OwnerReviewsPage() {
             </div>
             <div>
               <p className="text-slate-400 text-xs font-medium">Satisfaction Rate</p>
-              <h3 className="text-xl font-bold text-slate-900 mt-0.5">99.4%</h3>
-              <p className="text-emerald-500 text-[11px] font-semibold mt-0.5">Zero negative disputes</p>
+              <h3 className="text-xl font-bold text-slate-900 mt-0.5">{satisfactionRate}%</h3>
+              <p className="text-emerald-500 text-[11px] font-semibold mt-0.5">{disputeText}</p>
             </div>
           </div>
 
@@ -108,8 +120,8 @@ export default function OwnerReviewsPage() {
             </div>
             <div>
               <p className="text-slate-400 text-xs font-medium">Host Status</p>
-              <h3 className="text-xl font-bold text-slate-900 mt-0.5">Super Host</h3>
-              <p className="text-purple-600 text-[11px] font-semibold mt-0.5">Eligible for fee discounts</p>
+              <h3 className="text-xl font-bold text-slate-900 mt-0.5">{hostStatus}</h3>
+              <p className="text-purple-600 text-[11px] font-semibold mt-0.5">{hostStatusSub}</p>
             </div>
           </div>
         </div>

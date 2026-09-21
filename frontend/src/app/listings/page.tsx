@@ -65,6 +65,7 @@ export default function OwnerListingsPage() {
   };
 
   useEffect(() => {
+    if (!user?.id) return;
     fetchListings();
   }, [user?.id]);
 

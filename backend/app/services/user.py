@@ -88,3 +88,36 @@ class UserService:
         user.avatar_url = public_url
         await self.db.flush()
         return public_url
+
+    async def upload_cover(self, user: User, file: UploadFile) -> str:
+        """Save cover image to local storage and return the public URL."""
+        # Validate file type
+        if file.content_type not in ("image/jpeg", "image/png", "image/webp", "image/gif"):
+            raise BadRequestException("Only JPEG, PNG, WebP, or GIF images are allowed.")
+
+        # Build storage path
+        ext = file.filename.rsplit(".", 1)[-1] if file.filename and "." in file.filename else "jpg"
+        filename = f"cover_{user.id}_{uuid.uuid4().hex[:8]}.{ext}"
+        upload_dir = Path(settings.LOCAL_STORAGE_PATH) / "covers"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        dest = upload_dir / filename
+
+        # Write file
+        contents = await file.read()
+        if len(contents) > 10 * 1024 * 1024:  # 10 MB limit
+            raise BadRequestException("Cover image must be under 10 MB.")
+        with open(dest, "wb") as f:
+            f.write(contents)
+
+        # Build public URL
+        public_url = f"{settings.LOCAL_STORAGE_URL}/covers/{filename}"
+
+        # Delete old cover file if it was locally stored
+        if user.cover_image_url and "/uploads/" in user.cover_image_url:
+            old_path = Path(settings.LOCAL_STORAGE_PATH) / user.cover_image_url.split("/uploads/")[-1]
+            if old_path.exists():
+                os.remove(old_path)
+
+        user.cover_image_url = public_url
+        await self.db.flush()
+        return public_url

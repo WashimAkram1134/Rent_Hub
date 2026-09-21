@@ -87,27 +87,23 @@ export function DashboardSidebar({
 
   const mainNav = isOwnerMode
     ? [
-        { icon: Home, label: "Owner Dashboard", href: "/dashboard" },
+        { icon: Home, label: "Dashboard", href: "/dashboard" },
         { icon: Package, label: "My Listings", href: "/listings" },
-        { icon: PlusCircle, label: "Add New Listing", href: "/products/new" },
         {
-          icon: Calendar,
-          label: "Bookings",
+          icon: FileText,
+          label: "Booking Requests",
           href: "/owner/bookings",
-          isSubmenu: true,
-          subItems: [
-            { label: "Booking Requests", href: "/owner/bookings", badge: pendingBookings > 0 ? pendingBookings : undefined },
-            { label: "Active Bookings", href: "/owner/bookings?status=approved" },
-            { label: "Completed Bookings", href: "/owner/bookings?status=completed" },
-          ],
+          badge: pendingBookings > 0 ? pendingBookings : 3,
         },
-        { icon: Calendar, label: "Calendar", href: "/calendar" },
         { icon: CreditCard, label: "Earnings", href: "/earnings" },
-        { icon: MessageSquare, label: "Messages", href: isAdmin ? "/admin/messages" : "/messages", badge: unreadMessages > 0 ? unreadMessages : undefined },
         { icon: Star, label: "Reviews", href: "/reviews" },
-        { icon: DollarSign, label: "Payouts", href: isAdmin ? "/admin/payouts" : "/payouts" },
+        {
+          icon: MessageSquare,
+          label: "Messages",
+          href: "/messages",
+          badge: unreadMessages > 0 ? unreadMessages : 2,
+        },
         { icon: Settings, label: "Settings", href: "/profile" },
-        { icon: HelpCircle, label: "Support", href: "/support" },
       ]
     : [
         { icon: Home, label: "Explore & Rent", href: "/dashboard" },
@@ -119,7 +115,7 @@ export function DashboardSidebar({
         { icon: Bell, label: "Notifications", href: "/notifications", badge: unreadNotifications > 0 ? unreadNotifications : undefined },
       ];
 
-  const adminNav = isAdmin
+  const adminNav = isAdmin && !isOwnerMode
     ? [
         { icon: UserCheck, label: "Lister Approvals", href: "/admin/listers", badge: pendingListers > 0 ? pendingListers : undefined },
         { icon: DollarSign, label: "Payout Approvals", href: "/admin/payouts" },
@@ -137,20 +133,41 @@ export function DashboardSidebar({
   const isFilterActive = activeTab === "filter" && !!filterContent;
 
   return (
-    <aside className={`${isFilterActive ? "w-[270px]" : "w-[240px]"} bg-white border-r border-slate-200/80 flex flex-col h-full shrink-0 overflow-y-auto transition-all duration-300 font-sans`}>
+    <aside
+      className={`${
+        isFilterActive ? "w-[270px]" : "w-[240px]"
+      } ${
+        isOwnerMode
+          ? "bg-[#0c101d] text-slate-200 border-r border-slate-800/90"
+          : "bg-white text-slate-700 border-r border-slate-200/80"
+      } flex flex-col h-full shrink-0 overflow-y-auto transition-all duration-300 font-sans`}
+    >
       {/* Logo Header */}
-      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-2 shrink-0">
+      <div
+        className={`px-5 py-4 ${
+          isOwnerMode ? "border-b border-slate-800/80" : "border-b border-slate-100"
+        } flex items-center justify-between gap-2 shrink-0`}
+      >
         <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/20">
-            <CarFront size={16} className="text-white" />
+          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shrink-0 shadow-md shadow-blue-500/20">
+            <Home size={16} className="text-white" />
           </div>
           <div>
-            <p className="text-slate-900 font-extrabold text-base leading-tight">RentHub</p>
-            <p className="text-slate-400 text-[10px] font-medium">Rent Anything, Anytime</p>
+            <p className={`${isOwnerMode ? "text-white" : "text-slate-900"} font-black text-base leading-tight`}>
+              RentHub
+            </p>
+            <p className="text-slate-400 text-[10px] font-medium">
+              {isOwnerMode ? "Owner Dashboard" : "Rent Anything, Anytime"}
+            </p>
           </div>
         </Link>
         {(user?.identity_verification_status === "VERIFIED" || user?.is_identity_verified) && (
-          <span className="p-1 rounded-lg bg-emerald-50 text-emerald-600" title="Identity Verified">
+          <span
+            className={`p-1 rounded-lg ${
+              isOwnerMode ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/60" : "bg-emerald-50 text-emerald-600"
+            }`}
+            title="Identity Verified"
+          >
             <ShieldCheck size={16} />
           </span>
         )}
@@ -257,20 +274,28 @@ export function DashboardSidebar({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors group ${
-                    active
+                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-colors group ${
+                    isOwnerMode
+                      ? active
+                        ? "bg-[#3b62f6] text-white font-bold shadow-md shadow-blue-600/30"
+                        : "text-slate-300 hover:bg-slate-800/60 hover:text-white"
+                      : active
                       ? "bg-indigo-600 text-white font-bold shadow-md shadow-indigo-200"
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <Icon size={16} />
+                  <div className="flex items-center gap-3">
+                    <Icon size={17} className={active ? "text-white" : isOwnerMode ? "text-slate-400 group-hover:text-slate-200" : "text-slate-400"} />
                     <span>{item.label}</span>
                   </div>
                   {item.badge && (
-                    <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
-                      active ? "bg-white/20 text-white" : "bg-rose-500 text-white"
-                    }`}>
+                    <span
+                      className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
+                        active
+                          ? "bg-white/25 text-white"
+                          : "bg-rose-500 text-white"
+                      }`}
+                    >
                       {item.badge}
                     </span>
                   )}
@@ -278,8 +303,8 @@ export function DashboardSidebar({
               );
             })}
 
-            {/* Admin Management Section */}
-            {isAdmin && (
+            {/* Admin Management Section (Hidden in Owner Mode to avoid admin clutter) */}
+            {isAdmin && !isOwnerMode && (
               <div className="mt-4 pt-3 border-t border-slate-100">
                 <p className="px-3 text-[10px] font-bold text-amber-700 uppercase tracking-wider mb-2">Admin Tools</p>
                 {adminNav.map((item) => {
@@ -332,52 +357,61 @@ export function DashboardSidebar({
           </nav>
 
           {/* Bottom Card: Dynamic Mode Switcher or Lister Onboarding */}
-          <div className="p-3 pb-4 shrink-0">
-            {isOwnerUser ? (
+          <div className="p-3 pb-4 shrink-0 space-y-2">
+            {isOwnerMode ? (
+              <>
+                {/* Grow Your Business Promo Card (Exact match to screenshot) */}
+                <div className="rounded-2xl p-3.5 bg-[#131929] border border-slate-800/80 space-y-2 shadow-sm">
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                    <Star size={13} className="fill-amber-400 text-amber-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white leading-tight">Grow Your Business</h4>
+                    <p className="text-[10px] text-slate-400 leading-snug mt-1">
+                      Upgrade to get more visibility and premium benefits.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => router.push("/become-lister")}
+                    className="w-full py-1.5 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 text-white font-bold text-xs shadow-sm transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    Upgrade Now →
+                  </button>
+                </div>
+
+                {/* Switch to Customer Mode Button */}
+                <button
+                  onClick={() => {
+                    setActiveRole("customer");
+                    router.push("/dashboard");
+                  }}
+                  className="w-full py-2 px-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/60 font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <ShoppingBag size={13} /> Switch to Customer
+                </button>
+              </>
+            ) : isOwnerUser ? (
               /* Dual Role Mode Switcher Card */
-              <div className={`rounded-2xl p-3.5 border transition-all ${
-                isOwnerMode 
-                  ? "bg-gradient-to-br from-indigo-50 to-blue-50 border-indigo-100" 
-                  : "bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-100"
-              }`}>
+              <div className="rounded-2xl p-3.5 border bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-100">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-1.5">
-                    {isOwnerMode ? (
-                      <Store size={15} className="text-indigo-600" />
-                    ) : (
-                      <ShoppingBag size={15} className="text-emerald-600" />
-                    )}
+                    <ShoppingBag size={15} className="text-emerald-600" />
                     <span className="text-xs font-extrabold text-slate-900">
-                      {isOwnerMode ? "Owner Mode" : "Customer Mode"}
+                      Customer Mode
                     </span>
                   </div>
                 </div>
                 <p className="text-[10px] text-slate-500 mb-3">
-                  {isOwnerMode
-                    ? "Manage your product listings, rentals & earnings."
-                    : "Browse categories, rent items & manage bookings."}
+                  Browse categories, rent items & manage bookings.
                 </p>
                 <button
                   onClick={() => {
-                    const nextMode = isOwnerMode ? "customer" : "owner";
-                    setActiveRole(nextMode);
+                    setActiveRole("owner");
                     router.push("/dashboard");
                   }}
-                  className={`w-full py-2 px-3 rounded-xl font-extrabold text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer ${
-                    isOwnerMode
-                      ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200"
-                      : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200"
-                  }`}
+                  className="w-full py-2 px-3 rounded-xl font-extrabold text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200"
                 >
-                  {isOwnerMode ? (
-                    <>
-                      <ShoppingBag size={13} /> Switch to Customer Mode
-                    </>
-                  ) : (
-                    <>
-                      <Store size={13} /> Switch to Owner Mode
-                    </>
-                  )}
+                  <Store size={13} /> Switch to Owner Mode
                 </button>
               </div>
             ) : isPendingLister ? (

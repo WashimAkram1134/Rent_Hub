@@ -33,6 +33,15 @@ export const profileService = {
     return data;
   },
 
+  uploadCover: async (file: File): Promise<{ cover_image_url: string }> => {
+    const form = new FormData();
+    form.append("file", file);
+    const { data } = await api.post<{ cover_image_url: string }>("/users/me/cover", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  },
+
   changePassword: async (payload: ChangePasswordData): Promise<void> => {
     await api.post("/users/me/change-password", payload);
   },

@@ -95,15 +95,30 @@ async def get_owner_stats(
         {"name": "May 19", "thisMonth": round(monthly_earnings * 0.41, 0), "lastMonth": round(monthly_earnings * 0.32, 0)},
     ]
 
-    # 6. Booking Trend Chart Data (Day of week distribution)
+    # 6. Booking Trend Chart Data (Real day-of-week distribution from last 30 days)
+    day_names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    booking_trend_map = {d: 0 for d in day_names}
+
+    if target_owner_id:
+        t_30d_ago = now - timedelta(days=30)
+        dow_rows = (await db.execute(
+            select(
+                func.extract("dow", Booking.created_at).label("dow"),
+                func.count(Booking.id).label("cnt")
+            ).where(
+                Booking.owner_id == target_owner_id,
+                Booking.created_at >= t_30d_ago
+            ).group_by(text("dow"))
+        )).all()
+
+        for dow_val, cnt in dow_rows:
+            idx = int(dow_val)  # PostgreSQL DOW: 0=Sun, 1=Mon, ..., 6=Sat
+            if 0 <= idx < 7:
+                booking_trend_map[day_names[idx]] = int(cnt)
+
     booking_trend = [
-        {"name": "Mon", "bookings": 12},
-        {"name": "Tue", "bookings": 18},
-        {"name": "Wed", "bookings": 24},
-        {"name": "Thu", "bookings": 16},
-        {"name": "Fri", "bookings": 32},
-        {"name": "Sat", "bookings": 42},
-        {"name": "Sun", "bookings": 38},
+        {"name": d, "bookings": booking_trend_map[d]}
+        for d in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     ]
 
     # 7. Today's Business Telemetry for Owner

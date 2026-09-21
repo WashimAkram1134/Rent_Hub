@@ -106,6 +106,10 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cover_image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    business_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    address: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    bio: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # ── Status ───────────────────────────────────────────────────────────────
     is_email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

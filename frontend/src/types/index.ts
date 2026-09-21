@@ -54,6 +54,10 @@ export interface User {
   last_name: string;
   full_name: string;
   avatar_url?: string;
+  cover_image_url?: string;
+  business_name?: string;
+  address?: string;
+  bio?: string;
   is_verified?: boolean;
   is_email_verified?: boolean;
   is_identity_verified?: boolean;
@@ -129,6 +133,9 @@ export interface ProfileUpdateData {
   last_name?: string;
   email?: string;
   phone?: string;
+  business_name?: string;
+  address?: string;
+  bio?: string;
 }
 
 export interface ChangePasswordData {

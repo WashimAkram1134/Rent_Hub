@@ -16,6 +16,9 @@ class ProfileUpdateRequest(BaseModel):
     last_name: str | None = Field(None, min_length=1, max_length=100)
     email: EmailStr | None = None
     phone: str | None = Field(None, max_length=30)
+    business_name: str | None = Field(None, max_length=150)
+    address: str | None = Field(None, max_length=255)
+    bio: str | None = Field(None, max_length=500)
 
 
 class ChangePasswordRequest(BaseModel):

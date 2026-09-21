@@ -86,6 +86,19 @@ async def upload_avatar(
     return AvatarResponse(avatar_url=url)
 
 
+@router.post(
+    "/me/cover",
+    summary="Upload cover image",
+)
+async def upload_cover(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    svc: UserService = Depends(get_user_service),
+):
+    url = await svc.upload_cover(current_user, file)
+    return {"cover_image_url": url}
+
+
 @router.post("/me/change-password", summary="Change password")
 async def change_password(
     data: ChangePasswordRequest,

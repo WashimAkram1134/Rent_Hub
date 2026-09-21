@@ -147,6 +147,10 @@ class UserResponse(BaseModel):
     last_name: str
     full_name: str
     avatar_url: str | None
+    cover_image_url: str | None = None
+    business_name: str | None = None
+    address: str | None = None
+    bio: str | None = None
     is_email_verified: bool
     identity_verification_status: str
     is_identity_verified: bool = False
@@ -169,6 +173,10 @@ class UserPublicResponse(BaseModel):
     last_name: str
     full_name: str
     avatar_url: str | None
+    cover_image_url: str | None = None
+    business_name: str | None = None
+    address: str | None = None
+    bio: str | None = None
     identity_verification_status: str
     is_identity_verified: bool = False
     is_owner: bool = False
