@@ -23,6 +23,10 @@ import {
   Percent,
   X,
   Zap,
+  Pause,
+  Play,
+  PauseCircle,
+  TrendingUp,
 } from "lucide-react";
 import apiClient from "@/lib/axios";
 
@@ -33,6 +37,33 @@ export default function OwnerListingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const handleToggleListingStatus = async (id: string, currentActive: boolean) => {
+    const nextActive = !currentActive;
+    try {
+      setListings((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? { ...item, is_active: nextActive, status: nextActive ? "APPROVED" : "PAUSED" }
+            : item
+        )
+      );
+
+      await apiClient.patch(`/products/${id}`, {
+        is_active: nextActive,
+        status: nextActive ? "APPROVED" : "PAUSED",
+      });
+
+      showToast(
+        nextActive
+          ? "✓ Listing is now Live and visible to renters!"
+          : "Listing paused and hidden from search results."
+      );
+    } catch (err: any) {
+      fetchListings();
+      showToast(err.response?.data?.detail || "Failed to update listing status.");
+    }
+  };
 
   // Offer modal state
   const [selectedListingForOffer, setSelectedListingForOffer] = useState<any | null>(null);
@@ -159,57 +190,68 @@ export default function OwnerListingsPage() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
-              <Package size={22} />
-            </div>
-            <div>
-              <p className="text-slate-400 text-xs font-medium">Total Listings</p>
-              <h3 className="text-xl font-bold text-slate-900 mt-0.5">{listings.length} Items</h3>
-              <p className="text-indigo-600 text-[11px] font-semibold mt-0.5">Live in catalog</p>
-            </div>
-          </div>
+        {(() => {
+          const liveListings = listings.filter((l) => l.is_active && l.status !== "REJECTED");
+          const pausedListings = listings.filter((l) => !l.is_active || l.status === "REJECTED");
+          const totalEarningsPotential = liveListings.reduce(
+            (sum, item) => sum + (Number(item.price_per_day) || 0) * 30,
+            0
+          );
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
-              <CheckCircle2 size={22} />
-            </div>
-            <div>
-              <p className="text-slate-400 text-xs font-medium">Active & Available</p>
-              <h3 className="text-xl font-bold text-slate-900 mt-0.5">
-                {listings.filter((l) => (l.status === "APPROVED" || l.status === "ACTIVE") && l.is_active).length} Available
-              </h3>
-              <p className="text-emerald-500 text-[11px] font-semibold mt-0.5">Instant booking enabled</p>
-            </div>
-          </div>
+          return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                  <Package size={22} />
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs font-medium">Total Listings</p>
+                  <h3 className="text-xl font-bold text-slate-900 mt-0.5">{listings.length} Items</h3>
+                  <p className="text-indigo-600 text-[11px] font-semibold mt-0.5">Total inventory</p>
+                </div>
+              </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 shrink-0">
-              <Percent size={22} />
-            </div>
-            <div>
-              <p className="text-slate-400 text-xs font-medium">Active Discount Offers</p>
-              <h3 className="text-xl font-bold text-slate-900 mt-0.5">
-                {listings.filter((l) => l.offer_active && l.discount_percentage > 0).length} on Sale
-              </h3>
-              <p className="text-rose-600 text-[11px] font-semibold mt-0.5">Boosting renter demand</p>
-            </div>
-          </div>
+              <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
+                  <CheckCircle2 size={22} />
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs font-medium">Live for Rent</p>
+                  <h3 className="text-xl font-bold text-slate-900 mt-0.5">
+                    {liveListings.length} Live
+                  </h3>
+                  <p className="text-emerald-500 text-[11px] font-semibold mt-0.5">Bookable by renters</p>
+                </div>
+              </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
-              <Sparkles size={22} />
+              <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
+                  <PauseCircle size={22} />
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs font-medium">Paused Listings</p>
+                  <h3 className="text-xl font-bold text-slate-900 mt-0.5">
+                    {pausedListings.length} Paused
+                  </h3>
+                  <p className="text-amber-600 text-[11px] font-semibold mt-0.5">Hidden from searches</p>
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                  <TrendingUp size={22} />
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs font-medium">Monthly Earning Potential</p>
+                  <h3 className="text-xl font-bold text-slate-900 mt-0.5">
+                    ৳ {totalEarningsPotential.toLocaleString()}
+                  </h3>
+                  <p className="text-blue-600 text-[11px] font-semibold mt-0.5">Based on daily rates</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-slate-400 text-xs font-medium">Earnings Potential</p>
-              <h3 className="text-xl font-bold text-slate-900 mt-0.5">
-                ৳ {totalEarningsPotential.toLocaleString()}
-              </h3>
-              <p className="text-amber-600 text-[11px] font-semibold mt-0.5">Estimated / month</p>
-            </div>
-          </div>
-        </div>
+          );
+        })()}
 
         {/* Listings Table & Filters */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
@@ -341,10 +383,10 @@ export default function OwnerListingsPage() {
                               className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
                                 item.is_active
                                   ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                  : "bg-slate-100 text-slate-500"
+                                  : "bg-slate-100 text-slate-500 border border-slate-200"
                               }`}
                             >
-                              <span className={`w-1.5 h-1.5 rounded-full ${item.is_active ? "bg-emerald-500" : "bg-slate-400"}`}></span>
+                              <span className={`w-1.5 h-1.5 rounded-full ${item.is_active ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`}></span>
                               {item.is_active ? "Live" : "Paused"}
                             </span>
                           )}
@@ -352,6 +394,29 @@ export default function OwnerListingsPage() {
 
                         <td className="py-3.5 px-3 text-right whitespace-nowrap">
                           <div className="inline-flex items-center gap-1.5">
+                            {/* 1-Click Live / Pause Toggle */}
+                            <button
+                              onClick={() => handleToggleListingStatus(item.id, item.is_active)}
+                              title={item.is_active ? "Click to Pause listing (hide from renters)" : "Click to Make Live (visible to renters)"}
+                              className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                                item.is_active
+                                  ? "border-slate-200 text-slate-600 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200"
+                                  : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                              }`}
+                            >
+                              {item.is_active ? (
+                                <>
+                                  <Pause size={12} />
+                                  <span>Pause</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Play size={12} className="fill-emerald-600 text-emerald-600" />
+                                  <span>Make Live</span>
+                                </>
+                              )}
+                            </button>
+
                             {/* Offer / Discount Button */}
                             <button
                               onClick={() => openOfferModal(item)}
@@ -369,7 +434,7 @@ export default function OwnerListingsPage() {
                             <Link
                               href={`/listings/${item.slug || item.id}`}
                               className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-colors"
-                              title="Manage listing"
+                              title="Manage listing details"
                             >
                               <Eye size={13} />
                             </Link>

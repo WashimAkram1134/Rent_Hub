@@ -93,7 +93,7 @@ export function DashboardSidebar({
           icon: FileText,
           label: "Booking Requests",
           href: "/owner/bookings",
-          badge: pendingBookings > 0 ? pendingBookings : 3,
+          badge: pendingBookings > 0 ? pendingBookings : undefined,
         },
         { icon: CreditCard, label: "Earnings", href: "/earnings" },
         { icon: Star, label: "Reviews", href: "/reviews" },
@@ -101,7 +101,7 @@ export function DashboardSidebar({
           icon: MessageSquare,
           label: "Messages",
           href: "/messages",
-          badge: unreadMessages > 0 ? unreadMessages : 2,
+          badge: unreadMessages > 0 ? unreadMessages : undefined,
         },
         { icon: Settings, label: "Settings", href: "/profile" },
       ]

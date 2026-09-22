@@ -220,11 +220,14 @@ export default function OwnerListingDetailPage() {
     if (!product) return;
     const newActive = !product.is_active;
     try {
-      await apiClient.patch(`/products/${product.id}`, { is_active: newActive });
-      setProduct({ ...product, is_active: newActive });
-      showToast(newActive ? "Listing is now Active and visible to customers!" : "Listing has been paused.");
+      await apiClient.patch(`/products/${product.id}`, {
+        is_active: newActive,
+        status: newActive ? "APPROVED" : "PAUSED",
+      });
+      setProduct({ ...product, is_active: newActive, status: newActive ? "APPROVED" : "PAUSED" });
+      showToast(newActive ? "✓ Listing is now Live and visible to renters!" : "Listing has been paused.");
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Failed to update listing status.");
+      showToast(err.response?.data?.detail || "Failed to update listing status.");
     }
   };
 

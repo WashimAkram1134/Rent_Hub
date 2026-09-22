@@ -45,9 +45,9 @@ export default function DashboardHeader() {
   };
 
   return (
-    <header className="relative z-50 bg-white border-b border-gray-100 px-5 py-3 flex items-center gap-3 shrink-0 h-[60px] font-sans shadow-xs">
+    <header className="relative z-50 bg-white dark:bg-[#111625] border-b border-gray-100 dark:border-slate-800 px-5 py-3 flex items-center gap-3 shrink-0 h-[60px] font-sans shadow-xs transition-colors">
       {/* Search */}
-      <div className="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 max-w-sm focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
+      <div className="flex-1 flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 max-w-sm focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
         <Search size={16} className="text-slate-400 shrink-0" />
         <input
           value={search}
@@ -57,7 +57,7 @@ export default function DashboardHeader() {
               ? "Search for listings, bookings, or anything..."
               : "Search cars, cameras, apartments..."
           }
-          className="bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400 w-full"
+          className="bg-transparent outline-none text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 w-full"
         />
       </div>
 
@@ -93,17 +93,17 @@ export default function DashboardHeader() {
       )}
 
       {/* Location */}
-      <button className="flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:text-blue-600 transition-colors">
+      <button className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 transition-colors">
         <MapPin size={16} /> Dhaka
       </button>
 
-      <div className="w-px h-6 bg-slate-200 mx-1" />
+      <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
 
       {/* Shopping Cart Icon with Badge */}
       <Link
         id="header-cart-icon"
         href="/cart"
-        className="p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-full transition-colors relative"
+        className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-colors relative"
         title="View Rental Cart"
       >
         <ShoppingCart className="w-5 h-5" />
@@ -120,7 +120,7 @@ export default function DashboardHeader() {
       {/* Messages */}
       <Link
         href={user?.primary_role === "admin" ? "/admin/messages" : "/messages"}
-        className="p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-full transition-colors hidden sm:block"
+        className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-colors hidden sm:block"
         title="Messages & Inquiries"
       >
         <MessageSquare className="w-5 h-5" />
@@ -134,7 +134,7 @@ export default function DashboardHeader() {
             className="flex items-center gap-2 pl-2 cursor-pointer"
           >
             <div className="relative">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-md ring-2 ring-white overflow-hidden">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-md ring-2 ring-white dark:ring-slate-800 overflow-hidden">
                 {user.avatar_url ? (
                   <img
                     src={user.avatar_url}
@@ -152,8 +152,8 @@ export default function DashboardHeader() {
               )}
             </div>
             <div className="hidden sm:block text-left">
-              <p className="text-slate-900 text-sm font-bold leading-none">{user.first_name} {user.last_name}</p>
-              <p className="text-slate-500 text-xs mt-1 capitalize">
+              <p className="text-slate-900 dark:text-white text-sm font-bold leading-none">{user.first_name} {user.last_name}</p>
+              <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 capitalize">
                 {isOwnerUser ? (activeRole === "owner" ? "Owner" : "Customer") : (user.primary_role || "Customer")}
               </p>
             </div>
@@ -161,28 +161,28 @@ export default function DashboardHeader() {
           </button>
 
           {dropdownOpen && (
-            <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-              <div className="px-4 py-2.5 border-b border-slate-100">
-                <p className="text-xs font-bold text-slate-800">{user.first_name} {user.last_name}</p>
+            <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-[#131929] rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 py-2 text-sm z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{user.first_name} {user.last_name}</p>
                 <p className="text-[10px] text-slate-400 capitalize">{user.email}</p>
               </div>
 
               {/* Mode Toggle Button */}
               {isOwnerUser && (
-                <div className="p-2 border-b border-slate-100">
+                <div className="p-2 border-b border-slate-100 dark:border-slate-800">
                   <button
                     onClick={() => {
                       toggleActiveRole();
                       setDropdownOpen(false);
                       router.push("/dashboard");
                     }}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-bold text-indigo-700 flex items-center justify-between transition-colors cursor-pointer"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold text-indigo-700 dark:text-indigo-400 flex items-center justify-between transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-2">
                       {activeRole === "owner" ? <ShoppingBag size={15} /> : <Store size={15} />}
                       <span>{activeRole === "owner" ? "Switch to Customer Mode" : "Switch to Owner Mode"}</span>
                     </div>
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-white text-indigo-600 border border-slate-200 font-extrabold uppercase">
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 border border-slate-200 dark:border-slate-600 font-extrabold uppercase">
                       {activeRole}
                     </span>
                   </button>
@@ -192,7 +192,7 @@ export default function DashboardHeader() {
               <Link
                 href="/dashboard"
                 onClick={() => setDropdownOpen(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2"
+                className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-2"
               >
                 <Store size={15} /> Dashboard
               </Link>
@@ -204,7 +204,7 @@ export default function DashboardHeader() {
                     setActiveRole("owner");
                     setDropdownOpen(false);
                   }}
-                  className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2"
+                  className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-2"
                 >
                   <CarFront size={15} /> My Listings
                 </Link>
@@ -213,7 +213,7 @@ export default function DashboardHeader() {
               <Link
                 href="/bookings"
                 onClick={() => setDropdownOpen(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2"
+                className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-2"
               >
                 <Calendar size={15} /> My Bookings
               </Link>
@@ -221,14 +221,14 @@ export default function DashboardHeader() {
               <Link
                 href="/profile"
                 onClick={() => setDropdownOpen(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2"
+                className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-2"
               >
                 <User size={15} /> Profile & Settings
               </Link>
 
               <button
                 onClick={handleSignOut}
-                className="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2 border-t border-slate-100 mt-1 pt-2 cursor-pointer"
+                className="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center gap-2 border-t border-slate-100 dark:border-slate-800 mt-1 pt-2 cursor-pointer"
               >
                 <LogOut size={15} /> Sign Out
               </button>

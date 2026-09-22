@@ -135,7 +135,10 @@ async def create_product(
         owner = owner_result.scalars().first()
         owner_id = owner.id if owner else uuid.uuid4()
 
-    init_status = product_in.status if product_in.status else "PENDING"
+    init_status = product_in.status if product_in.status else "APPROVED"
+    is_active_val = product_in.is_active if product_in.is_active is not None else True
+    if is_active_val and init_status == "PENDING":
+        init_status = "APPROVED"
 
     new_product = Product(
         owner_id=owner_id,
@@ -152,7 +155,7 @@ async def create_product(
         discount_percentage=0,
         offer_active=False,
         status=init_status,
-        is_active=(init_status in ["APPROVED", "ACTIVE"]),
+        is_active=is_active_val,
     )
     
     db.add(new_product)
@@ -478,6 +481,12 @@ async def update_product(
     for key, val in update_data.items():
         if hasattr(product, key) and val is not None:
             setattr(product, key, val)
+
+    if update_data.get("is_active") is True:
+        product.status = "APPROVED"
+        product.is_active = True
+    elif update_data.get("is_active") is False:
+        product.is_active = False
 
     if images_data is None and single_image_url is not None:
         images_data = [single_image_url]

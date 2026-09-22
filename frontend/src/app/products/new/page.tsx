@@ -249,7 +249,8 @@ export default function AddListingPage() {
         image_url: primaryPhoto.url,
         images: imageUrls,
         owner_id: user?.id,
-        status: "PENDING",
+        status: "APPROVED",
+        is_active: true,
       };
 
       await apiClient.post("/products", payload);

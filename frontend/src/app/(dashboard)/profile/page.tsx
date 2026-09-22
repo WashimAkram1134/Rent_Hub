@@ -439,9 +439,10 @@ export default function OwnerSettingsPage() {
       } else {
         document.documentElement.classList.remove("dark");
       }
+      window.dispatchEvent(new Event("themeChanged"));
     }
     const label = newTheme === "light" ? "Light Mode" : newTheme === "dark" ? "Dark Mode" : "System Default Theme";
-    showNotice("appearance", "success", `✓ Interface theme switched to ${label}.`);
+    showNotice("appearance", "success", `✓ Interface theme switched to ${label}. All dashboard pages are now in ${label}.`);
   };
 
   const handleToggleCompactMode = (enabled: boolean) => {
@@ -453,6 +454,7 @@ export default function OwnerSettingsPage() {
       } else {
         document.documentElement.classList.remove("compact-density");
       }
+      window.dispatchEvent(new Event("themeChanged"));
     }
     showNotice(
       "appearance",
@@ -579,7 +581,8 @@ export default function OwnerSettingsPage() {
       setUser(updated);
       setProfileSaved(true);
       showNotice("account", "success", "✓ Account information updated successfully!");
-      setTimeout(() => setProfileSaved(false), 3500);
+      setTimeout(() => setProfileSaved(false)
+      , 3500);
     } catch (e: any) {
       const msg = e.response?.data?.detail || "Failed to update profile. Please try again.";
       setProfileError(msg);
