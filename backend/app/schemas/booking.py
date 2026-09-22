@@ -28,10 +28,14 @@ class BookingCreate(BaseModel):
     end_date: date
     delivery_option: str = "Pick-up"
     notes: Optional[str] = None
+    is_bargain: Optional[bool] = False
+    offered_daily_rate: Optional[float] = None
+    bargain_notes: Optional[str] = None
 
 class BookingStatusUpdate(BaseModel):
     status: str
     notes: Optional[str] = None
+    bargain_response: Optional[str] = None
 
 class BookingOut(BaseModel):
     id: UUID
@@ -49,6 +53,13 @@ class BookingOut(BaseModel):
     status: str
     delivery_option: str
     notes: Optional[str] = None
+
+    # Bargain / Negotiation fields
+    is_bargain: bool = False
+    original_daily_rate: Optional[float] = None
+    offered_daily_rate: Optional[float] = None
+    bargain_status: Optional[str] = None
+    bargain_notes: Optional[str] = None
 
     # Joined relations for easy UI display
     product: Optional[ProductSimple] = None

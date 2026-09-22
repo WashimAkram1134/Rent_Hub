@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from sqlalchemy import Date, ForeignKey, Numeric, String, Text
+from sqlalchemy import Boolean, Date, ForeignKey, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -28,6 +28,13 @@ class Booking(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     status: Mapped[str] = mapped_column(String(20), nullable=False)
     delivery_option: Mapped[str] = mapped_column(String(20), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # ── Rental Price Bargain / Negotiation Fields ─────────────────────────
+    is_bargain: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    original_daily_rate: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
+    offered_daily_rate: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
+    bargain_status: Mapped[str | None] = mapped_column(String(20), nullable=True)  # PENDING, ACCEPTED, DECLINED
+    bargain_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     product: Mapped["Product"] = relationship("Product")  # type: ignore
     renter: Mapped["User"] = relationship("User", foreign_keys=[renter_id])  # type: ignore

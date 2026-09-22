@@ -9,7 +9,7 @@ import {
   Calendar, MapPin, Clock, Star, CheckCircle2, XCircle, RefreshCw,
   ChevronDown, Phone, Mail, User, MessageCircle, MoreVertical,
   CarFront, Camera, Monitor, Building, Trophy, Package, ChevronRight,
-  Heart, Download, Truck, RotateCcw, AlertCircle, HelpCircle, FileText, ChevronLeft, ShoppingBag
+  Heart, Download, Truck, RotateCcw, AlertCircle, HelpCircle, FileText, ChevronLeft, ShoppingBag, Tag
 } from "lucide-react";
 import dayjs from "dayjs";
 import apiClient from "@/lib/axios";
@@ -322,13 +322,29 @@ export default function CustomerBookingsPage() {
                         </div>
 
                         <div className="space-y-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-extrabold text-slate-900 text-base leading-tight">
                               {b.product?.title || "Toyota Axio 2020"}
                             </h3>
                             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getCategoryBadgeColor(catName)}`}>
                               {catName}
                             </span>
+                            {b.is_bargain && (
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border flex items-center gap-1 ${
+                                b.bargain_status === "ACCEPTED"
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  : b.bargain_status === "DECLINED"
+                                  ? "bg-rose-50 text-rose-700 border-rose-200"
+                                  : "bg-amber-50 text-amber-800 border-amber-200"
+                              }`}>
+                                <Tag size={10} className={b.bargain_status === "ACCEPTED" ? "text-emerald-600" : b.bargain_status === "DECLINED" ? "text-rose-600" : "text-amber-600"} />
+                                {b.bargain_status === "ACCEPTED"
+                                  ? `Offer Accepted: ৳${b.offered_daily_rate || b.daily_rate}/d`
+                                  : b.bargain_status === "DECLINED"
+                                  ? "Offer Declined"
+                                  : `Bargain Proposed: ৳${b.offered_daily_rate || b.daily_rate}/d`}
+                              </span>
+                            )}
                           </div>
 
                           <div className="text-[11px] font-semibold text-slate-400">

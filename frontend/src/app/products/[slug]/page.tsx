@@ -10,7 +10,8 @@ import {
   Star, MapPin, ChevronRight, Shield, ChevronLeft, ChevronDown,
   Heart, MessageCircle, ShoppingCart, Check, RotateCcw,
   Wifi, Wind, Zap, Settings, Eye, Lock, Camera, Music, Fuel, Users,
-  Package, Loader2, AlertTriangle, Play, Pause, Maximize2, Move3d, ShieldAlert
+  Package, Loader2, AlertTriangle, Play, Pause, Maximize2, Move3d, ShieldAlert,
+  Tag, Send
 } from "lucide-react";
 import dayjs from "dayjs";
 import apiClient from "@/lib/axios";
@@ -429,6 +430,64 @@ export default function ProductDetailsPage() {
         router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);
       } else {
         setBookingError(e.response?.data?.error?.message || "Failed to submit booking request. Please try again.");
+      }
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
+  // ── Bargain / Price Negotiation State & Handler ───────────────────────────
+  const [showBargain, setShowBargain] = useState(false);
+  const [offeredRate, setOfferedRate] = useState<number | string>("");
+  const [bargainNote, setBargainNote] = useState("");
+  const [bargainSuccess, setBargainSuccess] = useState(false);
+
+  const toggleBargainMode = () => {
+    if (!showBargain && product?.price_per_day) {
+      const suggested = Math.round(Number(product.price_per_day) * 0.85);
+      setOfferedRate(suggested);
+    }
+    setShowBargain(!showBargain);
+    setBookingError(null);
+  };
+
+  const handleBargainSubmit = async () => {
+    if (!product) return;
+    if (isOwner) {
+      setBookingError("You cannot bargain for your own listing.");
+      return;
+    }
+    if (!requireAuth()) return;
+    const numRate = Number(offeredRate);
+    if (!numRate || numRate <= 0) {
+      setBookingError("Please enter a valid desired daily rate.");
+      return;
+    }
+    if (numRate >= Number(product.price_per_day)) {
+      setBookingError("Your desired rate should be lower than the listed rate for a bargain offer.");
+      return;
+    }
+    setBookingLoading(true);
+    setBookingError(null);
+    try {
+      await apiClient.post("/bookings", {
+        product_id: product.id,
+        start_date: pickupDate,
+        end_date: returnDate,
+        delivery_option: deliveryMode,
+        is_bargain: true,
+        offered_daily_rate: numRate,
+        bargain_notes: bargainNote.trim() || undefined,
+      });
+      setBargainSuccess(true);
+      setTimeout(() => router.push("/bookings"), 1500);
+    } catch (e: any) {
+      if (e.response?.status === 403 && e.response?.data?.error?.code === "IDENTITY_VERIFICATION_REQUIRED") {
+        const returnUrl = window.location.pathname + window.location.search;
+        sessionStorage.setItem("renthub_verify_return_url", returnUrl);
+        router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);
+      } else {
+        setBookingError(e.response?.data?.error?.message || "Failed to submit bargain offer. Please try again.");
       }
     } finally {
       setBookingLoading(false);
@@ -1685,6 +1744,162 @@ function getFallbackProduct(slug: string) {
                           </>
                         )}
                       </MagneticButton>
+                    </div>
+                  )}
+
+                  {/* ── Rental Price Bargain / Offer Option ── */}
+                  {!isOwner && !bookingSuccess && (
+                    <div className="pt-2 border-t border-slate-100">
+                      {bargainSuccess ? (
+                        <motion.div
+                          initial={{ scale: 0.9, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          className="w-full p-3 bg-emerald-600 text-white font-bold rounded-xl text-center text-xs shadow-md flex items-center justify-center gap-2"
+                        >
+                          <Check size={16} /> Bargain Offer Sent! Owner will review and respond.
+                        </motion.div>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={toggleBargainMode}
+                            className="w-full py-2.5 px-3.5 text-xs font-bold rounded-xl border border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-900 hover:from-amber-100 hover:to-orange-100 transition-all flex items-center justify-between shadow-xs cursor-pointer group"
+                          >
+                            <span className="flex items-center gap-2">
+                              <Tag size={14} className="text-amber-600 group-hover:rotate-12 transition-transform" />
+                              <span>Want to bargain? Propose your rent</span>
+                            </span>
+                            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-900">
+                              {showBargain ? "Close" : "Make Offer"}
+                            </span>
+                          </button>
+
+                          {showBargain && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-2.5 p-3.5 bg-amber-50/70 border border-amber-200/80 rounded-2xl space-y-3 text-xs"
+                            >
+                              <div>
+                                <div className="flex justify-between items-center mb-1">
+                                  <label className="font-extrabold text-slate-800 text-xs">
+                                    Your Desired Daily Rent (৳)
+                                  </label>
+                                  {Number(product?.price_per_day) > 0 &&
+                                    Number(offeredRate) > 0 &&
+                                    Number(offeredRate) < Number(product?.price_per_day) && (
+                                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                        -
+                                        {Math.round(
+                                          ((Number(product.price_per_day) - Number(offeredRate)) /
+                                            Number(product.price_per_day)) *
+                                            100
+                                        )}
+                                        % OFF
+                                      </span>
+                                    )}
+                                </div>
+
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400">৳</span>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={Number(product?.price_per_day || 1000) - 1}
+                                    value={offeredRate}
+                                    onChange={(e) => setOfferedRate(e.target.value)}
+                                    placeholder={`e.g. ${Math.round(Number(product?.price_per_day || 100) * 0.85)}`}
+                                    className="w-full pl-8 pr-3 py-2 text-xs font-bold text-slate-900 bg-white border border-amber-300 rounded-xl focus:outline-none focus:border-amber-500 shadow-xs"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Quick Discount Presets */}
+                              <div className="space-y-1">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                  Quick Discount Presets:
+                                </span>
+                                <div className="grid grid-cols-4 gap-1.5">
+                                  {[10, 15, 20, 25].map((pct) => {
+                                    const presetVal = Math.round(Number(product?.price_per_day || 100) * (1 - pct / 100));
+                                    const isSelected = Number(offeredRate) === presetVal;
+                                    return (
+                                      <button
+                                        key={pct}
+                                        type="button"
+                                        onClick={() => setOfferedRate(presetVal)}
+                                        className={`py-1 px-1.5 text-[11px] font-bold rounded-lg border transition-all text-center cursor-pointer ${
+                                          isSelected
+                                            ? "bg-amber-600 text-white border-amber-600 shadow-xs"
+                                            : "bg-white text-slate-700 border-amber-200 hover:bg-amber-100/50"
+                                        }`}
+                                      >
+                                        -{pct}%
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* Live Comparison & Savings */}
+                              {Number(offeredRate) > 0 && Number(offeredRate) < Number(product?.price_per_day) && (
+                                <div className="p-2.5 bg-white rounded-xl border border-amber-200/70 space-y-1">
+                                  <div className="flex justify-between text-[11px]">
+                                    <span className="text-slate-500">Listed Rate:</span>
+                                    <span className="line-through text-slate-400 font-semibold">
+                                      ৳{product?.price_per_day} / day
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between text-[11px]">
+                                    <span className="text-slate-700 font-bold">Your Offer:</span>
+                                    <span className="text-amber-700 font-extrabold">৳{offeredRate} / day</span>
+                                  </div>
+                                  <div className="flex justify-between text-[11px] pt-1 border-t border-slate-100">
+                                    <span className="text-emerald-700 font-bold">Total Savings ({days} days):</span>
+                                    <span className="text-emerald-700 font-black">
+                                      ৳{((Number(product?.price_per_day || 0) - Number(offeredRate)) * days).toLocaleString()}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Pitch Note */}
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                  Note to Owner (Optional)
+                                </label>
+                                <textarea
+                                  rows={2}
+                                  value={bargainNote}
+                                  onChange={(e) => setBargainNote(e.target.value)}
+                                  placeholder="e.g., Looking to rent for 3 days for a family trip. Will take great care of it!"
+                                  className="w-full px-3 py-2 text-xs border border-amber-200 rounded-xl bg-white focus:outline-none focus:border-amber-500 resize-none"
+                                />
+                              </div>
+
+                              {/* Submit Bargain Button */}
+                              <button
+                                type="button"
+                                onClick={handleBargainSubmit}
+                                disabled={bookingLoading}
+                                className="w-full py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-extrabold rounded-xl text-xs shadow-md shadow-amber-200/50 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                              >
+                                {bookingLoading ? (
+                                  <>
+                                    <Loader2 size={13} className="animate-spin" />
+                                    <span>Sending Offer...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Send size={13} />
+                                    <span>Send Bargain Offer to Owner</span>
+                                  </>
+                                )}
+                              </button>
+                            </motion.div>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
 

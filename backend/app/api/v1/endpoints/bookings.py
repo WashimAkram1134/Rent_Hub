@@ -10,6 +10,7 @@ from app.database.session import get_db
 from app.models.booking import Booking
 from app.models.product import Product, ProductImage
 from app.models.user import User
+from app.models.notification import Notification
 from app.models.identity_verification import VerificationStatus
 from app.schemas.booking import BookingOut, BookingCreate, BookingStatusUpdate, ProductSimple, UserSimple
 from app.auth.dependencies import get_current_user_optional
@@ -100,6 +101,11 @@ async def get_bookings(
             status=b.status,
             delivery_option=b.delivery_option,
             notes=b.notes,
+            is_bargain=bool(b.is_bargain),
+            original_daily_rate=float(b.original_daily_rate) if b.original_daily_rate is not None else None,
+            offered_daily_rate=float(b.offered_daily_rate) if b.offered_daily_rate is not None else None,
+            bargain_status=b.bargain_status,
+            bargain_notes=b.bargain_notes,
             product=prod_simple,
             renter=UserSimple(id=r_user.id, first_name=r_user.first_name, last_name=r_user.last_name, avatar_url=r_user.avatar_url) if r_user else None,
             owner=UserSimple(id=o_user.id, first_name=o_user.first_name, last_name=o_user.last_name, avatar_url=o_user.avatar_url) if o_user else None
@@ -167,6 +173,11 @@ async def get_booking_by_id(
         status=b.status,
         delivery_option=b.delivery_option,
         notes=b.notes,
+        is_bargain=bool(b.is_bargain),
+        original_daily_rate=float(b.original_daily_rate) if b.original_daily_rate is not None else None,
+        offered_daily_rate=float(b.offered_daily_rate) if b.offered_daily_rate is not None else None,
+        bargain_status=b.bargain_status,
+        bargain_notes=b.bargain_notes,
         product=prod_simple,
         renter=UserSimple(id=r_user.id, first_name=r_user.first_name, last_name=r_user.last_name, avatar_url=r_user.avatar_url) if r_user else None,
         owner=UserSimple(id=o_user.id, first_name=o_user.first_name, last_name=o_user.last_name, avatar_url=o_user.avatar_url) if o_user else None
@@ -202,7 +213,12 @@ async def create_booking(
         
     # Calculate days & pricing
     total_days = max(1, (payload.end_date - payload.start_date).days)
-    daily_rate = float(product.price_per_day)
+    original_daily_rate = float(product.price_per_day)
+
+    # Check if this is a bargain / price negotiation offer
+    is_bargain = bool(payload.is_bargain and payload.offered_daily_rate and payload.offered_daily_rate > 0)
+    daily_rate = float(payload.offered_daily_rate) if is_bargain else original_daily_rate
+    
     subtotal = daily_rate * total_days
     security_deposit = float(product.security_deposit or 0.0)
     service_fee = round(subtotal * 0.06, 2)
@@ -226,10 +242,39 @@ async def create_booking(
         total_amount=total_amount,
         status="pending",
         delivery_option=payload.delivery_option,
-        notes=payload.notes
+        notes=payload.notes,
+        is_bargain=is_bargain,
+        original_daily_rate=original_daily_rate if is_bargain else None,
+        offered_daily_rate=daily_rate if is_bargain else None,
+        bargain_status="PENDING" if is_bargain else None,
+        bargain_notes=payload.bargain_notes
     )
     
     db.add(new_booking)
+    await db.flush()
+
+    # Dispatch notification to owner
+    if is_bargain:
+        notif = Notification(
+            user_id=product.owner_id,
+            type="bargain_offer",
+            title="New Bargain Offer Received 🏷️",
+            body=f"A customer proposed ৳{int(daily_rate)}/day (List price: ৳{int(original_daily_rate)}/day) for '{product.title}'. You can accept or decline this offer.",
+            reference_id=new_booking.id,
+            reference_type="booking",
+        )
+        db.add(notif)
+    else:
+        notif = Notification(
+            user_id=product.owner_id,
+            type="booking_request",
+            title="New Booking Request Received 📅",
+            body=f"A customer requested to book '{product.title}' from {payload.start_date} to {payload.end_date}.",
+            reference_id=new_booking.id,
+            reference_type="booking",
+        )
+        db.add(notif)
+
     await db.commit()
     await db.refresh(new_booking)
     
@@ -261,6 +306,11 @@ async def create_booking(
         status=new_booking.status,
         delivery_option=new_booking.delivery_option,
         notes=new_booking.notes,
+        is_bargain=bool(new_booking.is_bargain),
+        original_daily_rate=float(new_booking.original_daily_rate) if new_booking.original_daily_rate is not None else None,
+        offered_daily_rate=float(new_booking.offered_daily_rate) if new_booking.offered_daily_rate is not None else None,
+        bargain_status=new_booking.bargain_status,
+        bargain_notes=new_booking.bargain_notes,
         product=prod_simple
     )
 
@@ -271,19 +321,57 @@ async def update_booking_status(
     payload: BookingStatusUpdate,
     db: AsyncSession = Depends(get_db)
 ):
-    stmt = select(Booking).where(Booking.id == booking_id)
+    stmt = (
+        select(Booking)
+        .options(selectinload(Booking.product))
+        .where(Booking.id == booking_id)
+    )
     res = await db.execute(stmt)
     booking = res.scalars().first()
     
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
         
-    booking.status = payload.status.lower()
+    new_status = payload.status.lower()
+    booking.status = new_status
     if payload.notes:
         booking.notes = payload.notes
+
+    # Handle bargain response & customer notification
+    if booking.is_bargain:
+        prod_title = booking.product.title if booking.product else "your requested rental item"
+        offered_val = int(booking.offered_daily_rate or booking.daily_rate)
+
+        if new_status in ["approved", "accepted"]:
+            booking.bargain_status = "ACCEPTED"
+            notif = Notification(
+                user_id=booking.renter_id,
+                type="bargain_accepted",
+                title="Bargain Offer Accepted! 🎉",
+                body=f"Great news! The owner accepted your bargain offer of ৳{offered_val}/day for '{prod_title}'. Your booking is now approved.",
+                reference_id=booking.id,
+                reference_type="booking",
+            )
+            db.add(notif)
+        elif new_status in ["rejected", "cancelled", "declined"]:
+            booking.bargain_status = "DECLINED"
+            notif = Notification(
+                user_id=booking.renter_id,
+                type="bargain_declined",
+                title="Bargain Offer Declined",
+                body=f"The owner was unable to accept your bargain offer for '{prod_title}'. You may book at the standard rate or explore other items.",
+                reference_id=booking.id,
+                reference_type="booking",
+            )
+            db.add(notif)
         
     await db.commit()
-    return {"message": "Booking status updated successfully", "id": str(booking_id), "status": booking.status}
+    return {
+        "message": "Booking status updated successfully",
+        "id": str(booking_id),
+        "status": booking.status,
+        "bargain_status": booking.bargain_status,
+    }
 
 
 class MultiBookingItemPayload(BaseModel):

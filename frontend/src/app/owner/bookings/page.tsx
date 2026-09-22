@@ -5,7 +5,7 @@ import AppShell from "@/components/layout/AppShell";
 import {
   Calendar, MapPin, Clock, Star, CheckCircle2, XCircle, RefreshCw,
   Check, X, ChevronDown, Phone, Mail, User, MessageCircle, MoreVertical,
-  CarFront, Camera, Monitor, Building, Trophy, Package, ChevronRight
+  CarFront, Camera, Monitor, Building, Trophy, Package, ChevronRight, Tag
 } from "lucide-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -232,6 +232,12 @@ function BookingRequestsPageContent() {
                             }`}>
                               {b.status}
                             </span>
+                            {b.is_bargain && (
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wide bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1 shadow-xs">
+                                <Tag size={10} className="text-amber-600" />
+                                Bargain Offer
+                              </span>
+                            )}
                           </div>
 
                           <h3 className="font-bold text-slate-900 text-base leading-tight">
@@ -240,6 +246,27 @@ function BookingRequestsPageContent() {
                           <p className="text-[11px] text-slate-400 font-medium">
                             {b.product?.category || "Vehicle"}
                           </p>
+
+                          {/* Bargain Offer Summary Pill */}
+                          {b.is_bargain && (
+                            <div className="mt-1 p-2 rounded-xl bg-amber-50/70 border border-amber-200/80 text-[11px] space-y-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-amber-900">
+                                  Offered: ৳{b.offered_daily_rate || b.daily_rate}/day
+                                </span>
+                                {b.original_daily_rate && (
+                                  <span className="line-through text-slate-400 text-[10px]">
+                                    List: ৳{b.original_daily_rate}/day
+                                  </span>
+                                )}
+                              </div>
+                              {b.bargain_notes && (
+                                <p className="italic text-slate-600 text-[10px] line-clamp-1">
+                                  "{b.bargain_notes}"
+                                </p>
+                              )}
+                            </div>
+                          )}
 
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 pt-1">
                             <div className="flex items-center gap-1 font-medium">
@@ -291,16 +318,17 @@ function BookingRequestsPageContent() {
                             <button
                               onClick={() => handleUpdateStatus(b.id, "rejected")}
                               disabled={actionLoading === b.id}
-                              className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-all disabled:opacity-50"
+                              className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
                             >
-                              Decline
+                              {b.is_bargain ? "Decline Offer" : "Decline"}
                             </button>
                             <button
                               onClick={() => handleUpdateStatus(b.id, "approved")}
                               disabled={actionLoading === b.id}
-                              className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-200 transition-all disabled:opacity-50"
+                              className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-200 transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1"
                             >
-                              Accept
+                              <Check size={13} />
+                              {b.is_bargain ? `Accept Offer (৳${b.offered_daily_rate || b.daily_rate}/d)` : "Accept"}
                             </button>
                           </div>
                         )}
@@ -349,6 +377,51 @@ function BookingRequestsPageContent() {
                   </p>
                 </div>
               </div>
+
+              {/* Bargain Negotiation Highlight */}
+              {selectedBooking.is_bargain && (
+                <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 font-extrabold text-amber-900 text-xs">
+                      <Tag size={13} className="text-amber-600" />
+                      Bargain Negotiation
+                    </span>
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-200/90 text-amber-950 uppercase tracking-wide">
+                      {selectedBooking.bargain_status || "Pending Offer"}
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Proposed Rate:</span>
+                      <span className="font-black text-amber-900">
+                        ৳{selectedBooking.offered_daily_rate || selectedBooking.daily_rate} / day
+                      </span>
+                    </div>
+                    {selectedBooking.original_daily_rate && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Original Listed Rate:</span>
+                        <span className="line-through text-slate-400 font-semibold">
+                          ৳{selectedBooking.original_daily_rate} / day
+                        </span>
+                      </div>
+                    )}
+                    {selectedBooking.original_daily_rate && (
+                      <div className="flex justify-between pt-1 border-t border-amber-200/60 text-emerald-800 font-bold">
+                        <span>Discount Offered:</span>
+                        <span>
+                          -৳{(selectedBooking.original_daily_rate - (selectedBooking.offered_daily_rate || selectedBooking.daily_rate)).toLocaleString()} / day
+                        </span>
+                      </div>
+                    )}
+                    {selectedBooking.bargain_notes && (
+                      <div className="pt-1.5 border-t border-amber-200/70">
+                        <span className="text-[10px] font-extrabold text-amber-900 block">Customer's Pitch:</span>
+                        <p className="text-xs text-amber-800 italic mt-0.5">"{selectedBooking.bargain_notes}"</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Booking Details */}
               <div className="space-y-2.5 pt-1">
@@ -432,16 +505,18 @@ function BookingRequestsPageContent() {
                   <button
                     onClick={() => handleUpdateStatus(selectedBooking.id, "approved")}
                     disabled={actionLoading === selectedBooking.id}
-                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-200 transition-all flex items-center justify-center gap-1.5"
+                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
-                    <Check size={15} /> Accept Request
+                    <Check size={15} />
+                    {selectedBooking.is_bargain ? "Accept Bargain Offer" : "Accept Request"}
                   </button>
                   <button
                     onClick={() => handleUpdateStatus(selectedBooking.id, "rejected")}
                     disabled={actionLoading === selectedBooking.id}
-                    className="w-full py-2.5 border border-rose-200 hover:bg-rose-50 text-rose-600 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5"
+                    className="w-full py-2.5 border border-rose-200 hover:bg-rose-50 text-rose-600 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
-                    <X size={15} /> Decline Request
+                    <X size={15} />
+                    {selectedBooking.is_bargain ? "Decline Bargain Offer" : "Decline Request"}
                   </button>
                 </div>
               )}

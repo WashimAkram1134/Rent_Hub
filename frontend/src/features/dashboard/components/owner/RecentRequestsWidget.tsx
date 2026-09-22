@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
-import { MoreVertical, ChevronRight, Check, X, Loader2 } from "lucide-react";
 import dayjs from "dayjs";
+import { Check, X, Clock, Calendar, ArrowRight, Loader2, ChevronRight, Tag } from "lucide-react";
 import apiClient from "@/lib/axios";
 
 interface Booking {
@@ -168,9 +168,17 @@ export function RecentRequestsWidget({ requests, onRequestUpdated }: RecentReque
                   </td>
 
                   <td className="py-3 pr-4">
-                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border capitalize whitespace-nowrap ${getStatusColor(req.status)}`}>
-                      {req.status}
-                    </span>
+                    <div className="flex flex-col gap-1 items-start">
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border capitalize whitespace-nowrap ${getStatusColor(req.status)}`}>
+                        {req.status}
+                      </span>
+                      {req.is_bargain && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-black bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">
+                          <Tag size={9} className="text-amber-600" />
+                          ৳{req.offered_daily_rate || req.daily_rate}/d Offer
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   <td className="py-3 text-right whitespace-nowrap">
@@ -182,12 +190,13 @@ export function RecentRequestsWidget({ requests, onRequestUpdated }: RecentReque
                           className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
                         >
                           {actionLoading === req.id ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
-                          <span>Approve</span>
+                          <span>{req.is_bargain ? "Accept Offer" : "Approve"}</span>
                         </button>
                         <button
                           onClick={() => handleStatusUpdate(req.id, "rejected")}
                           disabled={actionLoading === req.id}
                           className="px-2.5 py-1 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-lg text-[11px] font-bold transition-all cursor-pointer disabled:opacity-50"
+                          title={req.is_bargain ? "Decline offer" : "Decline request"}
                         >
                           <X size={11} />
                         </button>
