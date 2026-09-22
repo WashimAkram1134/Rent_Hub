@@ -109,6 +109,42 @@ async def change_password(
     return success(message="Password changed successfully.")
 
 
+@router.post(
+    "/me/request-customer",
+    response_model=UserResponse,
+    summary="Request and activate customer account/role",
+)
+@router.post(
+    "/me/activate-customer",
+    response_model=UserResponse,
+    summary="Activate customer account/role",
+)
+async def activate_customer_account(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(User).options(selectinload(User.roles)).where(User.id == current_user.id)
+    user = (await db.execute(stmt)).scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    has_customer = any(r.name == "customer" for r in user.roles)
+    if not has_customer:
+        customer_role = await db.scalar(select(Role).where(Role.name == "customer"))
+        if not customer_role:
+            customer_role = Role(name="customer", description="Customer / Renter role")
+            db.add(customer_role)
+            await db.flush()
+        user.roles.append(customer_role)
+        await db.commit()
+
+        # Reload with relationships
+        stmt_reload = select(User).options(selectinload(User.roles)).where(User.id == current_user.id)
+        user = (await db.execute(stmt_reload)).scalars().first()
+
+    return user
+
+
 # ─── Addresses ────────────────────────────────────────────────────────────────
 
 @router.get(

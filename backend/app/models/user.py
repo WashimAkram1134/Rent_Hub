@@ -187,7 +187,13 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
 
     @property
     def is_customer(self) -> bool:
-        return True
+        return any(r.name == "customer" for r in self.roles)
+
+    @property
+    def customer_id(self) -> str | None:
+        if self.is_customer:
+            return f"CUST-{str(self.id)[:8].upper()}"
+        return None
 
     @property
     def lister_status(self) -> str:

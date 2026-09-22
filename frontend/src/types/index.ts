@@ -65,6 +65,7 @@ export interface User {
   is_active: boolean;
   is_owner?: boolean;
   is_customer?: boolean;
+  customer_id?: string | null;
   lister_status?: "none" | "pending" | "approved" | "rejected";
   primary_role: UserRole;
   role_names: UserRole[];

@@ -21,6 +21,7 @@ import {
 import { useAuthStore } from "@/features/auth/authStore";
 import { useCartStore } from "@/store/cartStore";
 import { NotificationDropdown } from "./NotificationDropdown";
+import CustomerAccountModal from "@/components/common/CustomerAccountModal";
 
 /**
  * DashboardHeader — global top bar used across authenticated pages.
@@ -32,8 +33,40 @@ export default function DashboardHeader() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
 
   const isOwnerUser = user?.is_owner || user?.primary_role === "owner" || user?.role_names?.includes("owner") || user?.primary_role === "admin";
+  const hasCustomerId = Boolean(
+    user?.customer_id ||
+    user?.is_customer ||
+    user?.role_names?.includes("customer") ||
+    user?.primary_role === "customer"
+  );
+
+  const handleMyBookingsClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setDropdownOpen(false);
+
+    if (hasCustomerId) {
+      setActiveRole("customer");
+      router.push("/bookings");
+    } else {
+      setShowCustomerModal(true);
+    }
+  };
+
+  const handleSwitchToCustomerMode = () => {
+    if (activeRole === "owner") {
+      if (!hasCustomerId) {
+        setDropdownOpen(false);
+        setShowCustomerModal(true);
+        return;
+      }
+    }
+    toggleActiveRole();
+    setDropdownOpen(false);
+    router.push("/dashboard");
+  };
 
   const handleSignOut = async () => {
     await logout();
@@ -67,6 +100,10 @@ export default function DashboardHeader() {
       {isOwnerUser && (
         <button
           onClick={() => {
+            if (activeRole === "owner" && !hasCustomerId) {
+              setShowCustomerModal(true);
+              return;
+            }
             const nextMode = activeRole === "owner" ? "customer" : "owner";
             setActiveRole(nextMode);
             router.push("/dashboard");
@@ -164,18 +201,19 @@ export default function DashboardHeader() {
             <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-[#131929] rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 py-2 text-sm z-50 animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800">
                 <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{user.first_name} {user.last_name}</p>
-                <p className="text-[10px] text-slate-400 capitalize">{user.email}</p>
+                <p className="text-[10px] text-slate-400">{user.email}</p>
+                {user.customer_id && (
+                  <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-mono font-bold mt-0.5">
+                    ID: {user.customer_id}
+                  </p>
+                )}
               </div>
 
               {/* Mode Toggle Button */}
               {isOwnerUser && (
                 <div className="p-2 border-b border-slate-100 dark:border-slate-800">
                   <button
-                    onClick={() => {
-                      toggleActiveRole();
-                      setDropdownOpen(false);
-                      router.push("/dashboard");
-                    }}
+                    onClick={handleSwitchToCustomerMode}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold text-indigo-700 dark:text-indigo-400 flex items-center justify-between transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-2">
@@ -210,13 +248,12 @@ export default function DashboardHeader() {
                 </Link>
               )}
 
-              <Link
-                href="/bookings"
-                onClick={() => setDropdownOpen(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-2"
+              <button
+                onClick={handleMyBookingsClick}
+                className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-2 cursor-pointer transition-colors"
               >
                 <Calendar size={15} /> My Bookings
-              </Link>
+              </button>
 
               <Link
                 href="/profile"
@@ -251,6 +288,12 @@ export default function DashboardHeader() {
           </Link>
         </div>
       )}
+
+      {/* Customer Account Activation Modal */}
+      <CustomerAccountModal
+        isOpen={showCustomerModal}
+        onClose={() => setShowCustomerModal(false)}
+      />
     </header>
   );
 }

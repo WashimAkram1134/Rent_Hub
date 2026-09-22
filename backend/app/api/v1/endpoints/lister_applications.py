@@ -117,7 +117,7 @@ async def get_my_lister_status(
 
     return {
         "is_owner": is_owner,
-        "is_customer": True,
+        "is_customer": current_user.is_customer,
         "lister_status": status_str,
         "application": app_data,
     }

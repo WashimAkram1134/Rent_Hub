@@ -156,7 +156,8 @@ class UserResponse(BaseModel):
     is_identity_verified: bool = False
     is_active: bool
     is_owner: bool = False
-    is_customer: bool = True
+    is_customer: bool = False
+    customer_id: str | None = None
     lister_status: str = "none"
     primary_role: str
     role_names: list[str]
@@ -180,7 +181,8 @@ class UserPublicResponse(BaseModel):
     identity_verification_status: str
     is_identity_verified: bool = False
     is_owner: bool = False
-    is_customer: bool = True
+    is_customer: bool = False
+    customer_id: str | None = None
     lister_status: str = "none"
     primary_role: str
     created_at: datetime

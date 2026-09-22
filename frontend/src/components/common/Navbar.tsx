@@ -30,12 +30,14 @@ import { useWebSocket } from "@/providers/WebSocketProvider";
 import api from "@/lib/axios";
 import { Notification } from "@/types";
 import { useEffect } from "react";
+import CustomerAccountModal from "@/components/common/CustomerAccountModal";
 
 export default function Navbar() {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [search, setSearch] = useState("");
@@ -44,6 +46,38 @@ export default function Navbar() {
 
   const isOwnerUser = user?.is_owner || user?.primary_role === "owner" || user?.role_names?.includes("owner") || user?.primary_role === "admin";
   const isPendingLister = !isOwnerUser && user?.lister_status === "pending";
+
+  const hasCustomerId = Boolean(
+    user?.customer_id ||
+    user?.is_customer ||
+    user?.role_names?.includes("customer") ||
+    user?.primary_role === "customer"
+  );
+
+  const handleMyBookingsClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setDropdownOpen(false);
+
+    if (hasCustomerId) {
+      setActiveRole("customer");
+      router.push("/bookings");
+    } else {
+      setShowCustomerModal(true);
+    }
+  };
+
+  const handleSwitchToCustomerMode = () => {
+    if (activeRole === "owner") {
+      if (!hasCustomerId) {
+        setDropdownOpen(false);
+        setShowCustomerModal(true);
+        return;
+      }
+    }
+    toggleActiveRole();
+    setDropdownOpen(false);
+    router.push("/dashboard");
+  };
 
   useEffect(() => {
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
@@ -315,17 +349,18 @@ export default function Navbar() {
                           )}
                         </div>
                         <p className="text-[10px] text-slate-400 capitalize">{user.email}</p>
+                        {user.customer_id && (
+                          <p className="text-[9px] text-emerald-600 font-mono font-bold mt-0.5">
+                            ID: {user.customer_id}
+                          </p>
+                        )}
                       </div>
 
                       {/* Mode Toggle Item for Multi-Role Users */}
                       {isOwnerUser && (
                         <div className="p-2 border-b border-slate-100">
                           <button
-                            onClick={() => {
-                              toggleActiveRole();
-                              setDropdownOpen(false);
-                              router.push("/dashboard");
-                            }}
+                            onClick={handleSwitchToCustomerMode}
                             className="w-full px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-bold text-indigo-700 flex items-center justify-between transition-colors cursor-pointer"
                           >
                             <div className="flex items-center gap-2">
@@ -360,13 +395,12 @@ export default function Navbar() {
                         </Link>
                       )}
 
-                      <Link
-                        href="/bookings"
-                        onClick={() => setDropdownOpen(false)}
-                        className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2.5 transition-colors"
+                      <button
+                        onClick={handleMyBookingsClick}
+                        className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2.5 transition-colors cursor-pointer"
                       >
                         <User size={15} /> My Bookings
-                      </Link>
+                      </button>
 
                       <Link
                         href="/profile"
@@ -463,6 +497,12 @@ export default function Navbar() {
           </div>
         </div>
       )}
+
+      {/* Customer Account Activation Modal */}
+      <CustomerAccountModal
+        isOpen={showCustomerModal}
+        onClose={() => setShowCustomerModal(false)}
+      />
     </header>
   );
 }

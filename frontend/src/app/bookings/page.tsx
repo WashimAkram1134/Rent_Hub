@@ -9,7 +9,7 @@ import {
   Calendar, MapPin, Clock, Star, CheckCircle2, XCircle, RefreshCw,
   ChevronDown, Phone, Mail, User, MessageCircle, MoreVertical,
   CarFront, Camera, Monitor, Building, Trophy, Package, ChevronRight,
-  Heart, Download, Truck, RotateCcw, AlertCircle, HelpCircle, FileText, ChevronLeft
+  Heart, Download, Truck, RotateCcw, AlertCircle, HelpCircle, FileText, ChevronLeft, ShoppingBag
 } from "lucide-react";
 import dayjs from "dayjs";
 import apiClient from "@/lib/axios";
@@ -71,17 +71,32 @@ function getStatusBadge(status: string) {
 
 export default function CustomerBookingsPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, activeRole, setActiveRole, setUser } = useAuthStore();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activatingCustomer, setActivatingCustomer] = useState(false);
+  const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabStatus>("active");
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+  const hasCustomerId = Boolean(
+    user?.customer_id ||
+    user?.is_customer ||
+    user?.role_names?.includes("customer") ||
+    user?.primary_role === "customer"
+  );
 
   useEffect(() => {
     if (!isAuthenticated) {
       router.replace(`/login?returnUrl=${encodeURIComponent("/bookings")}`);
     }
   }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    if (user && hasCustomerId && activeRole !== "customer") {
+      setActiveRole("customer");
+    }
+  }, [user, hasCustomerId, activeRole, setActiveRole]);
 
   const fetchBookings = async () => {
     if (!user) return;
@@ -103,13 +118,29 @@ export default function CustomerBookingsPage() {
     }
   }, [user]);
 
+  const handleActivateCustomer = async () => {
+    setActivatingCustomer(true);
+    try {
+      const res = await apiClient.post("/users/me/request-customer");
+      if (res.data) {
+        setUser(res.data);
+      }
+      setActiveRole("customer");
+      await fetchBookings();
+    } catch (err) {
+      console.error("Failed to activate customer account:", err);
+    } finally {
+      setActivatingCustomer(false);
+    }
+  };
+
   const handleCancelRequest = async (id: string) => {
-    if (!confirm("Are you sure you want to cancel this booking request?")) return;
     try {
       await apiClient.put(`/bookings/${id}/status`, {
         status: "cancelled",
         notes: "Cancelled by customer",
       });
+      setCancelTargetId(null);
       fetchBookings();
     } catch (e) {
       console.error("Failed to cancel booking:", e);
@@ -188,6 +219,30 @@ export default function CustomerBookingsPage() {
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">My Bookings</h1>
               <p className="text-xs text-slate-500 mt-1">Manage all your rentals in one place.</p>
             </div>
+
+            {/* Customer Account Prompt Banner (if owner lacks customer role) */}
+            {!hasCustomerId && (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border border-emerald-200 dark:border-emerald-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20">
+                    <ShoppingBag size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Customer Account Required</h3>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                      You are signed in as an <strong>Owner</strong>. To rent items and manage your customer orders, please activate your Customer Account.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleActivateCustomer}
+                  disabled={activatingCustomer}
+                  className="shrink-0 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center gap-2 transition-all cursor-pointer disabled:opacity-60"
+                >
+                  {activatingCustomer ? "Activating..." : "Activate Customer Account"}
+                </button>
+              </div>
+            )}
 
             {/* Tabs & Sort Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2 rounded-2xl border border-slate-200/80 shadow-sm">
