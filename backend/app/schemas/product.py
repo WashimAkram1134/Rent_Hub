@@ -14,6 +14,7 @@ class ProductBase(BaseModel):
     discount_percentage: int = 0
     offer_title: Optional[str] = None
     offer_active: bool = False
+    is_active: bool = True
 
 class ProductCreate(BaseModel):
     title: str
@@ -27,6 +28,7 @@ class ProductCreate(BaseModel):
     category_id: UUID
     owner_id: Optional[UUID] = None
     status: Optional[str] = "PENDING"
+    is_active: Optional[bool] = True
     image_url: Optional[str] = None
     images: Optional[List[str]] = []
 
@@ -44,6 +46,7 @@ class ProductUpdate(BaseModel):
     area: Optional[str] = None
     category_id: Optional[UUID] = None
     is_active: Optional[bool] = None
+    status: Optional[str] = None
     image_url: Optional[str] = None
     images: Optional[List[str]] = None
     discount_percentage: Optional[int] = None
@@ -69,6 +72,7 @@ class ProductOut(ProductBase):
     is_featured: bool
     is_trending: bool
     status: str
+    is_active: bool = True
     image_url: Optional[str] = None
     is_wishlisted: bool = False
     owner_name: Optional[str] = None
@@ -115,6 +119,7 @@ class ProductDetailOut(ProductBase):
     condition: str
     delivery_option: str
     status: str
+    is_active: bool = True
     images: list[ProductImageOut] = []
     owner: ProductOwnerOut
     category: ProductCategoryOut

@@ -18,6 +18,7 @@ Endpoints:
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -29,6 +30,8 @@ from app.auth.dependencies import get_current_user, require_role
 from app.auth.password import hash_password
 from app.database.session import get_db
 from app.models.user import User, Role
+from app.models.identity_verification import IdentityVerification
+from app.models.notification import Notification
 from app.repositories.address import AddressRepository
 from app.schemas.auth import UserResponse
 from app.schemas.user import (
@@ -477,6 +480,172 @@ async def delete_user(
         raise HTTPException(status_code=404, detail="User not found.")
     await db.delete(user)
     await db.commit()
+
+
+class UpdateUserVerificationPayload(BaseModel):
+    status: str  # "VERIFIED" or "UNVERIFIED"
+    reason: Optional[str] = None
+
+
+@router.get(
+    "/{user_id}/verification-submission",
+    summary="Get user identity verification submission details (Admin only)",
+)
+async def get_user_verification_submission(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_role("admin")),
+):
+    stmt_user = (
+        select(User)
+        .options(selectinload(User.roles))
+        .where(User.id == user_id, User.deleted_at.is_(None))
+    )
+    user = (await db.execute(stmt_user)).scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    stmt_v = (
+        select(IdentityVerification)
+        .where(IdentityVerification.user_id == user_id, IdentityVerification.deleted_at.is_(None))
+        .order_by(IdentityVerification.created_at.desc())
+    )
+    verification = (await db.execute(stmt_v)).scalars().first()
+
+    submission_data = None
+    if verification:
+        submission_data = {
+            "id": str(verification.id),
+            "status": verification.status,
+            "document_type": verification.document_type,
+            "document_number_masked": verification.document_number_masked,
+            "document_image_filename": verification.document_image_filename,
+            "selfie_image_filename": verification.selfie_image_filename,
+            "face_match_score": float(verification.face_match_score) if verification.face_match_score else None,
+            "liveness_score": float(verification.liveness_score) if verification.liveness_score else None,
+            "liveness_challenge_type": verification.liveness_challenge_type,
+            "consent_given": verification.consent_given,
+            "consent_at": verification.consent_at.isoformat() if verification.consent_at else None,
+            "verified_at": verification.verified_at.isoformat() if verification.verified_at else None,
+            "review_notes": verification.review_notes,
+            "created_at": verification.created_at.isoformat(),
+        }
+
+    return {
+        "user_id": str(user.id),
+        "user_name": user.full_name,
+        "user_email": user.email,
+        "identity_verification_status": user.identity_verification_status,
+        "is_identity_verified": user.is_identity_verified,
+        "has_submission": bool(verification and verification.status != "NOT_STARTED"),
+        "submission": submission_data,
+    }
+
+
+@router.patch(
+    "/{user_id}/verification-status",
+    response_model=UserResponse,
+    summary="Update user verification status with SMS/notification (Admin only)",
+)
+async def update_user_verification_status(
+    user_id: uuid.UUID,
+    payload: UpdateUserVerificationPayload,
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(require_role("admin")),
+):
+    stmt = (
+        select(User)
+        .options(selectinload(User.roles))
+        .where(User.id == user_id, User.deleted_at.is_(None))
+    )
+    user = (await db.execute(stmt)).scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    target_status = payload.status.strip().upper()
+    now_utc = datetime.now(timezone.utc)
+
+    # Fetch existing verification record if any
+    stmt_v = (
+        select(IdentityVerification)
+        .where(IdentityVerification.user_id == user_id, IdentityVerification.deleted_at.is_(None))
+        .order_by(IdentityVerification.created_at.desc())
+    )
+    verification = (await db.execute(stmt_v)).scalars().first()
+
+    if target_status == "VERIFIED":
+        user.identity_verification_status = "VERIFIED"
+        if verification:
+            verification.status = "VERIFIED"
+            verification.verified_at = now_utc
+            verification.reviewed_by = current_admin.id
+            verification.reviewed_at = now_utc
+            verification.review_notes = payload.reason or "Identity verified and approved by Administrator"
+        else:
+            verification = IdentityVerification(
+                user_id=user.id,
+                status="VERIFIED",
+                verified_at=now_utc,
+                reviewed_by=current_admin.id,
+                reviewed_at=now_utc,
+                review_notes=payload.reason or "Identity manually verified by Administrator override",
+            )
+            db.add(verification)
+
+        # Send approval notification to user
+        notif = Notification(
+            user_id=user.id,
+            type="identity_verification",
+            title="Identity Verification Approved",
+            body="Congratulations! Your identity has been verified and approved by RentHub administration. You can now rent items and enjoy full platform trust.",
+        )
+        db.add(notif)
+
+    elif target_status in ["UNVERIFIED", "REVOKED", "NOT_STARTED", "REJECTED"]:
+        reason_text = (payload.reason or "").strip()
+        if not reason_text:
+            raise HTTPException(
+                status_code=400,
+                detail="A message/reason for the user is required when unverifying an account.",
+            )
+
+        user.identity_verification_status = "NOT_STARTED"
+        if verification:
+            verification.status = "REVOKED"
+            verification.reviewed_by = current_admin.id
+            verification.reviewed_at = now_utc
+            verification.review_notes = reason_text
+        else:
+            verification = IdentityVerification(
+                user_id=user.id,
+                status="REVOKED",
+                reviewed_by=current_admin.id,
+                reviewed_at=now_utc,
+                review_notes=reason_text,
+            )
+            db.add(verification)
+
+        # Send in-app message / SMS notice to user with reason
+        notif = Notification(
+            user_id=user.id,
+            type="identity_verification",
+            title="Identity Verification Status Revoked",
+            body=f"Your verified identity status has been revoked by administration. Notice message: {reason_text}. Please review your documents or re-apply for verification.",
+        )
+        db.add(notif)
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid verification status. Must be VERIFIED or UNVERIFIED.",
+        )
+
+    await db.commit()
+
+    # Reload user
+    stmt_reload = select(User).options(selectinload(User.roles)).where(User.id == user_id)
+    updated_user = (await db.execute(stmt_reload)).scalars().first()
+    return updated_user
+
 
 
 # ─── Public Owner Profile ─────────────────────────────────────────────────────

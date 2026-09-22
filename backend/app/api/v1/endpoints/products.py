@@ -109,6 +109,7 @@ async def get_products(
             owner_email=owner_email,
             category_name=category_name,
             status=p.status,
+            is_active=bool(p.is_active),
             image_url=img_url,
             images=[{"url": img.url, "is_primary": img.is_primary} for img in imgs],
             is_wishlisted=False
@@ -199,6 +200,7 @@ async def create_product(
         discount_percentage=0,
         offer_active=False,
         status=new_product.status,
+        is_active=bool(new_product.is_active),
         image_url=primary_url,
         images=[{"url": url, "is_primary": (i == 0)} for i, url in enumerate(image_list)],
         is_wishlisted=False
@@ -441,6 +443,7 @@ async def update_product_status(
         owner_email=owner_email,
         category_name=category_name,
         status=product.status,
+        is_active=bool(product.is_active),
         image_url=img_url,
         images=[{"url": img.url, "is_primary": img.is_primary} for img in imgs],
         is_wishlisted=False
@@ -482,10 +485,11 @@ async def update_product(
         if hasattr(product, key) and val is not None:
             setattr(product, key, val)
 
-    if update_data.get("is_active") is True:
+    if update_data.get("status") in ["APPROVED", "ACTIVE"] or update_data.get("is_active") is True:
         product.status = "APPROVED"
         product.is_active = True
-    elif update_data.get("is_active") is False:
+    elif update_data.get("status") == "PAUSED" or update_data.get("is_active") is False:
+        product.status = "PAUSED"
         product.is_active = False
 
     if images_data is None and single_image_url is not None:
@@ -547,6 +551,7 @@ async def update_product(
         owner_email=owner_email,
         category_name=category_name,
         status=product.status,
+        is_active=bool(product.is_active),
         image_url=img_url,
         images=[{"url": img.url, "is_primary": img.is_primary} for img in imgs],
         is_wishlisted=False

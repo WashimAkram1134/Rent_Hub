@@ -138,6 +138,7 @@ export default function OwnerListingsPage() {
   };
 
   const filteredListings = listings.filter((item) => {
+    const isLive = item.status === "PAUSED" ? false : (item.is_active ?? (item.status === "APPROVED" || item.status === "ACTIVE"));
     const matchesSearch =
       !searchQuery.trim() ||
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -146,8 +147,8 @@ export default function OwnerListingsPage() {
     const matchesStatus =
       statusFilter === "all" ||
       (statusFilter === "pending" && item.status === "PENDING") ||
-      (statusFilter === "active" && (item.status === "APPROVED" || item.status === "ACTIVE") && item.is_active) ||
-      (statusFilter === "inactive" && (!item.is_active || item.status === "REJECTED")) ||
+      (statusFilter === "active" && isLive && item.status !== "REJECTED") ||
+      (statusFilter === "inactive" && (!isLive || item.status === "REJECTED" || item.status === "PAUSED")) ||
       (statusFilter === "offers" && item.offer_active && item.discount_percentage > 0);
 
     return matchesSearch && matchesStatus;
@@ -158,25 +159,27 @@ export default function OwnerListingsPage() {
   return (
     <AppShell>
       <div className="p-6 font-sans text-slate-800 space-y-6 pb-16">
-        {/* Toast */}
+        {/* Toast Alert */}
         {toastMessage && (
-          <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs font-semibold animate-in fade-in slide-in-from-bottom-3 duration-200">
-            <Sparkles size={16} className="text-emerald-400" />
-            <span>{toastMessage}</span>
+          <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+              <span>{toastMessage}</span>
+            </div>
+            <button onClick={() => setToastMessage(null)} className="text-emerald-600 hover:text-emerald-800 cursor-pointer">
+              <X size={14} />
+            </button>
           </div>
         )}
 
-        {/* Header */}
+        {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">My Rental Listings</h1>
-              <span className="bg-indigo-50 text-indigo-700 border border-indigo-200/60 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
-                {listings.length} Registered Items
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1 font-medium">
-              Manage your rental inventory, pricing, availability, and promotional discount offers
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              My Rental Listings
+            </h1>
+            <p className="text-slate-500 text-xs mt-1">
+              Manage your inventory, set promotions, pause or publish items to the marketplace.
             </p>
           </div>
 
@@ -191,8 +194,12 @@ export default function OwnerListingsPage() {
 
         {/* Summary Cards */}
         {(() => {
-          const liveListings = listings.filter((l) => l.is_active && l.status !== "REJECTED");
-          const pausedListings = listings.filter((l) => !l.is_active || l.status === "REJECTED");
+          const liveListings = listings.filter(
+            (l) => (l.status === "PAUSED" ? false : (l.is_active ?? (l.status === "APPROVED" || l.status === "ACTIVE"))) && l.status !== "REJECTED"
+          );
+          const pausedListings = listings.filter(
+            (l) => l.status === "PAUSED" || l.status === "REJECTED" || l.is_active === false
+          );
           const totalEarningsPotential = liveListings.reduce(
             (sum, item) => sum + (Number(item.price_per_day) || 0) * 30,
             0
@@ -368,54 +375,66 @@ export default function OwnerListingsPage() {
                         </td>
 
                         <td className="py-3.5 px-3 whitespace-nowrap">
-                          {item.status === "PENDING" ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                              Pending Approval
-                            </span>
-                          ) : item.status === "REJECTED" ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                              Rejected
-                            </span>
-                          ) : (
-                            <span
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                                item.is_active
-                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                  : "bg-slate-100 text-slate-500 border border-slate-200"
-                              }`}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full ${item.is_active ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`}></span>
-                              {item.is_active ? "Live" : "Paused"}
-                            </span>
-                          )}
+                          {(() => {
+                            const isLive = item.status === "PAUSED" ? false : (item.is_active ?? (item.status === "APPROVED" || item.status === "ACTIVE"));
+                            if (item.status === "PENDING") {
+                              return (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                  Pending Approval
+                                </span>
+                              );
+                            }
+                            if (item.status === "REJECTED") {
+                              return (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                  Rejected
+                                </span>
+                              );
+                            }
+                            return (
+                              <span
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                                  isLive
+                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                    : "bg-slate-100 text-slate-500 border border-slate-200"
+                                }`}
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full ${isLive ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`}></span>
+                                {isLive ? "Live" : "Paused"}
+                              </span>
+                            );
+                          })()}
                         </td>
 
                         <td className="py-3.5 px-3 text-right whitespace-nowrap">
-                          <div className="inline-flex items-center gap-1.5">
-                            {/* 1-Click Live / Pause Toggle */}
-                            <button
-                              onClick={() => handleToggleListingStatus(item.id, item.is_active)}
-                              title={item.is_active ? "Click to Pause listing (hide from renters)" : "Click to Make Live (visible to renters)"}
-                              className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                                item.is_active
-                                  ? "border-slate-200 text-slate-600 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200"
-                                  : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                              }`}
-                            >
-                              {item.is_active ? (
-                                <>
-                                  <Pause size={12} />
-                                  <span>Pause</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Play size={12} className="fill-emerald-600 text-emerald-600" />
-                                  <span>Make Live</span>
-                                </>
-                              )}
-                            </button>
+                          {(() => {
+                            const isLive = item.status === "PAUSED" ? false : (item.is_active ?? (item.status === "APPROVED" || item.status === "ACTIVE"));
+                            return (
+                              <div className="inline-flex items-center gap-1.5">
+                                {/* 1-Click Live / Pause Toggle */}
+                                <button
+                                  onClick={() => handleToggleListingStatus(item.id, isLive)}
+                                  title={isLive ? "Click to Pause listing (hide from renters)" : "Click to Make Live (visible to renters)"}
+                                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                                    isLive
+                                      ? "border-slate-200 text-slate-600 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200"
+                                      : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                  }`}
+                                >
+                                  {isLive ? (
+                                    <>
+                                      <Pause size={12} />
+                                      <span>Pause</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Play size={12} className="fill-emerald-600 text-emerald-600" />
+                                      <span>Make Live</span>
+                                    </>
+                                  )}
+                                </button>
 
                             {/* Offer / Discount Button */}
                             <button
@@ -447,7 +466,9 @@ export default function OwnerListingsPage() {
                               <Trash2 size={13} />
                             </button>
                           </div>
-                        </td>
+                        );
+                      })()}
+                    </td>
                       </tr>
                     );
                   })
