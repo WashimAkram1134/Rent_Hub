@@ -411,7 +411,7 @@ export default function ProductDetailsPage() {
   const heroY = useTransform(scrollY, [0, 400], ["0%", "10%"]);
   const heroScale = useTransform(scrollY, [0, 400], [1, 1.04]);
 
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, refreshUser } = useAuthStore();
 
   const isOwner = Boolean(
     isAuthenticated &&
@@ -449,6 +449,21 @@ export default function ProductDetailsPage() {
     setBookingError(null);
     setChatWarning(false);
     try {
+      // Refresh user from server to get the latest identity_verification_status
+      await refreshUser();
+      const freshUser = useAuthStore.getState().user;
+      const isVerified =
+        freshUser?.identity_verification_status === "VERIFIED" ||
+        freshUser?.is_identity_verified === true;
+
+      if (!isVerified) {
+        // User is not identity-verified — redirect to verification flow
+        const returnUrl = window.location.pathname + window.location.search;
+        sessionStorage.setItem("renthub_verify_return_url", returnUrl);
+        router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);
+        return;
+      }
+
       await apiClient.post("/bookings", {
         product_id: product.id,
         start_date: pickupDate,
@@ -460,6 +475,7 @@ export default function ProductDetailsPage() {
       setTimeout(() => router.push("/bookings"), 3500);
     } catch (e: any) {
       if (e.response?.status === 403 && e.response?.data?.error?.code === "IDENTITY_VERIFICATION_REQUIRED") {
+        // Fallback redirect in case backend gate fires
         const returnUrl = window.location.pathname + window.location.search;
         sessionStorage.setItem("renthub_verify_return_url", returnUrl);
         router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);
@@ -510,6 +526,21 @@ export default function ProductDetailsPage() {
     setBookingLoading(true);
     setBookingError(null);
     try {
+      // Refresh user from server to get the latest identity_verification_status
+      await refreshUser();
+      const freshUser = useAuthStore.getState().user;
+      const isVerified =
+        freshUser?.identity_verification_status === "VERIFIED" ||
+        freshUser?.is_identity_verified === true;
+
+      if (!isVerified) {
+        // User is not identity-verified — redirect to verification flow
+        const returnUrl = window.location.pathname + window.location.search;
+        sessionStorage.setItem("renthub_verify_return_url", returnUrl);
+        router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);
+        return;
+      }
+
       await apiClient.post("/bookings", {
         product_id: product.id,
         start_date: pickupDate,
@@ -526,6 +557,7 @@ export default function ProductDetailsPage() {
       setTimeout(() => router.push("/bookings"), 3500);
     } catch (e: any) {
       if (e.response?.status === 403 && e.response?.data?.error?.code === "IDENTITY_VERIFICATION_REQUIRED") {
+        // Fallback redirect in case backend gate fires
         const returnUrl = window.location.pathname + window.location.search;
         sessionStorage.setItem("renthub_verify_return_url", returnUrl);
         router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);

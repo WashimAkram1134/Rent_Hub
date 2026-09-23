@@ -14,7 +14,7 @@ import apiClient from "@/lib/axios";
 
 export default function RentalCartPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, refreshUser } = useAuthStore();
   const { items, removeItem, updateDates, clearCart } = useCartStore();
   
   const [submitting, setSubmitting] = useState(false);
@@ -96,7 +96,14 @@ export default function RentalCartPage() {
       return;
     }
 
-    if (!isVerified) {
+    // Refresh user from server to get latest identity_verification_status
+    await refreshUser();
+    const freshUser = useAuthStore.getState().user;
+    const isVerifiedNow =
+      freshUser?.identity_verification_status === "VERIFIED" ||
+      freshUser?.is_identity_verified === true;
+
+    if (!isVerifiedNow) {
       const returnUrl = "/cart";
       sessionStorage.setItem("renthub_verify_return_url", returnUrl);
       router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);
