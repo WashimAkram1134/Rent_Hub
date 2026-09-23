@@ -74,7 +74,32 @@ async def get_promotions(db: AsyncSession = Depends(get_db)):
 @router.get("/cities", response_model=list[CityOut])
 async def get_cities(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(City).where(City.is_active == True).order_by(City.sort_order))
-    return result.scalars().all()
+    cities = result.scalars().all()
+
+    # Dynamic count of active listings per city directly from Product table
+    counts_res = await db.execute(
+        select(func.lower(Product.city), func.count(Product.id))
+        .where(Product.is_active == True)
+        .group_by(func.lower(Product.city))
+    )
+    city_counts: dict[str, int] = {}
+    for row in counts_res.all():
+        if row[0]:
+            city_counts[row[0].strip().lower()] = int(row[1])
+
+    out = []
+    for c in cities:
+        name_key = c.name.strip().lower()
+        slug_key = c.slug.strip().lower()
+        real_count = city_counts.get(name_key, 0) or city_counts.get(slug_key, 0)
+        out.append(CityOut(
+            id=c.id,
+            name=c.name,
+            slug=c.slug,
+            image_url=c.image_url,
+            listing_count=real_count,
+        ))
+    return out
 
 @router.get("/categories", response_model=list[CategoryOut])
 async def get_categories(db: AsyncSession = Depends(get_db)):

@@ -373,6 +373,39 @@ export default function ProductDetailsPage() {
   const { triggerFlyToCart } = useFlyToCart();
   const [justAddedToCart, setJustAddedToCart] = useState(false);
 
+  // ── Coupon Code State & Handlers ──────────────────────────────────────────
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountPct?: number; flatDiscount?: number } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+
+  const handleApplyCoupon = (codeToApply?: string) => {
+    const code = (codeToApply || couponCode).trim().toUpperCase();
+    setCouponError(null);
+    if (!code) {
+      setCouponError("Please enter a coupon code.");
+      return;
+    }
+    if (code === "SAVE20") {
+      setAppliedCoupon({ code: "SAVE20", discountPct: 20 });
+    } else if (code === "RENTHUB10") {
+      setAppliedCoupon({ code: "RENTHUB10", discountPct: 10 });
+    } else if (code === "EID25") {
+      setAppliedCoupon({ code: "EID25", discountPct: 25 });
+    } else if (code === "WELCOME50") {
+      setAppliedCoupon({ code: "WELCOME50", flatDiscount: 500 });
+    } else {
+      setCouponError("Invalid or expired coupon code.");
+      return;
+    }
+    setCouponCode(code);
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError(null);
+  };
+
   // Parallax scroll
   const { scrollY } = useScroll();
   const heroY = useTransform(scrollY, [0, 400], ["0%", "10%"]);
@@ -421,9 +454,10 @@ export default function ProductDetailsPage() {
         start_date: pickupDate,
         end_date: returnDate,
         delivery_option: deliveryMode,
+        notes: appliedCoupon ? `Coupon ${appliedCoupon.code} applied (Discount: ৳${discountAmount})` : undefined,
       });
       setBookingSuccess(true);
-      setTimeout(() => router.push("/bookings"), 1200);
+      setTimeout(() => router.push("/bookings"), 3500);
     } catch (e: any) {
       if (e.response?.status === 403 && e.response?.data?.error?.code === "IDENTITY_VERIFICATION_REQUIRED") {
         const returnUrl = window.location.pathname + window.location.search;
@@ -478,10 +512,13 @@ export default function ProductDetailsPage() {
         delivery_option: deliveryMode,
         is_bargain: true,
         offered_daily_rate: numRate,
-        bargain_notes: bargainNote.trim() || undefined,
+        bargain_notes: [
+          bargainNote.trim() || undefined,
+          appliedCoupon ? `(Coupon ${appliedCoupon.code} selected: -৳${discountAmount})` : undefined,
+        ].filter(Boolean).join(" | ") || undefined,
       });
       setBargainSuccess(true);
-      setTimeout(() => router.push("/bookings"), 1500);
+      setTimeout(() => router.push("/bookings"), 3500);
     } catch (e: any) {
       if (e.response?.status === 403 && e.response?.data?.error?.code === "IDENTITY_VERIFICATION_REQUIRED") {
         const returnUrl = window.location.pathname + window.location.search;
@@ -588,6 +625,170 @@ const FALLBACK_PRODUCT_CATALOG: Record<string, any> = {
       { url: "https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?auto=format&fit=crop&w=1600&q=80", is_primary: false },
     ],
   },
+  "deal-1": {
+    id: "deal-1",
+    slug: "deal-1",
+    title: "Toyota Prado 2018 (Special Deal)",
+    description: "Full-size premium 4WD SUV with 7 seats, leather interior, sunroof, and dual AC. Special promotional rate on RentHub Deals & Offers.",
+    price_per_day: 2800,
+    security_deposit: 8000,
+    condition: "Excellent",
+    delivery_option: "both",
+    city: "Dhaka",
+    area: "Gulshan",
+    avg_rating: 4.8,
+    review_count: 128,
+    is_featured: true,
+    category: { id: "vehicles", name: "Vehicles", slug: "vehicles" },
+    owner: { id: "owner-rashed", first_name: "Rashed", last_name: "Hasan", email: "rashed@renthub.com.bd", is_identity_verified: true, rating: 4.8 },
+    images: [
+      { url: "https://images.unsplash.com/photo-1590362891991-f776e747a588?auto=format&fit=crop&w=1600&q=80", is_primary: true },
+      { url: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1600&q=85", is_primary: false },
+    ],
+  },
+  "deal-2": {
+    id: "deal-2",
+    slug: "deal-2",
+    title: "Canon EOS R6 (Special Deal)",
+    description: "Professional full-frame mirrorless camera with 20fps shooting, 4K 60p video, and 5-axis image stabilization. Special promotional discount.",
+    price_per_day: 3000,
+    security_deposit: 10000,
+    condition: "Like New",
+    delivery_option: "both",
+    city: "Dhaka",
+    area: "Banani",
+    avg_rating: 4.9,
+    review_count: 86,
+    is_featured: true,
+    category: { id: "cameras", name: "Cameras", slug: "cameras" },
+    owner: { id: "owner-nusrat", first_name: "Nusrat", last_name: "Jahan", email: "nusrat@renthub.com.bd", is_identity_verified: true, rating: 4.9 },
+    images: [
+      { url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1600&q=80", is_primary: true },
+      { url: "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?auto=format&fit=crop&w=1600&q=80", is_primary: false },
+    ],
+  },
+  "deal-3": {
+    id: "deal-3",
+    slug: "deal-3",
+    title: "MacBook Pro M3 (Special Deal)",
+    description: "High performance workstation with Apple M3 chip, Liquid Retina display, and 18-hour battery. Perfect for creative professionals.",
+    price_per_day: 2400,
+    security_deposit: 10000,
+    condition: "Flawless",
+    delivery_option: "both",
+    city: "Dhaka",
+    area: "Dhanmondi",
+    avg_rating: 4.7,
+    review_count: 64,
+    is_featured: true,
+    category: { id: "electronics", name: "Electronics", slug: "electronics" },
+    owner: { id: "owner-adnan", first_name: "Adnan", last_name: "Rahman", email: "adnan@renthub.com.bd", is_identity_verified: true, rating: 4.7 },
+    images: [
+      { url: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=1600&q=80", is_primary: true },
+      { url: "https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?auto=format&fit=crop&w=1600&q=80", is_primary: false },
+    ],
+  },
+  "deal-4": {
+    id: "deal-4",
+    slug: "deal-4",
+    title: "Premium Sofa Set (Special Deal)",
+    description: "Ergonomic 5-seater fabric sofa set for events, filming, staging, or short-term living. Sanitized and wrapped.",
+    price_per_day: 1020,
+    security_deposit: 3000,
+    condition: "Good",
+    delivery_option: "delivery",
+    city: "Dhaka",
+    area: "Uttara",
+    avg_rating: 4.8,
+    review_count: 42,
+    is_featured: true,
+    category: { id: "furniture", name: "Furniture", slug: "furniture" },
+    owner: { id: "owner-sumaiya", first_name: "Sumaiya", last_name: "Islam", email: "sumaiya@renthub.com.bd", is_identity_verified: true, rating: 4.8 },
+    images: [
+      { url: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1600&q=80", is_primary: true },
+    ],
+  },
+  "deal-5": {
+    id: "deal-5",
+    slug: "deal-5",
+    title: "2BHK Luxury Furnished Apartment (Special Deal)",
+    description: "Modern 2-bedroom furnished apartment with high-speed WiFi, modern kitchen, smart TV, generator backup, and 24/7 security. Ideal for business trips, short vacations, and relocations.",
+    price_per_day: 2000,
+    security_deposit: 5000,
+    condition: "Brand New",
+    delivery_option: "Pick-up",
+    city: "Dhaka",
+    area: "Gulshan",
+    avg_rating: 4.7,
+    review_count: 38,
+    is_featured: true,
+    category: { id: "apartments", name: "Apartments", slug: "apartments" },
+    owner: { id: "owner-rahat", first_name: "Rahat", last_name: "Ahmed", email: "rahat@renthub.com.bd", is_identity_verified: true, rating: 4.7 },
+    images: [
+      { url: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1600&q=80", is_primary: true },
+      { url: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1600&q=80", is_primary: false },
+    ],
+  },
+  "deal-6": {
+    id: "deal-6",
+    slug: "deal-6",
+    title: "Mountain Bike (Special Deal)",
+    description: "All-terrain 21-speed mountain bike with dual disc brakes, front suspension, and helmet included.",
+    price_per_day: 720,
+    security_deposit: 1500,
+    condition: "Good",
+    delivery_option: "both",
+    city: "Dhaka",
+    area: "Dhanmondi",
+    avg_rating: 4.6,
+    review_count: 22,
+    is_featured: true,
+    category: { id: "sports", name: "Sports", slug: "sports" },
+    owner: { id: "owner-imtiaz", first_name: "Imtiaz", last_name: "Hossain", email: "imtiaz@renthub.com.bd", is_identity_verified: true, rating: 4.6 },
+    images: [
+      { url: "https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=1600&q=80", is_primary: true },
+    ],
+  },
+  "deal-7": {
+    id: "deal-7",
+    slug: "deal-7",
+    title: "Professional Football Kit (Special Deal)",
+    description: "Complete team football match set with balls, training cones, corner flags, and tactical board.",
+    price_per_day: 410,
+    security_deposit: 800,
+    condition: "Good",
+    delivery_option: "both",
+    city: "Dhaka",
+    area: "Mirpur",
+    avg_rating: 4.6,
+    review_count: 18,
+    is_featured: false,
+    category: { id: "sports", name: "Sports", slug: "sports" },
+    owner: { id: "owner-sabbir", first_name: "Sabbir", last_name: "Hossain", email: "sabbir@renthub.com.bd", is_identity_verified: true, rating: 4.6 },
+    images: [
+      { url: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1600&q=80", is_primary: true },
+    ],
+  },
+  "deal-8": {
+    id: "deal-8",
+    slug: "deal-8",
+    title: "Atomic Habits Hardcover (Special Deal)",
+    description: "Bestselling personal development book by James Clear. Clean hardcover edition for weekly rental.",
+    price_per_day: 70,
+    security_deposit: 200,
+    condition: "Like New",
+    delivery_option: "both",
+    city: "Dhaka",
+    area: "Nilkhet",
+    avg_rating: 4.9,
+    review_count: 73,
+    is_featured: false,
+    category: { id: "books", name: "Books", slug: "books" },
+    owner: { id: "owner-tania", first_name: "Tania", last_name: "Rahman", email: "tania@renthub.com.bd", is_identity_verified: true, rating: 4.9 },
+    images: [
+      { url: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=1600&q=80", is_primary: true },
+    ],
+  },
 };
 
 function getFallbackProduct(slug: string) {
@@ -687,7 +888,13 @@ function getFallbackProduct(slug: string) {
   const periodLabel = durationMode === "Weekly" ? "week" : durationMode === "Monthly" ? "month" : "day";
   const serviceFee = product ? Math.round(product.price_per_day * days * 0.06) : 0;
   const subtotal = product ? product.price_per_day * days : 0;
-  const total = subtotal + serviceFee + (product?.security_deposit || 0);
+  const discountAmount = appliedCoupon
+    ? appliedCoupon.discountPct
+      ? Math.round(subtotal * (appliedCoupon.discountPct / 100))
+      : Math.min(subtotal, appliedCoupon.flatDiscount || 0)
+    : 0;
+  const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+  const total = discountedSubtotal + serviceFee + (product?.security_deposit || 0);
 
   const images: string[] = product
     ? [
@@ -1662,22 +1869,100 @@ function getFallbackProduct(slug: string) {
                     </div>
                   </div>
 
+                  {/* Coupon Code Section */}
+                  <div className="py-2.5 px-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                        <Tag size={13} className="text-indigo-600" /> Coupon Code
+                      </label>
+                      {appliedCoupon && (
+                        <button
+                          type="button"
+                          onClick={handleRemoveCoupon}
+                          className="text-[11px] text-rose-600 hover:underline font-bold cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+
+                    {appliedCoupon ? (
+                      <div className="flex items-center justify-between p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-xs">
+                        <div className="flex items-center gap-1.5 text-emerald-800 font-extrabold">
+                          <Check size={13} className="text-emerald-600 stroke-[3]" />
+                          <span>{appliedCoupon.code}</span>
+                          <span className="text-[11px] text-emerald-700 font-medium">
+                            ({appliedCoupon.discountPct ? `${appliedCoupon.discountPct}% OFF` : `৳${appliedCoupon.flatDiscount} OFF`})
+                          </span>
+                        </div>
+                        <span className="font-extrabold text-emerald-700 text-xs">
+                          -৳ {discountAmount.toLocaleString()}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <div className="flex gap-1.5">
+                          <input
+                            type="text"
+                            value={couponCode}
+                            onChange={(e) => {
+                              setCouponCode(e.target.value.toUpperCase());
+                              setCouponError(null);
+                            }}
+                            placeholder="e.g. SAVE20"
+                            className="flex-1 px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider border border-slate-200 rounded-lg outline-none focus:border-indigo-500 bg-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleApplyCoupon()}
+                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-extrabold text-xs rounded-lg transition-all cursor-pointer"
+                          >
+                            Apply
+                          </button>
+                        </div>
+                        {couponError && (
+                          <div className="text-[11px] text-rose-600 font-medium">
+                            {couponError}
+                          </div>
+                        )}
+                        <div className="flex flex-wrap items-center gap-1">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase">Available:</span>
+                          {["SAVE20", "RENTHUB10", "EID25", "WELCOME50"].map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => handleApplyCoupon(c)}
+                              className="text-[9px] font-black px-1.5 py-0.5 rounded bg-white text-indigo-700 border border-slate-200 hover:border-indigo-300 transition-colors cursor-pointer"
+                            >
+                              {c}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Price Breakdown */}
                   <div className="space-y-2.5 py-3 border-t border-b border-slate-100">
                     {[
                       { label: `Price (${days} days)`, value: `৳ ${subtotal.toLocaleString()}` },
+                      ...(appliedCoupon ? [{
+                        label: `Coupon Discount (${appliedCoupon.code})`,
+                        value: `- ৳ ${discountAmount.toLocaleString()}`,
+                        highlight: true
+                      }] : []),
                       { label: "Service Fee", value: `৳ ${serviceFee.toLocaleString()}` },
                       { label: "Security Deposit", value: `৳ ${(product.security_deposit || 0).toLocaleString()}` },
-                    ].map(({ label, value }, i) => (
+                    ].map(({ label, value, highlight }: any, i) => (
                       <motion.div
                         key={label}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.05 }}
-                        className="flex justify-between text-xs text-slate-600"
+                        className={`flex justify-between text-xs ${highlight ? "text-emerald-700 font-bold" : "text-slate-600"}`}
                       >
                         <span>{label}</span>
-                        <span className="font-semibold text-slate-800">{value}</span>
+                        <span className={`font-semibold ${highlight ? "text-emerald-700 font-black" : "text-slate-800"}`}>{value}</span>
                       </motion.div>
                     ))}
                   </div>
@@ -1705,9 +1990,25 @@ function getFallbackProduct(slug: string) {
                     <motion.div
                       initial={{ scale: 0.9, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl text-center text-sm shadow-md flex items-center justify-center gap-2"
+                      className="w-full p-4 bg-emerald-600 text-white font-bold rounded-2xl text-center text-sm shadow-md space-y-3"
                     >
-                      <Check size={18} /> Request Submitted! Redirecting...
+                      <div className="flex items-center justify-center gap-2 font-extrabold">
+                        <Check size={18} /> Request Submitted Successfully!
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <Link
+                          href="/bookings"
+                          className="flex-1 py-2 bg-white text-emerald-800 rounded-xl text-xs font-black shadow-xs hover:bg-emerald-50 text-center transition-colors"
+                        >
+                          My Bookings
+                        </Link>
+                        <Link
+                          href="/categories"
+                          className="flex-1 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black shadow-xs text-center transition-colors"
+                        >
+                          Continue Browsing
+                        </Link>
+                      </div>
                     </motion.div>
                   ) : (
                     <div className="space-y-2">
@@ -1778,9 +2079,25 @@ function getFallbackProduct(slug: string) {
                         <motion.div
                           initial={{ scale: 0.9, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
-                          className="w-full p-3 bg-emerald-600 text-white font-bold rounded-xl text-center text-xs shadow-md flex items-center justify-center gap-2"
+                          className="w-full p-3.5 bg-emerald-600 text-white font-bold rounded-2xl text-center text-xs shadow-md space-y-2"
                         >
-                          <Check size={16} /> Bargain Offer Sent! Owner will review and respond.
+                          <div className="flex items-center justify-center gap-2 font-extrabold">
+                            <Check size={16} /> Bargain Offer Sent! Owner will review and respond.
+                          </div>
+                          <div className="flex gap-2 pt-1">
+                            <Link
+                              href="/bookings"
+                              className="flex-1 py-2 bg-white text-emerald-800 rounded-xl text-xs font-black shadow-xs hover:bg-emerald-50 text-center transition-colors"
+                            >
+                              My Bookings
+                            </Link>
+                            <Link
+                              href="/categories"
+                              className="flex-1 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black shadow-xs text-center transition-colors"
+                            >
+                              Continue Browsing
+                            </Link>
+                          </div>
                         </motion.div>
                       ) : (
                         <>
@@ -1939,25 +2256,17 @@ function getFallbackProduct(slug: string) {
                   )}
 
                   {!isOwner && (
-                    <>
-                      <MagneticButton
-                        onClick={() => requireAuth(() => setChatWarning(true))}
-                        className="w-full py-3 border-2 border-slate-200 hover:border-indigo-400 text-slate-700 hover:text-indigo-600 font-bold rounded-xl transition-all text-sm flex items-center justify-center gap-2"
-                      >
-                        <MessageCircle size={15} /> Chat with Owner
-                      </MagneticButton>
-
-                      {chatWarning && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="text-[11px] text-amber-600 bg-amber-50 p-2.5 rounded-xl border border-amber-100 flex items-start gap-1.5"
-                        >
-                          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                          Please submit a booking request or add this item to your cart first to start a chat with the owner.
-                        </motion.div>
-                      )}
-                    </>
+                    <MagneticButton
+                      onClick={() =>
+                        requireAuth(() => {
+                          const ownerId = product.owner?.id || product.owner_id || "owner-1";
+                          router.push(`/messages?user=${ownerId}&product=${product.id || product.slug}`);
+                        })
+                      }
+                      className="w-full py-3 border-2 border-slate-200 hover:border-indigo-400 text-slate-700 hover:text-indigo-600 font-bold rounded-xl transition-all text-sm flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <MessageCircle size={15} /> Chat with Owner
+                    </MagneticButton>
                   )}
 
                   <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">

@@ -340,7 +340,7 @@ export function CustomerDashboard() {
                       <div className="absolute bottom-0 left-0 right-0 p-2.5">
                         <p className="text-white text-xs font-bold leading-tight">{div.name}</p>
                         <p className="text-white/70 text-[9px]">
-                          {div.listing_count > 0 ? `${div.listing_count}+ Listings` : "Explore"}
+                          {div.listing_count === 1 ? "1 Listing" : div.listing_count > 1 ? `${div.listing_count} Listings` : "Explore"}
                         </p>
                       </div>
                     </Link>
@@ -364,7 +364,7 @@ export function CustomerDashboard() {
                         <div className="absolute bottom-0 left-0 right-0 p-2.5">
                           <p className="text-white text-xs font-bold leading-tight">{div.name}</p>
                           <p className="text-white/70 text-[9px]">
-                            {div.listing_count > 0 ? `${div.listing_count}+ Listings` : "Explore"}
+                            {div.listing_count === 1 ? "1 Listing" : div.listing_count > 1 ? `${div.listing_count} Listings` : "Explore"}
                           </p>
                         </div>
                       </Link>

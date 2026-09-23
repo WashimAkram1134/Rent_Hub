@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Union
 from uuid import UUID
 from datetime import date
 
@@ -23,7 +23,7 @@ class UserSimple(BaseModel):
         from_attributes = True
 
 class BookingCreate(BaseModel):
-    product_id: UUID
+    product_id: Union[UUID, str]
     start_date: date
     end_date: date
     delivery_option: str = "Pick-up"

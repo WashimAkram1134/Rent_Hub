@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
 import {
   ShoppingCart, Trash2, Calendar, ShieldCheck, ShieldAlert, ArrowRight, CheckCircle2,
-  AlertCircle, MapPin, Building, ChevronRight, User, Loader2, MessageCircle
+  AlertCircle, MapPin, Building, ChevronRight, User, Loader2, MessageCircle, Tag, Check
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useAuthStore } from "@/features/auth/authStore";
@@ -34,11 +34,50 @@ export default function RentalCartPage() {
     user?.identity_verification_status === "VERIFIED" ||
     user?.is_identity_verified === true;
 
-  // Calculate pricing breakdown
+  // Coupon code state
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountPct?: number; flatDiscount?: number } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+
+  const handleApplyCoupon = (codeToApply?: string) => {
+    const code = (codeToApply || couponCode).trim().toUpperCase();
+    setCouponError(null);
+    if (!code) {
+      setCouponError("Please enter a coupon code.");
+      return;
+    }
+    if (code === "SAVE20") {
+      setAppliedCoupon({ code: "SAVE20", discountPct: 20 });
+    } else if (code === "RENTHUB10") {
+      setAppliedCoupon({ code: "RENTHUB10", discountPct: 10 });
+    } else if (code === "EID25") {
+      setAppliedCoupon({ code: "EID25", discountPct: 25 });
+    } else if (code === "WELCOME50") {
+      setAppliedCoupon({ code: "WELCOME50", flatDiscount: 500 });
+    } else {
+      setCouponError("Invalid or expired coupon code.");
+      return;
+    }
+    setCouponCode(code);
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError(null);
+  };
+
+  // Calculate pricing breakdown with coupon discount
   const subtotal = items.reduce((acc, item) => acc + (item.price_per_day * 3), 0);
+  const discountAmount = appliedCoupon
+    ? appliedCoupon.discountPct
+      ? Math.round(subtotal * (appliedCoupon.discountPct / 100))
+      : Math.min(subtotal, appliedCoupon.flatDiscount || 0)
+    : 0;
+  const discountedSubtotal = Math.max(0, subtotal - discountAmount);
   const totalDeposit = items.reduce((acc, item) => acc + (item.security_deposit || 2000), 0);
-  const serviceFee = Math.round(subtotal * 0.06);
-  const grandTotal = subtotal + totalDeposit + serviceFee;
+  const serviceFee = Math.round(discountedSubtotal * 0.06);
+  const grandTotal = discountedSubtotal + totalDeposit + serviceFee;
 
   // Group items by owner
   const groupedByOwner: Record<string, typeof items> = {};
@@ -187,7 +226,7 @@ export default function RentalCartPage() {
                   View My Bookings Status
                 </Link>
                 <Link
-                  href="/"
+                  href="/categories"
                   className="px-5 py-3 border border-slate-200 text-slate-700 font-extrabold text-xs rounded-xl hover:bg-slate-50 transition-colors"
                 >
                   Continue Browsing
@@ -322,6 +361,14 @@ export default function RentalCartPage() {
                       <span className="text-slate-400">Items Total ({items.length} items)</span>
                       <span className="font-bold text-slate-800">৳ {subtotal.toLocaleString()}</span>
                     </div>
+                    {appliedCoupon && (
+                      <div className="flex justify-between text-emerald-600 font-bold">
+                        <span className="flex items-center gap-1">
+                          <Tag size={12} /> Coupon ({appliedCoupon.code})
+                        </span>
+                        <span>- ৳ {discountAmount.toLocaleString()}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-slate-400">Total Security Deposit (Refundable)</span>
                       <span className="font-bold text-slate-800">৳ {totalDeposit.toLocaleString()}</span>
@@ -335,6 +382,77 @@ export default function RentalCartPage() {
                       <span className="font-extrabold text-slate-900 text-sm">Estimated Grand Total</span>
                       <span className="text-xl font-black text-indigo-600">৳ {grandTotal.toLocaleString()}</span>
                     </div>
+                  </div>
+
+                  {/* Coupon Code Input & Available Chips */}
+                  <div className="pt-2 border-t border-slate-100 space-y-2">
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                      <Tag size={13} className="text-indigo-600" /> Have a Coupon Code?
+                    </label>
+
+                    {appliedCoupon ? (
+                      <div className="flex items-center justify-between p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl">
+                        <div className="flex items-center gap-2">
+                          <Check size={14} className="text-emerald-600 stroke-[3]" />
+                          <div>
+                            <span className="font-extrabold text-xs text-emerald-800 tracking-wide uppercase">
+                              {appliedCoupon.code}
+                            </span>
+                            <span className="text-[11px] text-emerald-700 ml-1.5 font-semibold">
+                              ({appliedCoupon.discountPct ? `${appliedCoupon.discountPct}% OFF` : `৳${appliedCoupon.flatDiscount} OFF`})
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveCoupon}
+                          className="text-xs text-slate-400 hover:text-rose-600 font-bold px-1.5 py-0.5"
+                          title="Remove coupon"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <div className="flex gap-1.5">
+                          <input
+                            type="text"
+                            value={couponCode}
+                            onChange={(e) => {
+                              setCouponCode(e.target.value.toUpperCase());
+                              setCouponError(null);
+                            }}
+                            placeholder="e.g. SAVE20"
+                            className="flex-1 px-3 py-2 text-xs font-bold uppercase tracking-wider border border-slate-200 rounded-xl outline-none focus:border-indigo-500 bg-slate-50 focus:bg-white transition-all"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleApplyCoupon()}
+                            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-extrabold text-xs rounded-xl transition-all shadow-xs"
+                          >
+                            Apply
+                          </button>
+                        </div>
+                        {couponError && (
+                          <div className="text-[11px] text-rose-600 font-medium">
+                            {couponError}
+                          </div>
+                        )}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">Available:</span>
+                          {["SAVE20", "RENTHUB10", "EID25", "WELCOME50"].map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => handleApplyCoupon(c)}
+                              className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100 transition-colors cursor-pointer"
+                            >
+                              {c}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {isAuthenticated && !isVerified ? (
