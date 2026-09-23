@@ -51,6 +51,7 @@ export function CustomerDashboard() {
   const [topOwners, setTopOwners] = useState<any[]>([]);
   const [topPerformers, setTopPerformers] = useState<any[]>([]);
   const [showAllDivisions, setShowAllDivisions] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   const { hideLoader } = useTransitionStore();
 
@@ -95,6 +96,7 @@ export function CustomerDashboard() {
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
+        setDataLoaded(true);
         hideLoader();
       }
     };
@@ -122,7 +124,9 @@ export function CustomerDashboard() {
       listing_count: dbCity?.listing_count ?? 0,
     };
   });
-  const visibleDivisions = showAllDivisions ? divisionsWithCounts : divisionsWithCounts.slice(0, 5);
+  // Always show first 5; extra 3 appear below via toggle (never put all 8 in visibleDivisions)
+  const firstRowDivisions = divisionsWithCounts.slice(0, 5);
+  const extraDivisions = divisionsWithCounts.slice(5);
 
   if (!user) return null;
 
@@ -297,8 +301,9 @@ export function CustomerDashboard() {
                     )}
                   </button>
                 </div>
+                {/* Row 1: always first 5 */}
                 <div className="grid grid-cols-5 gap-3">
-                  {visibleDivisions.map((div, i) => (
+                  {firstRowDivisions.map((div) => (
                     <Link
                       key={div.name}
                       href={`/search?city=${div.slug}`}
@@ -319,10 +324,10 @@ export function CustomerDashboard() {
                     </Link>
                   ))}
                 </div>
-                {/* Rows 2 animation: reveal smoothly */}
-                {showAllDivisions && divisionsWithCounts.length > 5 && (
+                {/* Row 2: extra 3 divisions — only shown when expanded */}
+                {showAllDivisions && extraDivisions.length > 0 && (
                   <div className="grid grid-cols-5 gap-3 mt-3">
-                    {divisionsWithCounts.slice(5).map((div) => (
+                    {extraDivisions.map((div) => (
                       <Link
                         key={div.name}
                         href={`/search?city=${div.slug}`}
@@ -383,10 +388,12 @@ export function CustomerDashboard() {
                   <Link href="/owners" className="text-[10px] font-semibold text-blue-600 hover:text-blue-700">View all</Link>
                 </div>
                 <div className="space-y-1.5">
-                  {topOwners.length === 0 ? (
+                  {!dataLoaded ? (
                     Array.from({ length: 4 }).map((_, i) => (
                       <div key={i} className="h-10 bg-slate-100 rounded-xl animate-pulse" />
                     ))
+                  ) : topOwners.length === 0 ? (
+                    <p className="text-[10px] text-slate-400 text-center py-4">No top owners yet</p>
                   ) : (
                     topOwners.slice(0, 4).map((owner: any, i: number) => {
                       const initials = `${owner.first_name?.[0] || ""}${owner.last_name?.[0] || ""}`.toUpperCase();
@@ -437,10 +444,12 @@ export function CustomerDashboard() {
                   <Link href="/products" className="text-[10px] font-semibold text-blue-600 hover:text-blue-700">View all</Link>
                 </div>
                 <div className="space-y-2">
-                  {topPerformers.length === 0 ? (
+                  {!dataLoaded ? (
                     Array.from({ length: 4 }).map((_, i) => (
                       <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />
                     ))
+                  ) : topPerformers.length === 0 ? (
+                    <p className="text-[10px] text-slate-400 text-center py-4">No top performers yet</p>
                   ) : (
                     topPerformers.slice(0, 5).map((item: any, i: number) => (
                       <Link
