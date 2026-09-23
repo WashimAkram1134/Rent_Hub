@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 import { useAuthStore } from "@/features/auth/authStore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, MapPin, LogOut, CheckCircle, Star, Plus, Clock } from "lucide-react";
+import {
+  Search, MapPin, LogOut, CheckCircle, Star, Plus, ChevronDown, ChevronUp,
+  Trophy, Crown, TrendingUp
+} from "lucide-react";
 import { useTransitionStore } from "@/store/transitionStore";
 
 import { ProductCard } from "@/components/common/ProductCard";
@@ -16,22 +19,18 @@ import { UpcomingBookingWidget } from "@/features/dashboard/components/UpcomingB
 import { DealsWidget } from "@/features/dashboard/components/DealsWidget";
 import apiClient from "@/lib/axios";
 import { useWishlistStore } from "@/store/wishlistStore";
-import { useRecentlyViewedStore } from "@/store/recentlyViewedStore";
 
-/* ─── Data ─────────────────────────────────────────────────────────────────── */
+/* ─── Bangladesh divisions data ───────────────────────────────────────────── */
 
-const wishlistImages = [
-  "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?auto=format&fit=crop&w=80&h=80&q=80",
-  "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=80&h=80&q=80",
-  "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=80&h=80&q=80",
-  "https://images.unsplash.com/photo-1541558869434-2840d308329a?auto=format&fit=crop&w=80&h=80&q=80",
-];
-
-const topOwners = [
-  { name: "Rashed H.", rating: 4.9, listings: 76, initials: "RH", color: "bg-blue-500" },
-  { name: "Nusrat J.", rating: 4.8, listings: 98, initials: "NJ", color: "bg-rose-500" },
-  { name: "Mahmudul I.", rating: 4.9, listings: 76, initials: "MI", color: "bg-emerald-500" },
-  { name: "Olivia S.", rating: 4.8, listings: 62, initials: "OS", color: "bg-amber-500" },
+const BD_DIVISIONS = [
+  { name: "Dhaka", image_url: "https://images.unsplash.com/photo-1587293852726-70cdb56c2866?auto=format&fit=crop&w=400&q=80", slug: "dhaka" },
+  { name: "Chattogram", image_url: "https://images.unsplash.com/photo-1534430480872-3498386e7856?auto=format&fit=crop&w=400&q=80", slug: "chattogram" },
+  { name: "Sylhet", image_url: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=400&q=80", slug: "sylhet" },
+  { name: "Cox's Bazar", image_url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80", slug: "coxs-bazar" },
+  { name: "Rajshahi", image_url: "https://images.unsplash.com/photo-1486325212027-8081e485255e?auto=format&fit=crop&w=400&q=80", slug: "rajshahi" },
+  { name: "Khulna", image_url: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?auto=format&fit=crop&w=400&q=80", slug: "khulna" },
+  { name: "Barishal", image_url: "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?auto=format&fit=crop&w=400&q=80", slug: "barishal" },
+  { name: "Mymensingh", image_url: "https://images.unsplash.com/photo-1504474298956-9e3ddf57c3c5?auto=format&fit=crop&w=400&q=80", slug: "mymensingh" },
 ];
 
 /* ─── Component ─────────────────────────────────────────────────────────────── */
@@ -39,8 +38,7 @@ const topOwners = [
 export function CustomerDashboard() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
-  const { items: wishlistStoreItems } = useWishlistStore();
-  const { items: recentlyViewedItems, fetchItems: fetchRecentlyViewed, clearHistory } = useRecentlyViewedStore();
+  const { items: wishlistStoreItems, syncFromServer } = useWishlistStore();
 
   // State
   const [heroSlides, setHeroSlides] = useState<any[]>([]);
@@ -50,6 +48,9 @@ export function CustomerDashboard() {
   const [cities, setCities] = useState<any[]>([]);
   const [deals, setDeals] = useState<any[]>([]);
   const [upcomingBooking, setUpcomingBooking] = useState<any>(null);
+  const [topOwners, setTopOwners] = useState<any[]>([]);
+  const [topPerformers, setTopPerformers] = useState<any[]>([]);
+  const [showAllDivisions, setShowAllDivisions] = useState(false);
 
   const { hideLoader } = useTransitionStore();
 
@@ -59,36 +60,41 @@ export function CustomerDashboard() {
 
   // Fetch data
   useEffect(() => {
-    fetchRecentlyViewed();
+    // Sync wishlist from DB for logged-in user
+    syncFromServer();
+
     const fetchData = async () => {
       try {
-        const [bannersRes, catsRes, productsRes, recommendedRes, citiesRes, dealsRes, bookingsRes] = await Promise.all([
+        const [bannersRes, catsRes, productsRes, recommendedRes, citiesRes, dealsRes, bookingsRes, topOwnersRes, topPerfRes] = await Promise.all([
           apiClient.get("/cms/hero-slides").then(r => r.data).catch(() => []),
           apiClient.get("/cms/categories").then(r => r.data).catch(() => []),
           apiClient.get("/products", { params: { trending: true, limit: 4 } }).then(r => r.data).catch(() => []),
-          apiClient.get("/products", { params: { recommended: true, limit: 4 } }).then(r => r.data).catch(() => []),
+          apiClient.get("/products", { params: { recommended: true, limit: 8 } }).then(r => r.data).catch(() => []),
           apiClient.get("/cms/cities").then(r => r.data).catch(() => []),
           apiClient.get("/cms/deals").then(r => r.data).catch(() => []),
           apiClient.get("/bookings", { params: { upcoming: true, limit: 1 } }).then(r => r.data).catch(() => []),
+          apiClient.get("/cms/top-owners").then(r => r.data).catch(() => []),
+          apiClient.get("/cms/top-performers").then(r => r.data).catch(() => []),
         ]);
-        
+
         setHeroSlides(bannersRes || []);
-        
+
         const fetchedCats = catsRes || [];
         setCategories([...fetchedCats, { name: "More", slug: "more", icon_url: "" }]);
-        
+
         setTrendingItems(productsRes || []);
         setRecommended(recommendedRes || []);
         setCities(citiesRes || []);
         setDeals(dealsRes || []);
-        
+        setTopOwners(topOwnersRes || []);
+        setTopPerformers(topPerfRes || []);
+
         if (bookingsRes && bookingsRes.length > 0) {
           setUpcomingBooking(bookingsRes[0]);
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
-        // Data is ready — hide the global transition overlay
         hideLoader();
       }
     };
@@ -97,17 +103,6 @@ export function CustomerDashboard() {
 
   const toggleWishlist = (id: string) => {
     setWishlist((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-  };
-
-  const formatTimeAgo = (dateStr?: string | null) => {
-    if (!dateStr) return "Recently viewed";
-    const diffMs = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diffMs / (1000 * 60));
-    if (mins < 1) return "Just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
   };
 
   const handleSignOut = async () => {
@@ -119,17 +114,24 @@ export function CustomerDashboard() {
     }
   };
 
+  // Merge DB cities with all 8 divisions (fill listing_count from DB where available)
+  const divisionsWithCounts = BD_DIVISIONS.map((div) => {
+    const dbCity = cities.find((c: any) => c.name?.toLowerCase() === div.name.toLowerCase());
+    return {
+      ...div,
+      listing_count: dbCity?.listing_count ?? 0,
+    };
+  });
+  const visibleDivisions = showAllDivisions ? divisionsWithCounts : divisionsWithCounts.slice(0, 5);
+
   if (!user) return null;
 
   return (
     <AppShell showHeader={false}>
-
-      {/* ── Right Side (Header + Content) ───────────────────────────────── */}
       <div className="flex flex-col min-w-0 h-full" style={{ fontFamily: "'Inter', sans-serif" }}>
 
-        {/* Top Header — high z-index (z-50) so dropdowns appear in front of page body */}
+        {/* Top Header */}
         <header className="relative z-50 bg-white border-b border-gray-100 px-5 py-3 flex items-center gap-3 shrink-0 shadow-xs">
-          {/* Search Bar */}
           <div className="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 max-w-sm focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
             <Search size={16} className="text-slate-400 shrink-0" />
             <input
@@ -142,14 +144,13 @@ export function CustomerDashboard() {
 
           <div className="flex-1" />
 
-          {/* Location */}
           <button className="flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:text-blue-600 transition-colors">
             <MapPin size={16} /> Dhaka
           </button>
-          
+
           <div className="w-px h-6 bg-slate-200 mx-2" />
 
-          {/* User Profile Dropdown — Always appears in front */}
+          {/* User Profile Dropdown */}
           <div className="relative group">
             <button
               onClick={() => setProfileMenuOpen(!profileMenuOpen)}
@@ -161,7 +162,6 @@ export function CustomerDashboard() {
               </div>
             </button>
 
-            {/* Dropdown Menu — z-50, elevated above any transformed page content */}
             <div className={`absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 transition-all duration-150 ${
               profileMenuOpen ? "opacity-100 visible" : "opacity-0 invisible group-hover:opacity-100 group-hover:visible"
             }`}>
@@ -174,25 +174,13 @@ export function CustomerDashboard() {
               </div>
 
               <div className="py-1">
-                <Link
-                  href="/profile"
-                  onClick={() => setProfileMenuOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2 transition-colors"
-                >
+                <Link href="/profile" onClick={() => setProfileMenuOpen(false)} className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2 transition-colors">
                   My Profile
                 </Link>
-                <Link
-                  href="/bookings"
-                  onClick={() => setProfileMenuOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2 transition-colors"
-                >
+                <Link href="/bookings" onClick={() => setProfileMenuOpen(false)} className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2 transition-colors">
                   My Bookings
                 </Link>
-                <Link
-                  href="/wishlist"
-                  onClick={() => setProfileMenuOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2 transition-colors"
-                >
+                <Link href="/wishlist" onClick={() => setProfileMenuOpen(false)} className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2 transition-colors">
                   Saved Wishlist
                 </Link>
               </div>
@@ -216,17 +204,17 @@ export function CustomerDashboard() {
             {/* ── Center Content ──────────────────────────────────── */}
             <div className="flex-1 min-w-0 space-y-5">
 
-              {/* Hero Slider — scale in */}
+              {/* Hero Slider */}
               <div className="anim-scale-in anim-delay-100">
                 <HeroSlider slides={heroSlides} />
               </div>
-              
-              {/* Category Grid — fade up */}
+
+              {/* Category Grid */}
               <div className="anim-fade-up anim-delay-200">
                 <CategoryGrid categories={categories} />
               </div>
 
-              {/* Trending Near You — fade up */}
+              {/* Trending Near You */}
               <div className="anim-fade-up anim-delay-300">
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-sm font-bold text-slate-900">Trending Near You</h2>
@@ -251,116 +239,120 @@ export function CustomerDashboard() {
                 </div>
               </div>
 
-              {/* Continue Browsing + Recommended — fade up */}
-              <div className="anim-fade-up anim-delay-400 grid grid-cols-2 gap-5">
-
-                {/* Continue Browsing */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-sm font-bold text-slate-900">Continue Browsing</h2>
-                    {recentlyViewedItems.length > 0 && (
-                      <button
-                        onClick={clearHistory}
-                        className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                        title="Clear browsing history"
+              {/* Recommended for you — full width, 8 cards */}
+              <div className="anim-fade-up anim-delay-400">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-bold text-slate-900">Recommended for you</h2>
+                  <Link href="/products" className="text-xs font-semibold text-blue-600 hover:text-blue-700">View all</Link>
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  {recommended.length === 0 ? (
+                    Array.from({ length: 8 }).map((_, i) => (
+                      <div key={i} className="h-[150px] bg-slate-200/70 rounded-xl animate-pulse" />
+                    ))
+                  ) : (
+                    recommended.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={`/products/${item.slug || item.id}`}
+                        className="bg-white rounded-xl overflow-hidden border border-slate-100 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group block cursor-pointer"
                       >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {recentlyViewedItems.slice(0, 4).map((item, i) => {
-                      const img = item.image_url || item.image || "https://images.unsplash.com/photo-1556189250-72ba954cfc2b?auto=format&fit=crop&w=300&q=80";
-                      const title = item.name || item.title || "Item";
-                      const timeAgo = formatTimeAgo(item.viewed_at);
-
-                      return (
-                        <Link
-                          key={item.id || i}
-                          href={`/products/${item.slug || item.id}`}
-                          className="relative rounded-2xl overflow-hidden h-[92px] group cursor-pointer block bg-slate-100 shadow-xs border border-slate-100/60"
-                        >
+                        <div className="h-[100px] overflow-hidden">
                           <img
-                            src={img}
-                            alt={title}
+                            src={item.image_url}
+                            alt={item.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent group-hover:from-black/90 transition-colors" />
-                          
-                          <div className="absolute bottom-2 left-0 right-0 px-2">
-                            <p className="text-white text-[11px] font-bold truncate group-hover:text-blue-200 transition-colors">
-                              {title}
-                            </p>
+                        </div>
+                        <div className="p-2.5">
+                          <p className="text-[10px] font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                            {item.title}
+                          </p>
+                          <div className="flex items-center gap-0.5 mt-0.5">
+                            <Star size={8} className="fill-amber-400 text-amber-400" />
+                            <span className="text-[9px] text-slate-600">{item.avg_rating || "0"}</span>
                           </div>
-
-                          {/* Clock icon with tooltip */}
-                          <div
-                            className="absolute top-1.5 right-1.5 w-5 h-5 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center backdrop-blur-md text-white/90 shadow-xs group-hover:bg-indigo-600 transition-colors"
-                            title={timeAgo}
-                          >
-                            <Clock size={9} />
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Recommended */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-sm font-bold text-slate-900">Recommended for you</h2>
-                    <Link href="/products" className="text-xs font-semibold text-blue-600 hover:text-blue-700">View all</Link>
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {recommended.length === 0 ? (
-                      Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="h-[135px] bg-slate-200/70 rounded-xl animate-pulse" />
-                      ))
-                    ) : (
-                      recommended.map((item) => (
-                        <Link
-                          key={item.id}
-                          href={`/products/${item.slug || item.id}`}
-                          className="bg-white rounded-xl overflow-hidden border border-slate-100 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200 group block cursor-pointer"
-                        >
-                          <div className="h-[90px] overflow-hidden">
-                            <img
-                              src={item.image_url}
-                              alt={item.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                          </div>
-                          <div className="p-2">
-                            <p className="text-[10px] font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
-                              {item.title}
-                            </p>
-                            <div className="flex items-center gap-0.5 mt-0.5">
-                              <Star size={8} className="fill-amber-400 text-amber-400" />
-                              <span className="text-[9px] text-slate-600">{item.avg_rating}</span>
-                            </div>
-                            <p className="text-[10px] font-bold text-blue-700 mt-1">
-                              ৳ {item.price_per_day} <span className="font-normal text-slate-400">/ day</span>
-                            </p>
-                          </div>
-                        </Link>
-                      ))
-                    )}
-                  </div>
+                          <p className="text-[10px] font-bold text-blue-700 mt-1">
+                            ৳ {item.price_per_day} <span className="font-normal text-slate-400">/ day</span>
+                          </p>
+                        </div>
+                      </Link>
+                    ))
+                  )}
                 </div>
               </div>
 
-              {/* City Explorer — fade up */}
+              {/* Explore Bangladesh — all 8 divisions, 5 visible + toggle */}
               <div className="anim-fade-up anim-delay-500">
-                <CityExplorer cities={cities} />
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-bold text-slate-900">Explore Bangladesh</h2>
+                  <button
+                    onClick={() => setShowAllDivisions((v) => !v)}
+                    className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+                  >
+                    {showAllDivisions ? (
+                      <><ChevronUp size={14} /> Show less</>
+                    ) : (
+                      <><ChevronDown size={14} /> View all</>
+                    )}
+                  </button>
+                </div>
+                <div className="grid grid-cols-5 gap-3">
+                  {visibleDivisions.map((div, i) => (
+                    <Link
+                      key={div.name}
+                      href={`/search?city=${div.slug}`}
+                      className="relative rounded-xl overflow-hidden h-[90px] group cursor-pointer block"
+                    >
+                      <img
+                        src={div.image_url}
+                        alt={div.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                        <p className="text-white text-xs font-bold leading-tight">{div.name}</p>
+                        <p className="text-white/70 text-[9px]">
+                          {div.listing_count > 0 ? `${div.listing_count}+ Listings` : "Explore"}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+                {/* Rows 2 animation: reveal smoothly */}
+                {showAllDivisions && divisionsWithCounts.length > 5 && (
+                  <div className="grid grid-cols-5 gap-3 mt-3">
+                    {divisionsWithCounts.slice(5).map((div) => (
+                      <Link
+                        key={div.name}
+                        href={`/search?city=${div.slug}`}
+                        className="relative rounded-xl overflow-hidden h-[90px] group cursor-pointer block"
+                      >
+                        <img
+                          src={div.image_url}
+                          alt={div.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                          <p className="text-white text-xs font-bold leading-tight">{div.name}</p>
+                          <p className="text-white/70 text-[9px]">
+                            {div.listing_count > 0 ? `${div.listing_count}+ Listings` : "Explore"}
+                          </p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
+
             </div>
 
-            {/* ── Right Column — slides in from right ──────────────── */}
+            {/* ── Right Column ──────────────────────────────────── */}
             <div className="anim-slide-right anim-delay-200 w-[270px] shrink-0 space-y-4">
-              
+
               <UpcomingBookingWidget booking={upcomingBooking} />
-              
+
               <DealsWidget deals={deals} />
 
               {/* Wishlist Widget */}
@@ -381,35 +373,115 @@ export function CustomerDashboard() {
                 </div>
               </div>
 
-              {/* Top Owners */}
+              {/* Top Owners — dynamic from DB */}
               <div className="anim-fade-up anim-delay-500">
                 <div className="flex items-center justify-between mb-2.5">
-                  <h3 className="text-xs font-bold text-slate-900">Top Owners</h3>
+                  <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <Crown size={12} className="text-amber-500" />
+                    Top Owners
+                  </h3>
                   <Link href="/owners" className="text-[10px] font-semibold text-blue-600 hover:text-blue-700">View all</Link>
                 </div>
                 <div className="space-y-1.5">
-                  {topOwners.map((owner, i) => (
-                    <div key={i} className="flex items-center justify-between p-2 rounded-xl hover:bg-white transition-colors border border-transparent hover:border-slate-100 hover:shadow-sm cursor-pointer">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 rounded-full ${owner.color} text-white flex items-center justify-center text-[10px] font-bold shadow-sm ring-2 ring-white`}>
-                          {owner.initials}
+                  {topOwners.length === 0 ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="h-10 bg-slate-100 rounded-xl animate-pulse" />
+                    ))
+                  ) : (
+                    topOwners.slice(0, 4).map((owner: any, i: number) => {
+                      const initials = `${owner.first_name?.[0] || ""}${owner.last_name?.[0] || ""}`.toUpperCase();
+                      const colors = ["bg-blue-500", "bg-rose-500", "bg-emerald-500", "bg-amber-500", "bg-purple-500", "bg-cyan-500"];
+                      const color = colors[i % colors.length];
+                      return (
+                        <Link
+                          key={owner.id}
+                          href={`/owners/${owner.id}`}
+                          className="flex items-center justify-between p-2 rounded-xl hover:bg-white transition-colors border border-transparent hover:border-slate-100 hover:shadow-sm cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            {owner.avatar_url ? (
+                              <img src={owner.avatar_url} alt={owner.full_name} className="w-8 h-8 rounded-full object-cover ring-2 ring-white shadow-sm" />
+                            ) : (
+                              <div className={`w-8 h-8 rounded-full ${color} text-white flex items-center justify-center text-[10px] font-bold shadow-sm ring-2 ring-white`}>
+                                {initials}
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-xs font-bold text-slate-900 leading-tight flex items-center gap-1">
+                                {owner.first_name} {owner.last_name?.[0]}.
+                                {owner.is_verified && <CheckCircle size={10} className="text-blue-500" />}
+                              </p>
+                              <p className="text-[9px] text-slate-500 mt-0.5">{owner.listing_count} listings</p>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <div className="flex items-center gap-0.5 bg-amber-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-amber-600">
+                              <Star size={8} className="fill-current" />
+                              {owner.avg_rating > 0 ? owner.avg_rating : "New"}
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Top Performer Items — dynamic from DB */}
+              <div className="anim-fade-up anim-delay-600">
+                <div className="flex items-center justify-between mb-2.5">
+                  <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <Trophy size={12} className="text-indigo-500" />
+                    Top Performers
+                  </h3>
+                  <Link href="/products" className="text-[10px] font-semibold text-blue-600 hover:text-blue-700">View all</Link>
+                </div>
+                <div className="space-y-2">
+                  {topPerformers.length === 0 ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />
+                    ))
+                  ) : (
+                    topPerformers.slice(0, 5).map((item: any, i: number) => (
+                      <Link
+                        key={item.id}
+                        href={`/products/${item.slug || item.id}`}
+                        className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-white border border-transparent hover:border-slate-100 hover:shadow-sm transition-all group"
+                      >
+                        {/* Rank badge */}
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0 ${
+                          i === 0 ? "bg-amber-400 text-white" :
+                          i === 1 ? "bg-slate-400 text-white" :
+                          i === 2 ? "bg-orange-400 text-white" :
+                          "bg-slate-100 text-slate-500"
+                        }`}>
+                          {i + 1}
                         </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-900 leading-tight flex items-center gap-1">
-                            {owner.name}
-                            <CheckCircle size={10} className="text-blue-500" />
+                        <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 bg-slate-100">
+                          <img
+                            src={item.image_url}
+                            alt={item.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
+                            {item.title}
                           </p>
-                          <p className="text-[9px] text-slate-500 mt-0.5">{owner.listings} listings</p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <div className="flex items-center gap-0.5">
+                              <Star size={7} className="fill-amber-400 text-amber-400" />
+                              <span className="text-[8px] text-slate-500">{item.avg_rating || "0"}</span>
+                            </div>
+                            <span className="text-[7px] text-slate-300">•</span>
+                            <TrendingUp size={7} className="text-emerald-500" />
+                            <span className="text-[8px] text-slate-500">{item.booking_count} booked</span>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex flex-col items-end">
-                        <div className="flex items-center gap-0.5 bg-amber-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-amber-600">
-                          <Star size={8} className="fill-current" />
-                          {owner.rating}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                        <div className="text-[9px] font-black text-indigo-600 shrink-0">৳{item.price_per_day}</div>
+                      </Link>
+                    ))
+                  )}
                 </div>
               </div>
 

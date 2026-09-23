@@ -81,6 +81,114 @@ async def get_categories(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Category).where(Category.is_active == True).order_by(Category.sort_order))
     return result.scalars().all()
 
+
+@router.get("/top-owners")
+async def get_top_owners(limit: int = 8, db: AsyncSession = Depends(get_db)):
+    """
+    Return top rental owners sorted by listing count then average rating.
+    Pulls real data from the users + products tables.
+    """
+    from app.models.user import User, Role
+    from app.models.product import Product
+    from app.models.booking import Review
+    from sqlalchemy.orm import selectinload
+
+    # Fetch all active owner users
+    stmt = (
+        select(User)
+        .options(selectinload(User.roles))
+        .join(User.roles)
+        .where(Role.name == "owner", User.is_active == True, User.deleted_at.is_(None))
+        .distinct()
+    )
+    res = await db.execute(stmt)
+    owners = res.scalars().all()
+
+    items = []
+    for u in owners:
+        listing_count = await db.scalar(
+            select(func.count(Product.id)).where(
+                Product.owner_id == u.id,
+                Product.is_active == True,
+                Product.status.in_(["APPROVED", "ACTIVE"])
+            )
+        ) or 0
+
+        avg_rating_val = await db.scalar(
+            select(func.avg(Review.rating)).where(Review.reviewee_id == u.id)
+        )
+        avg_rating = round(float(avg_rating_val), 1) if avg_rating_val else 0.0
+
+        items.append({
+            "id": str(u.id),
+            "first_name": u.first_name,
+            "last_name": u.last_name,
+            "full_name": f"{u.first_name} {u.last_name}",
+            "avatar_url": u.avatar_url,
+            "listing_count": listing_count,
+            "avg_rating": avg_rating,
+            "is_verified": u.identity_verification_status == "VERIFIED",
+        })
+
+    # Sort: by listing_count desc, then avg_rating desc
+    items.sort(key=lambda x: (-x["listing_count"], -x["avg_rating"]))
+    return items[:limit]
+
+
+@router.get("/top-performers")
+async def get_top_performers(limit: int = 6, db: AsyncSession = Depends(get_db)):
+    """
+    Return top-performing rental products by avg_rating * booking volume.
+    """
+    from app.models.product import Product, ProductImage
+    from app.models.booking import Booking
+    from app.models.category import Category as Cat
+    from sqlalchemy.orm import selectinload
+
+    stmt = (
+        select(Product)
+        .options(
+            selectinload(Product.images),
+            selectinload(Product.owner),
+            selectinload(Product.category),
+        )
+        .where(Product.is_active == True, Product.status.in_(["APPROVED", "ACTIVE"]))
+        .order_by(Product.avg_rating.desc(), Product.review_count.desc())
+        .limit(limit * 3)  # fetch extra for booking sort
+    )
+    res = await db.execute(stmt)
+    products = res.scalars().all()
+
+    result = []
+    for p in products:
+        booking_count = await db.scalar(
+            select(func.count(Booking.id)).where(Booking.product_id == p.id)
+        ) or 0
+
+        imgs = sorted(p.images, key=lambda i: i.sort_order) if p.images else []
+        img_url = next((img.url for img in imgs if img.is_primary), imgs[0].url if imgs else None)
+
+        result.append({
+            "id": str(p.id),
+            "title": p.title,
+            "slug": p.slug,
+            "price_per_day": float(p.price_per_day),
+            "avg_rating": float(p.avg_rating) if p.avg_rating else 0.0,
+            "review_count": p.review_count or 0,
+            "booking_count": booking_count,
+            "image_url": img_url or "https://images.unsplash.com/photo-1556189250-72ba954cfc2b?auto=format&fit=crop&w=400&q=80",
+            "city": p.city or "Dhaka",
+            "area": p.area or "Central",
+            "category": p.category.name if p.category else "General",
+            "owner_name": f"{p.owner.first_name} {p.owner.last_name}" if p.owner else "Owner",
+            "owner_avatar": p.owner.avatar_url if p.owner else None,
+            "score": float(p.avg_rating or 0) * 0.6 + booking_count * 0.4,
+        })
+
+    result.sort(key=lambda x: -x["score"])
+    return result[:limit]
+
+
 # ── Admin Location / City Management Endpoints ───────────────────────────────
 
 @router.get("/admin/cities")

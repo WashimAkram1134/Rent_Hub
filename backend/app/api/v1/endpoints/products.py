@@ -577,3 +577,93 @@ async def delete_product(
         
     await db.delete(product)
     await db.commit()
+
+
+# ── Wishlist / Favorites (DB-backed) ─────────────────────────────────────────
+
+from app.models.product import Favorite
+from app.auth.dependencies import get_current_user
+
+@router.get("/wishlist/me")
+async def get_my_wishlist(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the authenticated user's saved (wishlisted) products."""
+    stmt = (
+        select(Product)
+        .options(
+            selectinload(Product.images),
+            selectinload(Product.category),
+        )
+        .join(Favorite, Favorite.product_id == Product.id)
+        .where(Favorite.user_id == current_user.id, Product.is_active == True)
+        .order_by(Favorite.created_at.desc())
+    )
+    res = await db.execute(stmt)
+    products = res.scalars().all()
+
+    items = []
+    for p in products:
+        imgs = sorted(p.images, key=lambda i: i.sort_order) if p.images else []
+        img_url = next((img.url for img in imgs if img.is_primary), imgs[0].url if imgs else None)
+        items.append({
+            "id": str(p.id),
+            "title": p.title,
+            "slug": p.slug,
+            "price_per_day": float(p.price_per_day),
+            "avg_rating": float(p.avg_rating) if p.avg_rating else 0.0,
+            "review_count": p.review_count or 0,
+            "image_url": img_url or "",
+            "city": p.city or "Dhaka",
+            "category": p.category.name if p.category else "General",
+        })
+    return items
+
+
+@router.post("/{product_id}/wishlist")
+async def toggle_wishlist(
+    product_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle a product in/out of the current user's wishlist (favorites)."""
+    try:
+        prod_uuid = uuid.UUID(product_id)
+    except ValueError:
+        # Try slug lookup
+        p = await db.scalar(select(Product).where(Product.slug == product_id))
+        if not p:
+            raise HTTPException(status_code=404, detail="Product not found")
+        prod_uuid = p.id
+
+    existing = await db.scalar(
+        select(Favorite).where(
+            Favorite.user_id == current_user.id,
+            Favorite.product_id == prod_uuid,
+        )
+    )
+    if existing:
+        await db.delete(existing)
+        await db.commit()
+        return {"wishlisted": False}
+    else:
+        fav = Favorite(user_id=current_user.id, product_id=prod_uuid)
+        db.add(fav)
+        await db.commit()
+        return {"wishlisted": True}
+
+
+@router.delete("/wishlist/me/clear", status_code=204)
+async def clear_wishlist(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove all favorites for the current user."""
+    favs_res = await db.execute(
+        select(Favorite).where(Favorite.user_id == current_user.id)
+    )
+    for fav in favs_res.scalars().all():
+        await db.delete(fav)
+    await db.commit()
+

@@ -11,15 +11,18 @@ import { useAuthStore } from "@/features/auth/authStore";
 export default function WishlistPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
-  const { items, toggleWishlist, clearWishlist } = useWishlistStore();
+  const { items, toggleWishlist, clearWishlist, syncFromServer } = useWishlistStore();
   const [selectedCat, setSelectedCat] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (!isAuthenticated) {
       router.replace(`/login?returnUrl=${encodeURIComponent("/wishlist")}`);
+    } else {
+      syncFromServer();
     }
   }, [isAuthenticated, router]);
+
 
   const categories = ["all", "Vehicles", "Cameras", "Electronics", "Apartments", "Furniture", "Sports"];
 
@@ -33,6 +36,8 @@ export default function WishlistPage() {
       (item.location && item.location.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesCat && matchesSearch;
   });
+
+  const [confirmClear, setConfirmClear] = useState(false);
 
   return (
     <AppShell>
@@ -60,18 +65,31 @@ export default function WishlistPage() {
             </div>
 
             {items.length > 0 && (
-              <button
-                onClick={() => {
-                  if (confirm("Are you sure you want to clear your entire wishlist?")) {
-                    clearWishlist();
-                  }
-                }}
-                className="flex items-center gap-1.5 border border-rose-200 text-rose-600 hover:bg-rose-50 px-3.5 py-2 rounded-xl text-xs font-bold transition-all self-start sm:self-auto shadow-sm"
-              >
-                <Trash2 size={14} /> Clear Wishlist
-              </button>
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                {confirmClear ? (
+                  <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+                    <span className="text-xs text-rose-700 font-semibold">Clear all?</span>
+                    <button
+                      onClick={() => { clearWishlist(); setConfirmClear(false); }}
+                      className="text-xs font-bold text-rose-600 hover:text-rose-800 transition-colors"
+                    >Yes</button>
+                    <button
+                      onClick={() => setConfirmClear(false)}
+                      className="text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors"
+                    >Cancel</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmClear(true)}
+                    className="flex items-center gap-1.5 border border-rose-200 text-rose-600 hover:bg-rose-50 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
+                  >
+                    <Trash2 size={14} /> Clear Wishlist
+                  </button>
+                )}
+              </div>
             )}
           </div>
+
 
           {/* Search & Category Filter Bar */}
           <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
