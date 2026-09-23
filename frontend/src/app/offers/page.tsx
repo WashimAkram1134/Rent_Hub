@@ -258,7 +258,7 @@ export default function DealsAndOffersPage() {
               {/* Deals Cards Grid (3 Columns) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filteredDeals.map((item) => {
-                  const isFav = isWishlisted(item.id);
+                  const isFav = isWishlisted(item.id) || ((item as any).slug && isWishlisted((item as any).slug));
                   return (
                     <div
                       key={item.id}
@@ -278,9 +278,11 @@ export default function DealsAndOffersPage() {
 
                         {/* Love Wishlist Icon */}
                         <button
+                          type="button"
                           onClick={() =>
                             toggleWishlist({
                               id: item.id,
+                              slug: (item as any).slug || item.id,
                               title: item.title,
                               category: item.category,
                               image_url: item.image,

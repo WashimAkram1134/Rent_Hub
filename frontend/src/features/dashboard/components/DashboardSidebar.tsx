@@ -85,7 +85,16 @@ export function DashboardSidebar({
   // Build navigation items based on active role mode
   const isOwnerMode = activeRole === "owner";
 
-  const mainNav = isOwnerMode
+  interface NavItem {
+    icon: any;
+    label: string;
+    href: string;
+    badge?: number | string;
+    isSubmenu?: boolean;
+    subItems?: { label: string; href: string; badge?: number | string }[];
+  }
+
+  const mainNav: NavItem[] = isOwnerMode
     ? [
         { icon: Home, label: "Dashboard", href: "/dashboard" },
         { icon: Package, label: "My Listings", href: "/listings" },

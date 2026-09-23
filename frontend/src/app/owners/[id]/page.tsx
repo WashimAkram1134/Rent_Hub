@@ -38,6 +38,7 @@ import {
 import apiClient from "@/lib/axios";
 import Navbar from "@/components/common/Navbar";
 import Footer from "@/components/common/Footer";
+import { useWishlistStore } from "@/store/wishlistStore";
 
 interface OwnerListing {
   id: string;
@@ -118,7 +119,7 @@ export default function OwnerProfilePage() {
   const [showPhone, setShowPhone] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
-  const [wishlist, setWishlist] = useState<Record<string, boolean>>({});
+  const { toggleWishlist: storeToggleWishlist, isWishlisted: checkIsWishlisted } = useWishlistStore();
 
   useEffect(() => {
     if (!ownerId) return;
@@ -156,10 +157,20 @@ export default function OwnerProfilePage() {
     }
   };
 
-  const toggleWishlist = (id: string, e: React.MouseEvent) => {
+  const toggleWishlist = (item: any, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setWishlist((prev) => ({ ...prev, [id]: !prev[id] }));
+    storeToggleWishlist({
+      id: item.id,
+      slug: item.slug,
+      title: item.title,
+      image_url: item.image_url,
+      price_per_day: item.price_per_day,
+      rating: item.avg_rating,
+      review_count: item.review_count,
+      location: item.city || item.area || "Dhaka",
+      category: item.category || "General",
+    });
   };
 
   // Helper for category badge icons
@@ -472,13 +483,21 @@ export default function OwnerProfilePage() {
 
                           {/* Heart wishlist */}
                           <button
-                            onClick={(e) => toggleWishlist(item.id, e)}
-                            className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white/90 backdrop-blur-xs flex items-center justify-center text-slate-600 hover:text-rose-600 transition-colors shadow-xs"
-                            title="Add to wishlist"
+                            onClick={(e) => toggleWishlist(item, e)}
+                            className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white/90 backdrop-blur-xs flex items-center justify-center text-slate-600 hover:text-rose-600 transition-colors shadow-xs active:scale-90"
+                            title={
+                              checkIsWishlisted(item.id) || (item.slug && checkIsWishlisted(item.slug))
+                                ? "Remove from wishlist"
+                                : "Add to wishlist"
+                            }
                           >
                             <Heart
                               size={14}
-                              className={wishlist[item.id] ? "fill-rose-500 text-rose-500" : ""}
+                              className={
+                                checkIsWishlisted(item.id) || (item.slug && checkIsWishlisted(item.slug))
+                                  ? "fill-rose-500 text-rose-500"
+                                  : ""
+                              }
                             />
                           </button>
                         </Link>

@@ -9,9 +9,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, MapPin, SlidersHorizontal, Star, ArrowRight,
   RotateCcw, Sparkles, Filter, ChevronDown, Check, X,
-  ShieldCheck, PackageOpen
+  ShieldCheck, PackageOpen, Heart
 } from "lucide-react";
 import apiClient from "@/lib/axios";
+import { useWishlistStore } from "@/store/wishlistStore";
 
 // ── Curated Showcase / Fallback Catalog ───────────────────────────────────────
 export interface SearchItem {
@@ -220,6 +221,7 @@ const CITIES = ["All Cities", "Dhaka", "Chattogram", "Sylhet", "Cox's Bazar", "R
 function SearchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { toggleWishlist: storeToggleWishlist, isWishlisted: checkIsWishlisted } = useWishlistStore();
 
   const initialQuery = searchParams.get("q") || "";
   const initialCity = searchParams.get("city") || "";
@@ -590,7 +592,9 @@ function SearchContent() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                {filteredResults.map((item) => (
+                {filteredResults.map((item) => {
+                  const isFav = checkIsWishlisted(item.id) || (item.slug && checkIsWishlisted(item.slug));
+                  return (
                   <motion.div
                     key={item.id}
                     whileHover={{ y: -4, scale: 1.01 }}
@@ -619,10 +623,37 @@ function SearchContent() {
                           </span>
                         </div>
 
-                        {/* Rating */}
-                        <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md rounded-full px-2 py-0.5 text-[11px] font-bold text-amber-300 flex items-center gap-1">
-                          <Star size={11} className="fill-amber-400 text-amber-400" />
-                          <span>{item.avg_rating}</span>
+                        {/* Rating & Wishlist */}
+                        <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10">
+                          <div className="bg-black/60 backdrop-blur-md rounded-full px-2 py-0.5 text-[11px] font-bold text-amber-300 flex items-center gap-1">
+                            <Star size={11} className="fill-amber-400 text-amber-400" />
+                            <span>{item.avg_rating}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              storeToggleWishlist({
+                                id: item.id,
+                                slug: item.slug,
+                                title: item.title,
+                                image_url: item.image_url,
+                                price_per_day: item.price_per_day,
+                                rating: item.avg_rating,
+                                review_count: item.review_count,
+                                location: `${item.area}, ${item.city}`,
+                                category: item.category,
+                              });
+                            }}
+                            className="w-7 h-7 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-slate-300 hover:text-rose-500 transition-colors active:scale-90"
+                            title={isFav ? "Remove from wishlist" : "Add to wishlist"}
+                          >
+                            <Heart
+                              size={13}
+                              className={isFav ? "fill-rose-500 text-rose-500" : ""}
+                            />
+                          </button>
                         </div>
                       </div>
 
@@ -657,7 +688,8 @@ function SearchContent() {
                       </Link>
                     </div>
                   </motion.div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

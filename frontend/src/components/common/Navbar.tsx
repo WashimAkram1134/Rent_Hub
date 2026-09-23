@@ -31,6 +31,7 @@ import api from "@/lib/axios";
 import { Notification } from "@/types";
 import { useEffect } from "react";
 import CustomerAccountModal from "@/components/common/CustomerAccountModal";
+import { useWishlistStore } from "@/store/wishlistStore";
 
 export default function Navbar() {
   const router = useRouter();
@@ -43,6 +44,7 @@ export default function Navbar() {
   const [search, setSearch] = useState("");
   const { user, isAuthenticated, logout, activeRole, setActiveRole, toggleActiveRole } = useAuthStore();
   const { latestNotification } = useWebSocket();
+  const wishlistCount = useWishlistStore((state) => state.items.length);
 
   const isOwnerUser = user?.is_owner || user?.primary_role === "owner" || user?.role_names?.includes("owner") || user?.primary_role === "admin";
   const isPendingLister = !isOwnerUser && user?.lister_status === "pending";
@@ -248,8 +250,17 @@ export default function Navbar() {
             {user ? (
               <>
                 {/* Wishlist Icon */}
-                <Link href="/wishlist" className="p-2 text-slate-500 hover:text-rose-500 hover:bg-slate-50 rounded-xl transition-colors hidden sm:flex items-center justify-center">
-                  <Heart size={18} />
+                <Link
+                  href="/wishlist"
+                  className="p-2 text-slate-500 hover:text-rose-500 hover:bg-slate-50 rounded-xl transition-colors hidden sm:flex items-center justify-center relative"
+                  title="My Wishlist"
+                >
+                  <Heart size={18} className={wishlistCount > 0 ? "fill-rose-500 text-rose-500" : ""} />
+                  {wishlistCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-xs">
+                      {wishlistCount > 9 ? "9+" : wishlistCount}
+                    </span>
+                  )}
                 </Link>
 
                 {/* Notification Icon */}
@@ -413,9 +424,16 @@ export default function Navbar() {
                       <Link
                         href="/wishlist"
                         onClick={() => setDropdownOpen(false)}
-                        className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2.5 transition-colors sm:hidden"
+                        className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center justify-between transition-colors sm:hidden"
                       >
-                        <Heart size={15} /> Wishlist
+                        <span className="flex items-center gap-2.5">
+                          <Heart size={15} className={wishlistCount > 0 ? "fill-rose-500 text-rose-500" : ""} /> Wishlist
+                        </span>
+                        {wishlistCount > 0 && (
+                          <span className="bg-rose-100 text-rose-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                            {wishlistCount}
+                          </span>
+                        )}
                       </Link>
 
                       <button

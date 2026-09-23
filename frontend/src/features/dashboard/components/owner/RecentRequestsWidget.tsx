@@ -11,6 +11,9 @@ interface Booking {
   total_days: number;
   total_amount: number;
   status: string;
+  is_bargain?: boolean;
+  offered_daily_rate?: number;
+  daily_rate?: number;
   product: {
     title: string;
     image_url: string;

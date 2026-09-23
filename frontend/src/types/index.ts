@@ -253,7 +253,11 @@ export interface Booking {
   delivery_fee: number;
   total_amount: number;
   status: BookingStatus;
-  delivery_option: DeliveryOption;
+  is_bargain?: boolean;
+  original_daily_rate?: number;
+  offered_daily_rate?: number;
+  bargain_status?: string;
+  bargain_notes?: string;
   notes?: string;
   created_at: string;
 }

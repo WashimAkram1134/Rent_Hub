@@ -20,8 +20,8 @@ export interface WishlistItem {
 interface WishlistState {
   items: WishlistItem[];
   wishlistIds: string[];
-  toggleWishlist: (item: Partial<WishlistItem> & { id: string }) => void;
-  isWishlisted: (id: string) => boolean;
+  toggleWishlist: (item: Partial<WishlistItem> & { id: string }) => Promise<void>;
+  isWishlisted: (idOrSlug: string) => boolean;
   clearWishlist: () => void;
   /** Pull saved items from server for a logged-in user */
   syncFromServer: () => Promise<void>;
@@ -37,16 +37,30 @@ export const useWishlistStore = create<WishlistState>()(
 
       toggleWishlist: async (item) => {
         const { items } = get();
-        const exists = items.some((i) => i.id === item.id);
+        const itemSlug = item.slug || (item as any).slug;
+
+        const exists = items.some(
+          (i) =>
+            i.id === item.id ||
+            (itemSlug && i.slug === itemSlug) ||
+            (itemSlug && i.id === itemSlug) ||
+            (i.slug && i.slug === item.id)
+        );
 
         if (exists) {
-          const updated = items.filter((i) => i.id !== item.id);
+          const updated = items.filter(
+            (i) =>
+              i.id !== item.id &&
+              (!itemSlug || i.slug !== itemSlug) &&
+              (!itemSlug || i.id !== itemSlug) &&
+              (!i.slug || i.slug !== item.id)
+          );
           set({ items: updated, wishlistIds: updated.map((i) => i.id) });
         } else {
           const fullItem: WishlistItem = {
             id: item.id,
             title: item.title || "Rental Item",
-            slug: (item as any).slug,
+            slug: itemSlug || item.id,
             category: item.category || "General",
             price: item.price || item.price_per_day || 2000,
             price_per_day: item.price_per_day || item.price || 2000,
@@ -57,6 +71,7 @@ export const useWishlistStore = create<WishlistState>()(
               item.image_url ||
               "https://images.unsplash.com/photo-1590362891991-f776e747a588?auto=format&fit=crop&w=500&q=80",
             location: item.location || item.city || "Dhaka",
+            city: item.city || item.location || "Dhaka",
           };
           const updated = [fullItem, ...items];
           set({ items: updated, wishlistIds: updated.map((i) => i.id) });
@@ -66,11 +81,16 @@ export const useWishlistStore = create<WishlistState>()(
         try {
           await apiClient.post(`/products/${item.id}/wishlist`);
         } catch {
-          // unauthenticated or network error — local store is source of truth
+          // unauthenticated or network error — local store remains optimistic source of truth
         }
       },
 
-      isWishlisted: (id) => get().items.some((i) => i.id === id),
+      isWishlisted: (idOrSlug) => {
+        if (!idOrSlug) return false;
+        return get().items.some(
+          (i) => i.id === idOrSlug || (i.slug && i.slug === idOrSlug)
+        );
+      },
 
       clearWishlist: async () => {
         set({ items: [], wishlistIds: [] });
@@ -97,6 +117,7 @@ export const useWishlistStore = create<WishlistState>()(
               review_count: p.review_count,
               image_url: p.image_url,
               location: p.city,
+              city: p.city,
             })
           );
           set({

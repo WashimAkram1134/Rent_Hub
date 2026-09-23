@@ -7,6 +7,7 @@ import { FlyToCartProvider } from "@/context/FlyToCartContext";
 import { FlyToCartOverlay } from "@/components/cart/FlyToCartOverlay";
 import { FloatingCartBar } from "@/components/cart/FloatingCartBar";
 import GlobalTransitionOverlay from "@/components/common/GlobalTransitionOverlay";
+import { WishlistSync } from "@/components/common/WishlistSync";
 
 // ─── Fonts ─────────────────────────────────────────────────────────────────
 const inter = Inter({
@@ -100,6 +101,7 @@ export default function RootLayout({
           <FlyToCartProvider>
             {/* Global overlay — persists across all route changes, controlled by transitionStore */}
             <GlobalTransitionOverlay />
+            <WishlistSync />
             <FlyToCartOverlay />
             <FloatingCartBar />
             {children}

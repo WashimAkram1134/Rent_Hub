@@ -19,6 +19,7 @@ import { useCartStore } from "@/store/cartStore";
 import { useRecentlyViewedStore } from "@/store/recentlyViewedStore";
 import { useAuthStore } from "@/features/auth/authStore";
 import { useFlyToCart } from "@/context/FlyToCartContext";
+import { useWishlistStore } from "@/store/wishlistStore";
 
 // ── Feature Highlights ─────────────────────────────────────────────────────────
 const FEATURE_KEYWORDS: { label: string; icon: React.ReactNode }[] = [
@@ -358,7 +359,7 @@ export default function ProductDetailsPage() {
   const [view360Mode, setView360Mode] = useState(false);
   const [durationMode, setDurationMode] = useState<DurationMode>("Daily");
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("Pick-up");
-  const [isWishlisted, setIsWishlisted] = useState(false);
+  const { toggleWishlist: storeToggleWishlist, isWishlisted: checkIsWishlisted } = useWishlistStore();
   const [descExpanded, setDescExpanded] = useState(false);
   const [pickupDate, setPickupDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [pickupTime, setPickupTime] = useState("10:00 AM");
@@ -629,7 +630,6 @@ function getFallbackProduct(slug: string) {
       .then((res) => { if (!res.ok) throw new Error("Not found"); return res.json(); })
       .then((data) => {
         setProduct(data);
-        setIsWishlisted(data.is_wishlisted || false);
         useRecentlyViewedStore.getState().recordView(data);
 
         // Fetch actual reviews for this product
@@ -673,7 +673,6 @@ function getFallbackProduct(slug: string) {
         const fallback = getFallbackProduct(String(slug));
         if (fallback) {
           setProduct(fallback);
-          setIsWishlisted(false);
           useRecentlyViewedStore.getState().recordView(fallback);
         }
       })
@@ -872,12 +871,37 @@ function getFallbackProduct(slug: string) {
                               <Maximize2 size={15} />
                             </motion.button>
                             <motion.button
-                              onClick={() => requireAuth(() => setIsWishlisted(!isWishlisted))}
+                              onClick={() => {
+                                if (!product) return;
+                                storeToggleWishlist({
+                                  id: product.id,
+                                  slug: product.slug,
+                                  title: product.title,
+                                  image_url: images[0] || product.image_url,
+                                  price_per_day: product.price_per_day,
+                                  rating: product.avg_rating,
+                                  review_count: product.review_count,
+                                  location: product.city || product.area || "Dhaka",
+                                  category: product.category?.name || "General",
+                                });
+                              }}
                               whileHover={{ scale: 1.1 }}
                               whileTap={{ scale: 0.9 }}
-                              className="w-9 h-9 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-md text-slate-700 hover:bg-white transition-all"
+                              title={
+                                (product && (checkIsWishlisted(product.id) || (product.slug && checkIsWishlisted(product.slug))))
+                                  ? "Remove from wishlist"
+                                  : "Add to wishlist"
+                              }
+                              className="w-9 h-9 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-md text-slate-700 hover:bg-white transition-all active:scale-95"
                             >
-                              <Heart size={16} className={isWishlisted ? "fill-rose-500 text-rose-500" : "text-slate-600"} />
+                              <Heart
+                                size={16}
+                                className={
+                                  (product && (checkIsWishlisted(product.id) || (product.slug && checkIsWishlisted(product.slug))))
+                                    ? "fill-rose-500 text-rose-500"
+                                    : "text-slate-600 hover:text-rose-500"
+                                }
+                              />
                             </motion.button>
                           </div>
                         </div>

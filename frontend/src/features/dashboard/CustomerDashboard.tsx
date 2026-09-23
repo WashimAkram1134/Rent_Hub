@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Search, MapPin, LogOut, CheckCircle, Star, Plus, ChevronDown, ChevronUp,
-  Trophy, Crown, TrendingUp
+  Trophy, Crown, TrendingUp, Heart
 } from "lucide-react";
 import { useTransitionStore } from "@/store/transitionStore";
 
@@ -38,7 +38,7 @@ const BD_DIVISIONS = [
 export function CustomerDashboard() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
-  const { items: wishlistStoreItems, syncFromServer } = useWishlistStore();
+  const { items: wishlistStoreItems, toggleWishlist: storeToggleWishlist, isWishlisted: checkIsWishlisted, syncFromServer } = useWishlistStore();
 
   // State
   const [heroSlides, setHeroSlides] = useState<any[]>([]);
@@ -55,7 +55,6 @@ export function CustomerDashboard() {
 
   const { hideLoader } = useTransitionStore();
 
-  const [wishlist, setWishlist] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState("");
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
@@ -103,9 +102,7 @@ export function CustomerDashboard() {
     fetchData();
   }, [user?.id]);
 
-  const toggleWishlist = (id: string) => {
-    setWishlist((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-  };
+
 
   const handleSignOut = async () => {
     await logout();
@@ -235,8 +232,6 @@ export function CustomerDashboard() {
                         key={item.id}
                         {...item}
                         location={item.area || item.city}
-                        isWishlisted={wishlist.includes(item.id)}
-                        onToggleWishlist={toggleWishlist}
                       />
                     ))
                   )}
@@ -255,33 +250,60 @@ export function CustomerDashboard() {
                       <div key={i} className="h-[150px] bg-slate-200/70 rounded-xl animate-pulse" />
                     ))
                   ) : (
-                    recommended.map((item) => (
-                      <Link
-                        key={item.id}
-                        href={`/products/${item.slug || item.id}`}
-                        className="bg-white rounded-xl overflow-hidden border border-slate-100 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group block cursor-pointer"
-                      >
-                        <div className="h-[100px] overflow-hidden">
-                          <img
-                            src={item.image_url}
-                            alt={item.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        </div>
-                        <div className="p-2.5">
-                          <p className="text-[10px] font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
-                            {item.title}
-                          </p>
-                          <div className="flex items-center gap-0.5 mt-0.5">
-                            <Star size={8} className="fill-amber-400 text-amber-400" />
-                            <span className="text-[9px] text-slate-600">{item.avg_rating || "0"}</span>
+                    recommended.map((item) => {
+                      const isItemFav = checkIsWishlisted(item.id) || (item.slug && checkIsWishlisted(item.slug));
+                      return (
+                        <Link
+                          key={item.id}
+                          href={`/products/${item.slug || item.id}`}
+                          className="bg-white rounded-xl overflow-hidden border border-slate-100 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group block cursor-pointer relative"
+                        >
+                          <div className="h-[100px] overflow-hidden relative">
+                            <img
+                              src={item.image_url}
+                              alt={item.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                storeToggleWishlist({
+                                  id: item.id,
+                                  slug: item.slug,
+                                  title: item.title,
+                                  image_url: item.image_url,
+                                  price_per_day: item.price_per_day,
+                                  rating: item.avg_rating,
+                                  review_count: item.review_count,
+                                  location: item.area || item.city || "Dhaka",
+                                });
+                              }}
+                              className="absolute top-1.5 right-1.5 z-10 w-6 h-6 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-xs hover:bg-white transition-all active:scale-90"
+                              title={isItemFav ? "Remove from wishlist" : "Add to wishlist"}
+                            >
+                              <Heart
+                                size={12}
+                                className={isItemFav ? "fill-rose-500 text-rose-500" : "text-slate-400 hover:text-rose-400"}
+                              />
+                            </button>
                           </div>
-                          <p className="text-[10px] font-bold text-blue-700 mt-1">
-                            ৳ {item.price_per_day} <span className="font-normal text-slate-400">/ day</span>
-                          </p>
-                        </div>
-                      </Link>
-                    ))
+                          <div className="p-2.5">
+                            <p className="text-[10px] font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                              {item.title}
+                            </p>
+                            <div className="flex items-center gap-0.5 mt-0.5">
+                              <Star size={8} className="fill-amber-400 text-amber-400" />
+                              <span className="text-[9px] text-slate-600">{item.avg_rating || "0"}</span>
+                            </div>
+                            <p className="text-[10px] font-bold text-blue-700 mt-1">
+                              ৳ {item.price_per_day} <span className="font-normal text-slate-400">/ day</span>
+                            </p>
+                          </div>
+                        </Link>
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -451,45 +473,76 @@ export function CustomerDashboard() {
                   ) : topPerformers.length === 0 ? (
                     <p className="text-[10px] text-slate-400 text-center py-4">No top performers yet</p>
                   ) : (
-                    topPerformers.slice(0, 5).map((item: any, i: number) => (
-                      <Link
-                        key={item.id}
-                        href={`/products/${item.slug || item.id}`}
-                        className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-white border border-transparent hover:border-slate-100 hover:shadow-sm transition-all group"
-                      >
-                        {/* Rank badge */}
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0 ${
-                          i === 0 ? "bg-amber-400 text-white" :
-                          i === 1 ? "bg-slate-400 text-white" :
-                          i === 2 ? "bg-orange-400 text-white" :
-                          "bg-slate-100 text-slate-500"
-                        }`}>
-                          {i + 1}
-                        </div>
-                        <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 bg-slate-100">
-                          <img
-                            src={item.image_url}
-                            alt={item.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[10px] font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
-                            {item.title}
-                          </p>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <div className="flex items-center gap-0.5">
-                              <Star size={7} className="fill-amber-400 text-amber-400" />
-                              <span className="text-[8px] text-slate-500">{item.avg_rating || "0"}</span>
+                    topPerformers.slice(0, 5).map((item: any, i: number) => {
+                      const isTopFav = checkIsWishlisted(item.id) || (item.slug && checkIsWishlisted(item.slug));
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-2 p-2 rounded-xl hover:bg-white border border-transparent hover:border-slate-100 hover:shadow-sm transition-all group"
+                        >
+                          <Link
+                            href={`/products/${item.slug || item.id}`}
+                            className="flex items-center gap-2.5 flex-1 min-w-0"
+                          >
+                            {/* Rank badge */}
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0 ${
+                              i === 0 ? "bg-amber-400 text-white" :
+                              i === 1 ? "bg-slate-400 text-white" :
+                              i === 2 ? "bg-orange-400 text-white" :
+                              "bg-slate-100 text-slate-500"
+                            }`}>
+                              {i + 1}
                             </div>
-                            <span className="text-[7px] text-slate-300">•</span>
-                            <TrendingUp size={7} className="text-emerald-500" />
-                            <span className="text-[8px] text-slate-500">{item.booking_count} booked</span>
-                          </div>
+                            <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 bg-slate-100">
+                              <img
+                                src={item.image_url}
+                                alt={item.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[10px] font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
+                                {item.title}
+                              </p>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <div className="flex items-center gap-0.5">
+                                  <Star size={7} className="fill-amber-400 text-amber-400" />
+                                  <span className="text-[8px] text-slate-500">{item.avg_rating || "0"}</span>
+                                </div>
+                                <span className="text-[7px] text-slate-300">•</span>
+                                <TrendingUp size={7} className="text-emerald-500" />
+                                <span className="text-[8px] text-slate-500">{item.booking_count} booked</span>
+                              </div>
+                            </div>
+                            <div className="text-[9px] font-black text-indigo-600 shrink-0">৳{item.price_per_day}</div>
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              storeToggleWishlist({
+                                id: item.id,
+                                slug: item.slug,
+                                title: item.title,
+                                image_url: item.image_url,
+                                price_per_day: item.price_per_day,
+                                rating: item.avg_rating,
+                                review_count: item.booking_count,
+                                location: item.city || "Dhaka",
+                              });
+                            }}
+                            className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-rose-50 transition-colors shrink-0 text-slate-400 hover:text-rose-500 active:scale-90"
+                            title={isTopFav ? "Remove from wishlist" : "Add to wishlist"}
+                          >
+                            <Heart
+                              size={12}
+                              className={isTopFav ? "fill-rose-500 text-rose-500" : ""}
+                            />
+                          </button>
                         </div>
-                        <div className="text-[9px] font-black text-indigo-600 shrink-0">৳{item.price_per_day}</div>
-                      </Link>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>

@@ -52,7 +52,10 @@ export function ProductCard({
   const { triggerFlyToCart } = useFlyToCart();
   const [justAdded, setJustAdded] = useState(false);
 
-  const isFav = explicitIsWishlisted !== undefined ? explicitIsWishlisted : checkIsWishlisted(id);
+  const isFav =
+    explicitIsWishlisted !== undefined
+      ? explicitIsWishlisted
+      : checkIsWishlisted(id) || (slug ? checkIsWishlisted(slug) : false);
   const targetUrl = `/products/${slug || id}`;
   const alreadyInCart = isInCart(id) || justAdded;
 
@@ -64,18 +67,21 @@ export function ProductCard({
   const handleHeartClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    toggleWishlist({
+      id,
+      slug,
+      title,
+      image_url,
+      price_per_day: discountedPrice,
+      rating: avg_rating,
+      review_count,
+      location,
+      category,
+    });
+
     if (explicitOnToggleWishlist) {
       explicitOnToggleWishlist(id);
-    } else {
-      toggleWishlist({
-        id,
-        title,
-        image_url,
-        price_per_day: discountedPrice,
-        rating: avg_rating,
-        review_count,
-        location,
-      });
     }
   };
 

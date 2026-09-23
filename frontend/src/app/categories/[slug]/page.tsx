@@ -1006,7 +1006,7 @@ export default function CategoryDetailPage() {
                 product.images?.[0]?.url ??
                 "https://images.unsplash.com/photo-1590362891991-f776e747a588?auto=format&fit=crop&w=800&q=80";
 
-              const isFav = checkIsWishlisted(product.id);
+              const isFav = checkIsWishlisted(product.id) || (product.slug ? checkIsWishlisted(product.slug) : false);
 
               let badgeColor = "bg-indigo-500";
               if (product.badge === "Popular") badgeColor = "bg-rose-500";
@@ -1019,13 +1019,9 @@ export default function CategoryDetailPage() {
               const handleWishlistClick = (e: React.MouseEvent) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (!isAuthenticated || !user) {
-                  const returnUrl = window.location.pathname + window.location.search;
-                  router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`);
-                  return;
-                }
                 storeToggleWishlist({
                   id: product.id,
+                  slug: product.slug,
                   title: product.title,
                   category: category?.name || "General",
                   image_url: image,

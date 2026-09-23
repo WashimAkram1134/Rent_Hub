@@ -15,6 +15,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AuthService, { type GoogleAuthPayload, type FacebookAuthPayload } from "./authService";
 import type { LoginCredentials, RegisterData, User } from "@/types";
+import { useWishlistStore } from "@/store/wishlistStore";
 
 interface AuthState {
   user: User | null;
@@ -70,6 +71,7 @@ export const useAuthStore = create<AuthStore>()(
             isLoading: false,
             activeRole: defaultRole,
           });
+          useWishlistStore.getState().syncFromServer();
           return user;
         } catch (err: any) {
           const message = err?.response?.data?.error?.message ?? "Google authentication failed. Please try again.";
@@ -94,6 +96,7 @@ export const useAuthStore = create<AuthStore>()(
             isLoading: false,
             activeRole: defaultRole,
           });
+          useWishlistStore.getState().syncFromServer();
           return user;
         } catch (err: any) {
           const message = err?.response?.data?.error?.message ?? "Facebook authentication failed. Please try again.";
@@ -119,6 +122,7 @@ export const useAuthStore = create<AuthStore>()(
             isLoading: false,
             activeRole: defaultRole,
           });
+          useWishlistStore.getState().syncFromServer();
         } catch (err: any) {
           const message = err?.response?.data?.error?.message ?? "Login failed. Please try again.";
           set({ isLoading: false, error: message });
@@ -161,6 +165,7 @@ export const useAuthStore = create<AuthStore>()(
             error: null,
             activeRole: "customer",
           });
+          useWishlistStore.getState().clearLocal();
         }
       },
 
@@ -198,6 +203,7 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const user = await AuthService.getMe();
           set({ user, isAuthenticated: true, isLoading: false });
+          useWishlistStore.getState().syncFromServer();
         } catch {
           localStorage.removeItem("access_token");
           set({ user: null, accessToken: null, isAuthenticated: false, isLoading: false });
