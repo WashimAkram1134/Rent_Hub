@@ -191,7 +191,8 @@ async def resolve_or_create_product(
     db: AsyncSession,
     product_id_raw: Union[UUID, str],
     default_price: float = 2500.0,
-    delivery_option: str = "Pick-up"
+    delivery_option: str = "Pick-up",
+    exclude_user_id: UUID | None = None
 ) -> Product | None:
     prod_id_str = str(product_id_raw).strip()
     product = None
@@ -213,11 +214,18 @@ async def resolve_or_create_product(
 
     # 3. If still not found, synthesize this product in DB so foreign keys succeed
     if not product:
+        existing_p = await db.execute(select(Product).options(selectinload(Product.images)).where(Product.slug == prod_id_str))
+        found = existing_p.scalars().first()
+        if found:
+            return found
+
         cat_res = await db.execute(select(Category).limit(1))
         cat = cat_res.scalars().first()
 
-        owner_res = await db.execute(select(User).where(User.primary_role.in_(["owner", "admin"])).limit(1))
-        owner = owner_res.scalars().first()
+        owner = None
+        if exclude_user_id:
+            owner_res = await db.execute(select(User).where(User.id != exclude_user_id).limit(1))
+            owner = owner_res.scalars().first()
         if not owner:
             owner_res = await db.execute(select(User).limit(1))
             owner = owner_res.scalars().first()
@@ -267,6 +275,7 @@ async def create_booking(
         product_id_raw=payload.product_id,
         default_price=float(payload.offered_daily_rate) if (payload.is_bargain and payload.offered_daily_rate) else 2500.0,
         delivery_option=payload.delivery_option,
+        exclude_user_id=current_user.id if current_user else None,
     )
     
     if not product:

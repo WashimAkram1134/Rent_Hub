@@ -464,7 +464,12 @@ export default function ProductDetailsPage() {
         sessionStorage.setItem("renthub_verify_return_url", returnUrl);
         router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);
       } else {
-        setBookingError(e.response?.data?.error?.message || "Failed to submit booking request. Please try again.");
+        setBookingError(
+          e.response?.data?.error?.message ||
+          e.response?.data?.detail ||
+          e.message ||
+          "Failed to submit booking request. Please try again."
+        );
       }
     } finally {
       setBookingLoading(false);
@@ -525,7 +530,12 @@ export default function ProductDetailsPage() {
         sessionStorage.setItem("renthub_verify_return_url", returnUrl);
         router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);
       } else {
-        setBookingError(e.response?.data?.error?.message || "Failed to submit bargain offer. Please try again.");
+        setBookingError(
+          e.response?.data?.error?.message ||
+          e.response?.data?.detail ||
+          e.message ||
+          "Failed to submit bargain offer. Please try again."
+        );
       }
     } finally {
       setBookingLoading(false);

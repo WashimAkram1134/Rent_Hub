@@ -43,6 +43,10 @@ class IdentityVerificationPolicyService:
         if not settings.IDENTITY_VERIFICATION_REQUIRED:
             return False
 
+        # Admin accounts are platform managers and do not require verification gate
+        if getattr(user, "primary_role", None) == "admin":
+            return False
+
         # Future hook: category-based rules
         # if product and hasattr(product, "category"):
         #     return self._requires_for_category(product.category)
