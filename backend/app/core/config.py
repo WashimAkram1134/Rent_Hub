@@ -85,6 +85,12 @@ class Settings(BaseSettings):
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""
 
+    # ─── Keep-Alive (Render free-tier anti-sleep) ────────────────────────────
+    # Set this to the deployed backend URL in production, e.g.:
+    #   SELF_PING_URL=https://renthub-backend.onrender.com
+    # Leave blank (or unset) in local development — the loop won't start.
+    SELF_PING_URL: str = ""
+
     # ─── Rate Limiting ─────────────────────────────────────────────────────
     RATE_LIMIT_PER_MINUTE: int = 1000
     AUTH_RATE_LIMIT_PER_MINUTE: int = 200

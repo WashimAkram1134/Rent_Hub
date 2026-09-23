@@ -35,6 +35,7 @@ from app.database.session import dispose_db
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.request_id import RequestIDMiddleware
 from app.websocket.manager import ws_manager
+from app.services.keep_alive import start_keep_alive, stop_keep_alive
 
 # Configure structured logging before anything else
 configure_logging()
@@ -62,12 +63,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Start WebSocket Manager
     await ws_manager.startup()
 
+    # Start keep-alive ping loop (prevents Render free-tier sleep)
+    start_keep_alive()
+
     logger.info("renthub_ready", port=settings.APP_PORT)
 
     yield  # Application runs here
 
     # ── Shutdown ───────────────────────────────────────────────────────────
     logger.info("renthub_shutting_down")
+    await stop_keep_alive()
     await ws_manager.shutdown()
     await dispose_db()
     await close_redis_pool()
