@@ -411,7 +411,7 @@ export default function ProductDetailsPage() {
   const heroY = useTransform(scrollY, [0, 400], ["0%", "10%"]);
   const heroScale = useTransform(scrollY, [0, 400], [1, 1.04]);
 
-  const { user, isAuthenticated, refreshUser } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
 
   const isOwner = Boolean(
     isAuthenticated &&
@@ -444,26 +444,28 @@ export default function ProductDetailsPage() {
       setBookingError("You cannot book your own listing.");
       return;
     }
+    // 1. Must be logged in
     if (!requireAuth()) return;
+
+    // 2. Must be identity-verified — check from cached user (no logout risk)
+    const cachedUser = useAuthStore.getState().user;
+    const isVerified =
+      cachedUser?.identity_verification_status === "VERIFIED" ||
+      cachedUser?.is_identity_verified === true;
+
+    if (!isVerified) {
+      // Redirect to identity verification page, return here after
+      const returnUrl = window.location.pathname + window.location.search;
+      sessionStorage.setItem("renthub_verify_return_url", returnUrl);
+      router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);
+      return;
+    }
+
+    // 3. Verified — submit booking request
     setBookingLoading(true);
     setBookingError(null);
     setChatWarning(false);
     try {
-      // Refresh user from server to get the latest identity_verification_status
-      await refreshUser();
-      const freshUser = useAuthStore.getState().user;
-      const isVerified =
-        freshUser?.identity_verification_status === "VERIFIED" ||
-        freshUser?.is_identity_verified === true;
-
-      if (!isVerified) {
-        // User is not identity-verified — redirect to verification flow
-        const returnUrl = window.location.pathname + window.location.search;
-        sessionStorage.setItem("renthub_verify_return_url", returnUrl);
-        router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);
-        return;
-      }
-
       await apiClient.post("/bookings", {
         product_id: product.id,
         start_date: pickupDate,
@@ -475,7 +477,7 @@ export default function ProductDetailsPage() {
       setTimeout(() => router.push("/bookings"), 3500);
     } catch (e: any) {
       if (e.response?.status === 403 && e.response?.data?.error?.code === "IDENTITY_VERIFICATION_REQUIRED") {
-        // Fallback redirect in case backend gate fires
+        // Backend gate fired — redirect to verification
         const returnUrl = window.location.pathname + window.location.search;
         sessionStorage.setItem("renthub_verify_return_url", returnUrl);
         router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);
@@ -513,6 +515,7 @@ export default function ProductDetailsPage() {
       setBookingError("You cannot bargain for your own listing.");
       return;
     }
+    // 1. Must be logged in
     if (!requireAuth()) return;
     const numRate = Number(offeredRate);
     if (!numRate || numRate <= 0) {
@@ -523,24 +526,25 @@ export default function ProductDetailsPage() {
       setBookingError("Your desired rate should be lower than the listed rate for a bargain offer.");
       return;
     }
+
+    // 2. Must be identity-verified — check from cached user (no logout risk)
+    const cachedUser = useAuthStore.getState().user;
+    const isVerified =
+      cachedUser?.identity_verification_status === "VERIFIED" ||
+      cachedUser?.is_identity_verified === true;
+
+    if (!isVerified) {
+      // Redirect to identity verification page, return here after
+      const returnUrl = window.location.pathname + window.location.search;
+      sessionStorage.setItem("renthub_verify_return_url", returnUrl);
+      router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);
+      return;
+    }
+
+    // 3. Verified — submit bargain offer
     setBookingLoading(true);
     setBookingError(null);
     try {
-      // Refresh user from server to get the latest identity_verification_status
-      await refreshUser();
-      const freshUser = useAuthStore.getState().user;
-      const isVerified =
-        freshUser?.identity_verification_status === "VERIFIED" ||
-        freshUser?.is_identity_verified === true;
-
-      if (!isVerified) {
-        // User is not identity-verified — redirect to verification flow
-        const returnUrl = window.location.pathname + window.location.search;
-        sessionStorage.setItem("renthub_verify_return_url", returnUrl);
-        router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);
-        return;
-      }
-
       await apiClient.post("/bookings", {
         product_id: product.id,
         start_date: pickupDate,
@@ -557,7 +561,7 @@ export default function ProductDetailsPage() {
       setTimeout(() => router.push("/bookings"), 3500);
     } catch (e: any) {
       if (e.response?.status === 403 && e.response?.data?.error?.code === "IDENTITY_VERIFICATION_REQUIRED") {
-        // Fallback redirect in case backend gate fires
+        // Backend gate fired — redirect to verification
         const returnUrl = window.location.pathname + window.location.search;
         sessionStorage.setItem("renthub_verify_return_url", returnUrl);
         router.push(`/verify-identity?returnUrl=${encodeURIComponent(returnUrl)}`);
@@ -2298,17 +2302,29 @@ function getFallbackProduct(slug: string) {
                   )}
 
                   {!isOwner && (
-                    <MagneticButton
-                      onClick={() =>
-                        requireAuth(() => {
-                          const ownerId = product.owner?.id || product.owner_id || "owner-1";
-                          router.push(`/messages?user=${ownerId}&product=${product.id || product.slug}`);
-                        })
-                      }
-                      className="w-full py-3 border-2 border-slate-200 hover:border-indigo-400 text-slate-700 hover:text-indigo-600 font-bold rounded-xl transition-all text-sm flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <MessageCircle size={15} /> Chat with Owner
-                    </MagneticButton>
+                    <div className="space-y-1.5">
+                      <MagneticButton
+                        onClick={() =>
+                          requireAuth(() => {
+                            setChatWarning(true);
+                            setBookingError(null);
+                          })
+                        }
+                        className="w-full py-3 border-2 border-slate-200 hover:border-indigo-400 text-slate-700 hover:text-indigo-600 font-bold rounded-xl transition-all text-sm flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <MessageCircle size={15} /> Chat with Owner
+                      </MagneticButton>
+                      {chatWarning && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="text-[11px] text-indigo-700 bg-indigo-50 p-2.5 rounded-xl border border-indigo-100 flex items-start gap-1.5"
+                        >
+                          <MessageCircle size={13} className="shrink-0 mt-0.5 text-indigo-500" />
+                          Please send a booking request first. Once submitted, you can chat directly with the owner about your booking.
+                        </motion.div>
+                      )}
+                    </div>
                   )}
 
                   <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">

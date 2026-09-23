@@ -14,7 +14,7 @@ import apiClient from "@/lib/axios";
 
 export default function RentalCartPage() {
   const router = useRouter();
-  const { user, isAuthenticated, refreshUser } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const { items, removeItem, updateDates, clearCart } = useCartStore();
   
   const [submitting, setSubmitting] = useState(false);
@@ -96,12 +96,11 @@ export default function RentalCartPage() {
       return;
     }
 
-    // Refresh user from server to get latest identity_verification_status
-    await refreshUser();
-    const freshUser = useAuthStore.getState().user;
+    // Check identity verification from cached user (no logout risk)
+    const cachedUser = useAuthStore.getState().user;
     const isVerifiedNow =
-      freshUser?.identity_verification_status === "VERIFIED" ||
-      freshUser?.is_identity_verified === true;
+      cachedUser?.identity_verification_status === "VERIFIED" ||
+      cachedUser?.is_identity_verified === true;
 
     if (!isVerifiedNow) {
       const returnUrl = "/cart";
