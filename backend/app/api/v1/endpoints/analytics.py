@@ -984,6 +984,7 @@ AUDIT_LOGS_STORE = [
         "severity": "INFO",
         "timestamp": "Aug 25, 2026, 03:00 AM",
         "details": "Stored in encrypted AWS S3 ap-southeast-1 bucket."
+    }
 ]
 
 def record_audit_log(
