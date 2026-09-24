@@ -482,6 +482,211 @@ async def delete_user(
     await db.commit()
 
 
+class UpdateUserStatusPayload(BaseModel):
+    is_active: bool
+    reason: str = "Administrative review"
+    duration: Optional[str] = "permanent"
+
+
+@router.patch(
+    "/{user_id}/status",
+    response_model=UserResponse,
+    summary="Update user active/suspended status (Admin only)",
+)
+async def update_user_status(
+    user_id: uuid.UUID,
+    payload: UpdateUserStatusPayload,
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(require_role("admin")),
+):
+    if str(current_admin.id) == str(user_id) and not payload.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot suspend your own admin account.",
+        )
+
+    stmt = (
+        select(User)
+        .options(selectinload(User.roles))
+        .where(User.id == user_id, User.deleted_at.is_(None))
+    )
+    user = (await db.execute(stmt)).scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    user.is_active = payload.is_active
+
+    # Send in-app notification to user
+    try:
+        if not payload.is_active:
+            notif = Notification(
+                user_id=user.id,
+                title="Account Suspended",
+                message=f"Your RentHub account has been suspended ({payload.duration}). Reason: {payload.reason}. If you believe this is an error, please reach out to customer support.",
+                type="warning"
+            )
+        else:
+            notif = Notification(
+                user_id=user.id,
+                title="Account Reactivated",
+                message="Your RentHub account privileges have been restored. You may now resume renting and hosting on the platform.",
+                type="system"
+            )
+        db.add(notif)
+    except Exception:
+        pass
+
+    await db.commit()
+
+    # Log to Admin Audit
+    try:
+        from app.api.v1.endpoints.analytics import record_audit_log
+        action = "USER_SUSPENDED" if not payload.is_active else "USER_REACTIVATED"
+        severity = "CRITICAL" if not payload.is_active else "INFO"
+        record_audit_log(
+            action=action,
+            title=f"{'Suspended' if not payload.is_active else 'Reactivated'} user: {user.email}",
+            admin=f"{current_admin.first_name} {current_admin.last_name}",
+            target=f"User #{str(user.id)[:8]} ({user.email})",
+            severity=severity,
+            details=f"Reason: {payload.reason} (Duration: {payload.duration})"
+        )
+    except Exception:
+        pass
+
+    stmt_reload = (
+        select(User)
+        .options(selectinload(User.roles))
+        .where(User.id == user_id)
+    )
+    return (await db.execute(stmt_reload)).scalars().first()
+
+
+@router.get(
+    "/{user_id}/admin-360",
+    summary="Get 360-degree operator profile for any user (Admin only)",
+)
+async def get_user_admin_360(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_role("admin")),
+):
+    from app.models.booking import Booking
+    from app.models.product import Product
+    from app.models.review import Review
+
+    stmt_user = (
+        select(User)
+        .options(
+            selectinload(User.roles),
+            selectinload(User.lister_application)
+        )
+        .where(User.id == user_id, User.deleted_at.is_(None))
+    )
+    user = (await db.execute(stmt_user)).scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    # 1. Customer metrics
+    customer_bookings_res = await db.execute(
+        select(Booking)
+        .options(selectinload(Booking.product).selectinload(Product.images))
+        .where(Booking.renter_id == user_id)
+        .order_by(Booking.created_at.desc())
+    )
+    customer_bookings = customer_bookings_res.scalars().all()
+    total_spent = sum(float(b.total_amount or 0.0) for b in customer_bookings if b.status in ["confirmed", "completed", "active"])
+
+    # 2. Owner metrics
+    owner_bookings_res = await db.execute(
+        select(Booking)
+        .options(selectinload(Booking.product).selectinload(Product.images), selectinload(Booking.renter))
+        .where(Booking.owner_id == user_id)
+        .order_by(Booking.created_at.desc())
+    )
+    owner_bookings = owner_bookings_res.scalars().all()
+    gross_earned = sum(float(b.subtotal or 0.0) for b in owner_bookings if b.status in ["confirmed", "completed", "active"])
+    net_earned = gross_earned * 0.9
+
+    # 3. Active Listings
+    listings_res = await db.execute(
+        select(Product)
+        .options(selectinload(Product.images), selectinload(Product.category))
+        .where(Product.owner_id == user_id)
+    )
+    products = listings_res.scalars().all()
+
+    # 4. Reviews received
+    reviews_list = []
+    if products:
+        prod_ids = [p.id for p in products]
+        reviews_res = await db.execute(
+            select(Review)
+            .options(selectinload(Review.reviewer))
+            .where(Review.product_id.in_(prod_ids))
+            .order_by(Review.created_at.desc())
+        )
+        reviews_list = reviews_res.scalars().all()
+
+    avg_rating = round(sum(float(r.rating) for r in reviews_list) / len(reviews_list), 1) if reviews_list else 0.0
+
+    return {
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "full_name": f"{user.first_name} {user.last_name}",
+            "phone": user.phone or "Not provided",
+            "avatar_url": user.avatar_url,
+            "is_active": user.is_active,
+            "is_verified": user.identity_verification_status == "VERIFIED",
+            "identity_status": user.identity_verification_status,
+            "primary_role": user.primary_role,
+            "roles": [r.name for r in user.roles],
+            "joined_at": user.created_at.isoformat() if user.created_at else None,
+            "business_name": user.business_name,
+            "address": user.address,
+        },
+        "customer_telemetry": {
+            "total_rentals": len(customer_bookings),
+            "total_spent_bdt": total_spent,
+            "completed_rentals": sum(1 for b in customer_bookings if b.status == "completed"),
+            "recent_rentals": [
+                {
+                    "id": str(b.id),
+                    "booking_code": f"#RH-{str(b.id)[:6].upper()}",
+                    "item_title": b.product.title if b.product else "Rental Item",
+                    "total_amount": float(b.total_amount or 0.0),
+                    "status": b.status,
+                    "start_date": b.start_date.isoformat() if b.start_date else None,
+                    "end_date": b.end_date.isoformat() if b.end_date else None,
+                }
+                for b in customer_bookings[:5]
+            ]
+        },
+        "owner_telemetry": {
+            "total_listings": len(products),
+            "active_listings": sum(1 for p in products if p.is_active),
+            "total_hosted_bookings": len(owner_bookings),
+            "gross_earnings_bdt": gross_earned,
+            "net_earnings_bdt": net_earned,
+            "avg_rating": avg_rating,
+            "review_count": len(reviews_list),
+            "recent_hosted": [
+                {
+                    "id": str(b.id),
+                    "booking_code": f"#RH-{str(b.id)[:6].upper()}",
+                    "renter_name": f"{b.renter.first_name} {b.renter.last_name}" if b.renter else "Customer",
+                    "item_title": b.product.title if b.product else "Rental Item",
+                    "total_amount": float(b.total_amount or 0.0),
+                    "status": b.status,
+                }
+                for b in owner_bookings[:5]
+            ]
+        }
+    }
+
+
+
 class UpdateUserVerificationPayload(BaseModel):
     status: str  # "VERIFIED" or "UNVERIFIED"
     reason: Optional[str] = None

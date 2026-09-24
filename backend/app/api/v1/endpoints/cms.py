@@ -368,3 +368,226 @@ async def save_system_settings(payload: SystemSettingsPayload):
         "message": "Platform system configurations updated & persisted successfully!",
         "settings": CURRENT_SYSTEM_SETTINGS
     }
+
+
+# ── Admin Promotions & Campaigns Endpoints ─────────────────────────────────
+
+class PromotionCreateUpdate(BaseModel):
+    title: str
+    subtitle: Optional[str] = None
+    discount_text: str = "15% OFF"
+    discount_pct: Optional[float] = 15.0
+    image_url: str
+    theme_color: str = "#4f46e5"
+    category_id: Optional[UUID] = None
+    is_active: bool = True
+
+
+@router.get("/admin/promotions")
+async def get_admin_promotions(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Promotion).order_by(Promotion.created_at.desc()))
+    promotions = result.scalars().all()
+    return promotions
+
+
+@router.post("/admin/promotions")
+async def create_promotion(payload: PromotionCreateUpdate, db: AsyncSession = Depends(get_db)):
+    promo = Promotion(
+        title=payload.title,
+        subtitle=payload.subtitle,
+        discount_text=payload.discount_text,
+        discount_pct=payload.discount_pct,
+        image_url=payload.image_url,
+        theme_color=payload.theme_color,
+        category_id=payload.category_id,
+        is_active=payload.is_active
+    )
+    db.add(promo)
+    await db.commit()
+    await db.refresh(promo)
+
+    try:
+        from app.api.v1.endpoints.analytics import record_audit_log
+        record_audit_log(
+            action="PROMOTION_CREATED",
+            title=f"Launched campaign: {promo.title}",
+            admin="Marketing Admin",
+            target=f"Promo {promo.discount_text}",
+            severity="INFO",
+            details=f"Discount: {promo.discount_pct}% - Active: {promo.is_active}"
+        )
+    except Exception:
+        pass
+
+    return {"message": "Promotion campaign created successfully!", "promotion": promo}
+
+
+@router.put("/admin/promotions/{promo_id}")
+async def update_promotion(promo_id: UUID, payload: PromotionCreateUpdate, db: AsyncSession = Depends(get_db)):
+    promo = await db.get(Promotion, promo_id)
+    if not promo:
+        raise HTTPException(status_code=404, detail="Promotion not found")
+
+    promo.title = payload.title
+    promo.subtitle = payload.subtitle
+    promo.discount_text = payload.discount_text
+    promo.discount_pct = payload.discount_pct
+    promo.image_url = payload.image_url
+    promo.theme_color = payload.theme_color
+    promo.category_id = payload.category_id
+    promo.is_active = payload.is_active
+
+    await db.commit()
+
+    try:
+        from app.api.v1.endpoints.analytics import record_audit_log
+        record_audit_log(
+            action="PROMOTION_UPDATED",
+            title=f"Updated campaign: {promo.title}",
+            admin="Marketing Admin",
+            target=f"Promo #{str(promo_id)[:8]}",
+            severity="INFO",
+            details=f"Status: {'Active' if promo.is_active else 'Paused'}"
+        )
+    except Exception:
+        pass
+
+    return {"message": "Promotion updated successfully!"}
+
+
+@router.delete("/admin/promotions/{promo_id}")
+async def delete_promotion(promo_id: UUID, db: AsyncSession = Depends(get_db)):
+    promo = await db.get(Promotion, promo_id)
+    if not promo:
+        raise HTTPException(status_code=404, detail="Promotion not found")
+
+    title = promo.title
+    await db.delete(promo)
+    await db.commit()
+
+    try:
+        from app.api.v1.endpoints.analytics import record_audit_log
+        record_audit_log(
+            action="PROMOTION_DELETED",
+            title=f"Deleted campaign: {title}",
+            admin="Marketing Admin",
+            target=f"Promo #{str(promo_id)[:8]}",
+            severity="WARNING",
+            details="Promotion removed from platform storefront."
+        )
+    except Exception:
+        pass
+
+    return {"message": "Promotion deleted successfully!"}
+
+
+# ── Admin Hero Slides / CMS Endpoints ──────────────────────────────────────
+
+class HeroSlideCreateUpdate(BaseModel):
+    eyebrow: Optional[str] = "Trusted Peer-to-Peer Rentals"
+    title: str
+    subtitle: Optional[str] = None
+    cta_text: str = "Explore Rentals"
+    cta_href: str = "/categories"
+    image_url: str
+    sort_order: int = 0
+    is_active: bool = True
+
+
+@router.get("/admin/hero-slides")
+async def get_admin_hero_slides(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(HeroBanner).order_by(HeroBanner.sort_order))
+    return result.scalars().all()
+
+
+@router.post("/admin/hero-slides")
+async def create_hero_slide(payload: HeroSlideCreateUpdate, db: AsyncSession = Depends(get_db)):
+    slide = HeroBanner(
+        eyebrow=payload.eyebrow,
+        title=payload.title,
+        subtitle=payload.subtitle,
+        cta_text=payload.cta_text,
+        cta_href=payload.cta_href,
+        image_url=payload.image_url,
+        sort_order=payload.sort_order,
+        is_active=payload.is_active
+    )
+    db.add(slide)
+    await db.commit()
+    await db.refresh(slide)
+
+    try:
+        from app.api.v1.endpoints.analytics import record_audit_log
+        record_audit_log(
+            action="CMS_BANNER_CREATED",
+            title=f"Published homepage hero slide: {slide.title}",
+            admin="CMS Editor",
+            target="Storefront Hero",
+            severity="INFO",
+            details=f"CTA: {slide.cta_text} -> {slide.cta_href}"
+        )
+    except Exception:
+        pass
+
+    return {"message": "Hero slide created successfully!", "slide": slide}
+
+
+@router.put("/admin/hero-slides/{slide_id}")
+async def update_hero_slide(slide_id: UUID, payload: HeroSlideCreateUpdate, db: AsyncSession = Depends(get_db)):
+    slide = await db.get(HeroBanner, slide_id)
+    if not slide:
+        raise HTTPException(status_code=404, detail="Hero slide not found")
+
+    slide.eyebrow = payload.eyebrow
+    slide.title = payload.title
+    slide.subtitle = payload.subtitle
+    slide.cta_text = payload.cta_text
+    slide.cta_href = payload.cta_href
+    slide.image_url = payload.image_url
+    slide.sort_order = payload.sort_order
+    slide.is_active = payload.is_active
+
+    await db.commit()
+
+    try:
+        from app.api.v1.endpoints.analytics import record_audit_log
+        record_audit_log(
+            action="CMS_BANNER_UPDATED",
+            title=f"Updated homepage hero slide: {slide.title}",
+            admin="CMS Editor",
+            target=f"Hero #{str(slide_id)[:8]}",
+            severity="INFO",
+            details=f"Sort Order: {slide.sort_order} - Active: {slide.is_active}"
+        )
+    except Exception:
+        pass
+
+    return {"message": "Hero slide updated successfully!"}
+
+
+@router.delete("/admin/hero-slides/{slide_id}")
+async def delete_hero_slide(slide_id: UUID, db: AsyncSession = Depends(get_db)):
+    slide = await db.get(HeroBanner, slide_id)
+    if not slide:
+        raise HTTPException(status_code=404, detail="Hero slide not found")
+
+    title = slide.title
+    await db.delete(slide)
+    await db.commit()
+
+    try:
+        from app.api.v1.endpoints.analytics import record_audit_log
+        record_audit_log(
+            action="CMS_BANNER_DELETED",
+            title=f"Removed homepage hero slide: {title}",
+            admin="CMS Editor",
+            target=f"Hero #{str(slide_id)[:8]}",
+            severity="WARNING",
+            details="Slide deleted from storefront rotation."
+        )
+    except Exception:
+        pass
+
+    return {"message": "Hero slide deleted successfully!"}
+
+

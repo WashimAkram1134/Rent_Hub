@@ -2,23 +2,25 @@
 
 import React from "react";
 import {
-  Users,
-  FileText,
-  Calendar,
   Banknote,
+  Calendar,
+  ShoppingBag,
+  Store,
+  Package,
   CreditCard,
-  Flag,
   ArrowUpRight,
-  ArrowDownRight,
+  ArrowDownRight
 } from "lucide-react";
 
 interface AdminStats {
-  total_users: number;
-  total_listings: number;
-  total_bookings: number;
-  total_revenue: number;
-  total_payouts: number;
-  open_disputes: number;
+  total_users?: number;
+  total_customers?: number;
+  total_owners?: number;
+  total_listings?: number;
+  total_bookings?: number;
+  total_revenue?: number;
+  total_payouts?: number;
+  open_disputes?: number;
 }
 
 interface AdminStatCardsProps {
@@ -26,101 +28,90 @@ interface AdminStatCardsProps {
 }
 
 export function AdminStatCardsWidget({ stats }: AdminStatCardsProps) {
-  const statCards = [
+  const revenue = stats.total_revenue || 0;
+  const bookings = stats.total_bookings || 0;
+  const customers = stats.total_customers || Math.max(0, (stats.total_users || 0) - (stats.total_owners || 0));
+  const owners = stats.total_owners || 0;
+  const listings = stats.total_listings || 0;
+  const payouts = stats.total_payouts || 0;
+
+  const topCards = [
     {
-      title: "Total Users",
-      value: (stats.total_users || 0).toLocaleString(),
-      trend: "+12.5%",
+      title: "Platform Revenue",
+      value: `৳ ${Math.round(revenue).toLocaleString()}`,
+      trend: "+12.4%",
       isPositive: true,
-      icon: Users,
-      color: "bg-indigo-600 text-white",
-      bgLight: "bg-indigo-50",
-    },
-    {
-      title: "Total Listings",
-      value: (stats.total_listings || 0).toLocaleString(),
-      trend: "+9.3%",
-      isPositive: true,
-      icon: FileText,
+      icon: Banknote,
       color: "bg-emerald-600 text-white",
-      bgLight: "bg-emerald-50",
+      caption: "Gross rental volume"
     },
     {
       title: "Total Bookings",
-      value: (stats.total_bookings || 0).toLocaleString(),
-      trend: "+11.7%",
+      value: bookings.toLocaleString(),
+      trend: "+8.2%",
       isPositive: true,
       icon: Calendar,
       color: "bg-blue-600 text-white",
-      bgLight: "bg-blue-50",
+      caption: "Confirmed & completed"
     },
     {
-      title: "Total Revenue",
-      value: `৳ ${Math.round(stats.total_revenue || 0).toLocaleString()}`,
-      trend: "+15.2%",
+      title: "Active Customers",
+      value: (customers || 1).toLocaleString(),
+      trend: "+15.0%",
       isPositive: true,
-      icon: Banknote,
-      color: "bg-amber-500 text-white",
-      bgLight: "bg-amber-50",
+      icon: ShoppingBag,
+      color: "bg-indigo-600 text-white",
+      caption: "Verified renters"
     },
     {
-      title: "Total Payouts",
-      value: `৳ ${Math.round(stats.total_payouts || 0).toLocaleString()}`,
-      trend: "+13.1%",
+      title: "Active Owners",
+      value: (owners || 1).toLocaleString(),
+      trend: "+9.0%",
       isPositive: true,
-      icon: CreditCard,
-      color: "bg-purple-600 text-white",
-      bgLight: "bg-purple-50",
-    },
-    {
-      title: "Open Disputes",
-      value: (stats.open_disputes || 0).toString(),
-      trend: "-5.6%",
-      isPositive: false,
-      icon: Flag,
-      color: "bg-rose-500 text-white",
-      bgLight: "bg-rose-50",
+      icon: Store,
+      color: "bg-amber-600 text-white",
+      caption: "Asset providers"
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-      {statCards.map((stat, i) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {topCards.map((stat, i) => (
         <div
           key={i}
-          className="bg-white p-4.5 sm:p-5 rounded-2xl shadow-xs border border-slate-100/90 flex flex-col justify-between min-h-[145px] hover:shadow-md hover:border-slate-200 transition-all group"
+          className="bg-white dark:bg-[#111625] p-5 rounded-2xl shadow-xs border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all group"
         >
-          {/* Top Row: Icon + Trend Pill */}
+          {/* Top Row: Icon + Trend */}
           <div className="flex items-center justify-between gap-2">
             <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-xs transition-transform group-hover:scale-105 ${stat.color}`}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-xs transition-transform group-hover:scale-105 ${stat.color}`}
             >
-              <stat.icon size={18} />
+              <stat.icon size={20} />
             </div>
 
             <span
-              className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-black border tracking-tight ${
+              className={`inline-flex items-center gap-0.5 px-2.5 py-1 rounded-full text-xs font-black border tracking-tight ${
                 stat.isPositive
-                  ? "bg-emerald-50 text-emerald-600 border-emerald-200/60"
+                  ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800/60"
                   : "bg-rose-50 text-rose-600 border-rose-200/60"
               }`}
             >
-              {stat.isPositive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+              {stat.isPositive ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
               <span>{stat.trend}</span>
             </span>
           </div>
 
           {/* Metric Value & Title */}
-          <div className="my-2">
-            <p className="text-slate-500 text-xs font-semibold tracking-tight">{stat.title}</p>
-            <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-0.5 truncate">
+          <div className="my-3">
+            <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">{stat.title}</p>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight mt-1 truncate">
               {stat.value}
             </h3>
           </div>
 
           {/* Context Footer */}
           <p className="text-[11px] font-medium text-slate-400 leading-none">
-            vs last week
+            {stat.caption}
           </p>
         </div>
       ))}

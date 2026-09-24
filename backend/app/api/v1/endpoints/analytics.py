@@ -8,10 +8,11 @@ from datetime import datetime, timedelta, timezone
 
 from app.database.session import get_db
 from app.models.product import Product, ProductImage
-from app.models.booking import Booking
+from app.models.booking import Booking, Dispute
 from app.models.user import User
 from app.models.category import Category
 from app.models.payout import Payout
+from app.models.lister_application import ListerApplication, ListerApplicationStatus
 
 router = APIRouter()
 
@@ -378,7 +379,9 @@ async def get_admin_stats(db: AsyncSession = Depends(get_db)):
     products_count = await db.scalar(select(func.count(Product.id)))
     bookings_count = await db.scalar(select(func.count(Booking.id)))
     
-    # User statuses
+    # User breakdown
+    owners_count = await db.scalar(select(func.count(User.id)).where(or_(User.is_owner == True, User.primary_role == "owner"))) or 0
+    customers_count = max(0, (users_count or 0) - owners_count)
     verified_users = await db.scalar(select(func.count(User.id)).where(User.identity_verification_status == "VERIFIED"))
     unverified_users = await db.scalar(select(func.count(User.id)).where(User.identity_verification_status != "VERIFIED"))
     
@@ -386,6 +389,29 @@ async def get_admin_stats(db: AsyncSession = Depends(get_db)):
     active_listings = await db.scalar(select(func.count(Product.id)).where(Product.is_active == True))
     inactive_listings = await db.scalar(select(func.count(Product.id)).where(Product.is_active == False))
     suspended_listings = await db.scalar(select(func.count(Product.id)).where(Product.status == "SUSPENDED"))
+    pending_listings = await db.scalar(
+        select(func.count(Product.id)).where(
+            or_(func.upper(Product.status).in_(["PENDING", "PENDING_APPROVAL"]), Product.is_active == False)
+        )
+    ) or 0
+    
+    # Lister Applications
+    pending_listers = await db.scalar(
+        select(func.count(ListerApplication.id)).where(ListerApplication.status == ListerApplicationStatus.PENDING)
+    ) or 0
+
+    # Payouts
+    pending_payouts = await db.scalar(
+        select(func.count(Payout.id)).where(Payout.status == "pending")
+    ) or 0
+    failed_payouts = await db.scalar(
+        select(func.count(Payout.id)).where(Payout.status == "failed")
+    ) or 0
+
+    # Disputes
+    open_disputes = await db.scalar(
+        select(func.count(Dispute.id)).where(func.lower(Dispute.status).in_(["open", "pending", "under_review"]))
+    ) or 0
     
     # Booking statuses
     completed_bookings = await db.scalar(select(func.count(Booking.id)).where(Booking.status == "completed"))
@@ -399,11 +425,17 @@ async def get_admin_stats(db: AsyncSession = Depends(get_db)):
     
     return {
         "total_users": users_count or 0,
+        "total_customers": customers_count,
+        "total_owners": owners_count,
         "total_listings": products_count or 0,
         "total_bookings": bookings_count or 0,
         "total_revenue": float(total_revenue or 0),
         "total_payouts": float(total_revenue or 0) * 0.9,
-        "open_disputes": 0,
+        "open_disputes": open_disputes,
+        "pending_listings": pending_listings,
+        "pending_listers": pending_listers,
+        "pending_payouts": pending_payouts,
+        "failed_payouts": failed_payouts,
         "verified_users": verified_users or 0,
         "unverified_users": unverified_users or 0,
         "active_listings": active_listings or 0,
@@ -952,8 +984,35 @@ AUDIT_LOGS_STORE = [
         "severity": "INFO",
         "timestamp": "Aug 25, 2026, 03:00 AM",
         "details": "Stored in encrypted AWS S3 ap-southeast-1 bucket."
-    }
 ]
+
+def record_audit_log(
+    action: str,
+    title: str,
+    admin: str = "Admin Operator",
+    target: str = "System",
+    severity: str = "INFO",
+    details: str = "",
+    ip_address: str = "103.114.98.22 (Dhaka, BD)"
+):
+    import time
+    log_id = f"LOG-{int(time.time() * 10) % 90000 + 10000}"
+    entry = {
+        "id": log_id,
+        "action": action,
+        "title": title,
+        "admin": admin,
+        "target": target,
+        "ip_address": ip_address,
+        "severity": severity,
+        "timestamp": "Just now",
+        "details": details
+    }
+    AUDIT_LOGS_STORE.insert(0, entry)
+    if len(AUDIT_LOGS_STORE) > 200:
+        AUDIT_LOGS_STORE.pop()
+    return entry
+
 
 @router.get("/admin/logs")
 async def get_admin_audit_logs(
@@ -1043,5 +1102,116 @@ async def create_manual_backup():
         "message": "Manual database snapshot created and verified successfully!",
         "snapshot": new_snap
     }
+
+
+@router.get("/admin/omni-search")
+async def admin_omni_search(
+    q: str = Query(..., min_length=2, description="Search query across bookings, listings, users, payouts"),
+    db: AsyncSession = Depends(get_db)
+):
+    query_str = f"%{q.strip()}%"
+    
+    # 1. Search Users
+    users_stmt = select(User).where(
+        or_(
+            User.email.ilike(query_str),
+            User.first_name.ilike(query_str),
+            User.last_name.ilike(query_str),
+            User.phone.ilike(query_str)
+        )
+    ).limit(5)
+    users_res = await db.scalars(users_stmt)
+    users = [
+        {
+            "id": str(u.id),
+            "name": f"{u.first_name} {u.last_name}",
+            "email": u.email,
+            "role": u.primary_role or ("owner" if u.is_owner else "customer"),
+            "is_verified": u.identity_verification_status == "VERIFIED" or u.is_identity_verified,
+            "href": f"/admin/users?search={u.email}"
+        }
+        for u in users_res.all()
+    ]
+    
+    # 2. Search Listings
+    products_stmt = select(Product).options(selectinload(Product.images)).where(
+        or_(
+            Product.title.ilike(query_str),
+            Product.slug.ilike(query_str),
+            Product.area.ilike(query_str),
+            Product.city.ilike(query_str)
+        )
+    ).limit(5)
+    products_res = await db.scalars(products_stmt)
+    listings = [
+        {
+            "id": str(p.id),
+            "title": p.title,
+            "price_per_day": float(p.price_per_day),
+            "status": p.status,
+            "image": p.images[0].url if p.images else None,
+            "href": f"/admin/listings?search={p.title}"
+        }
+        for p in products_res.all()
+    ]
+    
+    # 3. Search Bookings
+    bookings_stmt = select(Booking).options(
+        selectinload(Booking.product),
+        selectinload(Booking.customer)
+    ).where(
+        or_(
+            Booking.id.cast(String).ilike(query_str)
+        )
+    ).limit(5)
+    try:
+        bookings_res = await db.scalars(bookings_stmt)
+        bookings = [
+            {
+                "id": str(b.id),
+                "code": f"RH-{str(b.id)[:8].upper()}",
+                "item_name": b.product.title if b.product else "Rental Item",
+                "customer_name": f"{b.customer.first_name} {b.customer.last_name}" if b.customer else "Customer",
+                "amount": float(b.total_amount) if b.total_amount else 0.0,
+                "status": b.status,
+                "href": f"/admin/bookings?search={str(b.id)[:8]}"
+            }
+            for b in bookings_res.all()
+        ]
+    except Exception:
+        bookings = []
+    
+    # 4. Search Payouts
+    payouts_stmt = select(Payout).where(
+        or_(
+            Payout.payout_id.ilike(query_str),
+            Payout.account_number.ilike(query_str),
+            Payout.account_name.ilike(query_str)
+        )
+    ).limit(5)
+    payouts_res = await db.scalars(payouts_stmt)
+    payouts = [
+        {
+            "id": str(py.id),
+            "payout_id": py.payout_id,
+            "account_name": py.account_name or "Host",
+            "net_amount": float(py.net_amount),
+            "status": py.status,
+            "href": f"/admin/payouts?search={py.payout_id}"
+        }
+        for py in payouts_res.all()
+    ]
+    
+    return {
+        "query": q,
+        "total_results": len(users) + len(listings) + len(bookings) + len(payouts),
+        "results": {
+            "bookings": bookings,
+            "listings": listings,
+            "users": users,
+            "payouts": payouts
+        }
+    }
+
 
 

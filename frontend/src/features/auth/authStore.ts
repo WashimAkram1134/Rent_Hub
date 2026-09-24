@@ -23,7 +23,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  activeRole: "customer" | "owner";
+  activeRole: "customer" | "owner" | "admin";
 }
 
 interface AuthActions {
@@ -34,7 +34,7 @@ interface AuthActions {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   setUser: (user: User) => void;
-  setActiveRole: (role: "customer" | "owner") => void;
+  setActiveRole: (role: "customer" | "owner" | "admin") => void;
   toggleActiveRole: () => void;
   clearError: () => void;
   hydrate: () => Promise<void>;
@@ -112,8 +112,9 @@ export const useAuthStore = create<AuthStore>()(
           const { token, user } = await AuthService.login(credentials);
           localStorage.setItem("access_token", token.access_token);
           
+          const isAdminUser = user.primary_role === "admin" || user.role_names?.includes("admin");
           const isOwnerUser = user.is_owner || user.primary_role === "owner" || user.role_names?.includes("owner");
-          const defaultRole = isOwnerUser ? "owner" : "customer";
+          const defaultRole: "customer" | "owner" | "admin" = isAdminUser ? "admin" : (isOwnerUser ? "owner" : "customer");
 
           set({
             user,
@@ -202,7 +203,10 @@ export const useAuthStore = create<AuthStore>()(
         set({ accessToken: token, isLoading: true });
         try {
           const user = await AuthService.getMe();
-          set({ user, isAuthenticated: true, isLoading: false });
+          const isAdminUser = user.primary_role === "admin" || user.role_names?.includes("admin");
+          const currentRole = get().activeRole;
+          const resolvedRole: "customer" | "owner" | "admin" = (isAdminUser && (!currentRole || currentRole === "customer")) ? "admin" : (currentRole || "customer");
+          set({ user, isAuthenticated: true, isLoading: false, activeRole: resolvedRole });
           useWishlistStore.getState().syncFromServer();
         } catch {
           localStorage.removeItem("access_token");

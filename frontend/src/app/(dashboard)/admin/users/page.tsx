@@ -18,6 +18,18 @@ import {
   AlertTriangle,
   Send,
   Eye,
+  Ban,
+  Calendar,
+  DollarSign,
+  Package,
+  ExternalLink,
+  Lock,
+  Unlock,
+  Mail,
+  Phone,
+  MapPin,
+  Clock,
+  Sparkles,
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/authStore";
 import { DataTable } from "@/components/common/DataTable";
@@ -42,7 +54,23 @@ export default function AdminUsersPage() {
   const [unverifyReason, setUnverifyReason] = useState("");
   const [isSubmittingUnverify, setIsSubmittingUnverify] = useState(false);
 
+  // Suspension modal states
+  const [selectedUserForSuspend, setSelectedUserForSuspend] = useState<any | null>(null);
+  const [suspendReason, setSuspendReason] = useState("Policy Violation");
+  const [suspendDuration, setSuspendDuration] = useState("permanent");
+  const [suspendNote, setSuspendNote] = useState("");
+  const [isSubmittingSuspend, setIsSubmittingSuspend] = useState(false);
+
+  const [selectedUserForReactivate, setSelectedUserForReactivate] = useState<any | null>(null);
+  const [isSubmittingReactivate, setIsSubmittingReactivate] = useState(false);
+
+  // 360° Profile Drawer states
+  const [drawerUser, setDrawerUser] = useState<any | null>(null);
+  const [drawerData, setDrawerData] = useState<any | null>(null);
+  const [loadingDrawer, setLoadingDrawer] = useState(false);
+
   const isAdmin = user?.primary_role === "admin";
+
 
   const load = async () => {
     try {
@@ -152,6 +180,76 @@ export default function AdminUsersPage() {
     }
   };
 
+  const openSuspendModal = (u: any) => {
+    setSelectedUserForSuspend(u);
+    setSuspendReason("Policy Violation");
+    setSuspendDuration("permanent");
+    setSuspendNote("");
+  };
+
+  const handleSuspendUser = async () => {
+    if (!selectedUserForSuspend) return;
+    try {
+      setIsSubmittingSuspend(true);
+      const fullReason = suspendNote ? `${suspendReason}: ${suspendNote.trim()}` : suspendReason;
+      const res = await apiClient.patch(`/users/${selectedUserForSuspend.id}/status`, {
+        is_active: false,
+        reason: fullReason,
+        duration: suspendDuration,
+      });
+      setUsers((prev) =>
+        prev.map((u) => (u.id === selectedUserForSuspend.id ? { ...u, ...res.data, is_active: false } : u))
+      );
+      showToast(`User ${selectedUserForSuspend.first_name || ""} has been suspended (${suspendDuration}).`, "success");
+      setSelectedUserForSuspend(null);
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || "Failed to suspend user.";
+      showToast(msg, "error");
+    } finally {
+      setIsSubmittingSuspend(false);
+    }
+  };
+
+  const openReactivateModal = (u: any) => {
+    setSelectedUserForReactivate(u);
+  };
+
+  const handleReactivateUser = async () => {
+    if (!selectedUserForReactivate) return;
+    try {
+      setIsSubmittingReactivate(true);
+      const res = await apiClient.patch(`/users/${selectedUserForReactivate.id}/status`, {
+        is_active: true,
+        reason: "Account privileges restored by Administrator",
+      });
+      setUsers((prev) =>
+        prev.map((u) => (u.id === selectedUserForReactivate.id ? { ...u, ...res.data, is_active: true } : u))
+      );
+      showToast(`User ${selectedUserForReactivate.first_name || ""} has been reactivated.`, "success");
+      setSelectedUserForReactivate(null);
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || "Failed to reactivate user.";
+      showToast(msg, "error");
+    } finally {
+      setIsSubmittingReactivate(false);
+    }
+  };
+
+  const openDrawer = async (u: any) => {
+    setDrawerUser(u);
+    setDrawerData(null);
+    setLoadingDrawer(true);
+    try {
+      const res = await apiClient.get(`/users/${u.id}/admin-360`);
+      setDrawerData(res.data);
+    } catch (err) {
+      console.error("Failed to load user 360 overview:", err);
+      showToast("Could not load 360 telemetry for this user.", "error");
+    } finally {
+      setLoadingDrawer(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this user? This cannot be undone.")) return;
     try {
@@ -194,17 +292,24 @@ export default function AdminUsersPage() {
         const u = info.row.original;
         return (
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-500 text-white flex items-center justify-center text-xs font-bold overflow-hidden shrink-0 shadow-xs">
+            <button
+              onClick={() => openDrawer(u)}
+              className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-500 text-white flex items-center justify-center text-xs font-bold overflow-hidden shrink-0 shadow-xs hover:ring-2 hover:ring-indigo-500 cursor-pointer transition-all"
+              title="Click to view 360° Profile"
+            >
               {u.avatar_url ? (
                 <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
               ) : (
                 `${u.first_name?.[0] || ""}${u.last_name?.[0] || ""}` || "U"
               )}
-            </div>
+            </button>
             <div>
-              <p className="font-bold text-slate-900 leading-tight">
+              <button
+                onClick={() => openDrawer(u)}
+                className="font-bold text-slate-900 hover:text-indigo-600 leading-tight text-left cursor-pointer transition-colors"
+              >
                 {u.first_name} {u.last_name}
-              </p>
+              </button>
               <p className="text-xs text-slate-400">{u.email}</p>
             </div>
           </div>
@@ -327,6 +432,30 @@ export default function AdminUsersPage() {
       },
     },
     {
+      accessorKey: "is_active",
+      header: "Account Status",
+      cell: (info: any) => {
+        const u = info.row.original;
+        const isActive = u.is_active !== false;
+        return (
+          <span
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold ${
+              isActive
+                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                : "bg-rose-50 text-rose-700 border border-rose-200"
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isActive ? "bg-emerald-500" : "bg-rose-500 animate-pulse"
+              }`}
+            />
+            {isActive ? "Active" : "Suspended"}
+          </span>
+        );
+      },
+    },
+    {
       accessorKey: "created_at",
       header: "Joined",
       cell: (info: any) => {
@@ -343,12 +472,40 @@ export default function AdminUsersPage() {
       header: () => <div className="text-right">Actions</div>,
       cell: (info: any) => {
         const u = info.row.original;
+        const isActive = u.is_active !== false;
         return (
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-1.5">
+            <button
+              onClick={() => openDrawer(u)}
+              className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+              title="View 360° Profile & Telemetry"
+            >
+              <Eye size={15} />
+            </button>
+
+            {isActive ? (
+              <button
+                onClick={() => openSuspendModal(u)}
+                disabled={u.id === user?.id}
+                className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                title={u.id === user?.id ? "Cannot suspend own account" : "Suspend User Account"}
+              >
+                <Ban size={15} />
+              </button>
+            ) : (
+              <button
+                onClick={() => openReactivateModal(u)}
+                className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                title="Reactivate User Account"
+              >
+                <Unlock size={15} />
+              </button>
+            )}
+
             <button
               onClick={() => handleDelete(u.id)}
               disabled={u.id === user?.id}
-              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               title={u.id === user?.id ? "Cannot delete own account" : "Delete user"}
             >
               <Trash2 size={15} />
@@ -358,6 +515,7 @@ export default function AdminUsersPage() {
       },
     },
   ];
+
 
   return (
     <div className="space-y-6 p-6 max-w-[1400px] mx-auto animate-in fade-in duration-500">
@@ -680,6 +838,421 @@ export default function AdminUsersPage() {
           </div>
         </div>
       )}
+
+      {/* In-Page Modal: Suspend User Account */}
+      {selectedUserForSuspend && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-rose-200/80 max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+            <div className="p-5 border-b border-rose-100 flex items-center justify-between bg-rose-50/60">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-rose-100 text-rose-700 rounded-xl">
+                  <Ban size={20} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">Suspend User Account</h3>
+                  <p className="text-xs text-slate-500">
+                    {selectedUserForSuspend.first_name} {selectedUserForSuspend.last_name} ({selectedUserForSuspend.email})
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedUserForSuspend(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              <div className="bg-rose-50 border border-rose-200 p-3 rounded-2xl flex items-start gap-2.5">
+                <AlertTriangle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+                <p className="text-rose-800 text-xs leading-relaxed">
+                  Suspending this user will immediately freeze active listings, pause pending payouts, and restrict rental bookings.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                  Suspension Reason <span className="text-rose-600">*</span>
+                </label>
+                <select
+                  value={suspendReason}
+                  onChange={(e) => setSuspendReason(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-xl bg-white font-medium focus:outline-none focus:border-rose-600"
+                >
+                  <option value="Policy Violation">Policy Violation / Terms Breach</option>
+                  <option value="Fraudulent Activity">Suspected Fraudulent Activity / Chargeback</option>
+                  <option value="Customer Misconduct">Multiple Customer Complaints & Bad Conduct</option>
+                  <option value="Prohibited Items">Prohibited Item Listing / Safety Hazard</option>
+                  <option value="Identity Discrepancy">Identity Discrepancy / Fake Documents</option>
+                  <option value="Other">Other Administrative Reason</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                  Suspension Duration
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: "7d", label: "7 Days", desc: "Cooling Off" },
+                    { id: "30d", label: "30 Days", desc: "Extended" },
+                    { id: "permanent", label: "Permanent", desc: "Full Ban" },
+                  ].map((d) => (
+                    <button
+                      type="button"
+                      key={d.id}
+                      onClick={() => setSuspendDuration(d.id)}
+                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                        suspendDuration === d.id
+                          ? "bg-rose-50 border-rose-500 text-rose-900 font-extrabold shadow-xs"
+                          : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                      }`}
+                    >
+                      <p className="text-xs font-bold">{d.label}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{d.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                  Explanation Note / Message to User (Optional)
+                </label>
+                <textarea
+                  rows={3}
+                  value={suspendNote}
+                  onChange={(e) => setSuspendNote(e.target.value)}
+                  placeholder="Provide details on the violation and appeal instructions..."
+                  className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-rose-600 resize-none font-medium"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-100 flex items-center justify-end gap-2.5 bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => setSelectedUserForSuspend(null)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSuspendUser}
+                disabled={isSubmittingSuspend}
+                className="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmittingSuspend ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Suspending...</span>
+                  </>
+                ) : (
+                  <>
+                    <Ban size={14} />
+                    <span>Confirm Suspension</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* In-Page Modal: Reactivate User Account */}
+      {selectedUserForReactivate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-emerald-200/80 max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+            <div className="p-5 border-b border-emerald-100 flex items-center justify-between bg-emerald-50/60">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-emerald-100 text-emerald-700 rounded-xl">
+                  <Unlock size={20} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">Reactivate Account</h3>
+                  <p className="text-xs text-slate-500">
+                    {selectedUserForReactivate.first_name} {selectedUserForReactivate.last_name}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedUserForReactivate(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3 text-xs text-slate-600">
+              <p>
+                Are you sure you want to restore full account privileges for <strong>{selectedUserForReactivate.email}</strong>?
+              </p>
+              <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl text-emerald-800 text-[11px] leading-relaxed">
+                The user will immediately regain access to browse, request rentals, manage active inventory, and receive payouts. An in-app reactivation notification will be sent.
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-100 flex items-center justify-end gap-2.5 bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => setSelectedUserForReactivate(null)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleReactivateUser}
+                disabled={isSubmittingReactivate}
+                className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmittingReactivate ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Reactivating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock size={14} />
+                    <span>Restore Account Privileges</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User 360° Profile View Slide-Over Drawer */}
+      {drawerUser && (
+        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/60 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-xl h-full shadow-2xl flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-300">
+            {/* Drawer Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-blue-500 text-white flex items-center justify-center text-sm font-black shadow-md overflow-hidden shrink-0">
+                  {drawerUser.avatar_url ? (
+                    <img src={drawerUser.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    `${drawerUser.first_name?.[0] || ""}${drawerUser.last_name?.[0] || ""}` || "U"
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-black text-slate-900 text-base leading-tight">
+                      {drawerUser.first_name} {drawerUser.last_name}
+                    </h3>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        drawerUser.is_active !== false
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-rose-100 text-rose-800"
+                      }`}
+                    >
+                      {drawerUser.is_active !== false ? "Active" : "Suspended"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">{drawerUser.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setDrawerUser(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-200/50 transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Drawer Body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-5 text-xs">
+              {loadingDrawer ? (
+                <div className="flex flex-col items-center justify-center py-24 text-slate-400 gap-3">
+                  <Loader2 size={32} className="animate-spin text-indigo-600" />
+                  <p className="font-semibold text-xs">Loading 360° telemetry...</p>
+                </div>
+              ) : drawerData ? (
+                <>
+                  {/* Account Snapshot Bar */}
+                  <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/70">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400">Phone</span>
+                      <p className="font-bold text-slate-800 mt-0.5">{drawerData.user?.phone || "N/A"}</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400">Identity Badge</span>
+                      <p className="font-bold text-slate-800 mt-0.5 flex items-center gap-1">
+                        {drawerData.user?.is_verified ? (
+                          <span className="text-emerald-600 flex items-center gap-1">
+                            <ShieldCheck size={13} /> Verified
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">Unverified</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Customer Telemetry */}
+                  <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
+                    <div className="flex items-center gap-2 text-blue-600 font-extrabold text-xs">
+                      <UserCheck size={15} />
+                      <span>Customer Activity (Rentals Made)</span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-blue-50/50 p-2.5 rounded-xl border border-blue-100">
+                        <span className="text-[10px] text-blue-700 font-bold uppercase">Total Bookings</span>
+                        <p className="text-lg font-black text-blue-900 mt-0.5">
+                          {drawerData.customer_telemetry?.total_rentals || 0}
+                        </p>
+                      </div>
+                      <div className="bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100">
+                        <span className="text-[10px] text-emerald-700 font-bold uppercase">Completed</span>
+                        <p className="text-lg font-black text-emerald-900 mt-0.5">
+                          {drawerData.customer_telemetry?.completed_rentals || 0}
+                        </p>
+                      </div>
+                      <div className="bg-purple-50/50 p-2.5 rounded-xl border border-purple-100">
+                        <span className="text-[10px] text-purple-700 font-bold uppercase">Lifetime Spend</span>
+                        <p className="text-lg font-black text-purple-900 mt-0.5">
+                          ৳ {Math.round(drawerData.customer_telemetry?.total_spent_bdt || 0).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    {drawerData.customer_telemetry?.recent_rentals?.length > 0 && (
+                      <div className="pt-2">
+                        <p className="font-bold text-slate-700 mb-2">Recent Rentals:</p>
+                        <div className="space-y-1.5">
+                          {drawerData.customer_telemetry.recent_rentals.map((r: any) => (
+                            <div
+                              key={r.id}
+                              className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100"
+                            >
+                              <div>
+                                <p className="font-bold text-slate-800">{r.item_title}</p>
+                                <span className="text-[10px] text-slate-400 font-mono">{r.booking_code}</span>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold text-slate-900">৳ {r.total_amount?.toLocaleString()}</p>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-slate-200 text-slate-700">
+                                  {r.status}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Owner Telemetry */}
+                  <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
+                    <div className="flex items-center gap-2 text-indigo-600 font-extrabold text-xs">
+                      <Building2 size={15} />
+                      <span>Host Activity (Rental Fleet & Earnings)</span>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-2">
+                      <div className="bg-indigo-50/50 p-2.5 rounded-xl border border-indigo-100">
+                        <span className="text-[10px] text-indigo-700 font-bold uppercase">Listings</span>
+                        <p className="text-lg font-black text-indigo-900 mt-0.5">
+                          {drawerData.owner_telemetry?.total_listings || 0}
+                        </p>
+                      </div>
+                      <div className="bg-blue-50/50 p-2.5 rounded-xl border border-blue-100">
+                        <span className="text-[10px] text-blue-700 font-bold uppercase">Hosted</span>
+                        <p className="text-lg font-black text-blue-900 mt-0.5">
+                          {drawerData.owner_telemetry?.total_hosted_bookings || 0}
+                        </p>
+                      </div>
+                      <div className="bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100">
+                        <span className="text-[10px] text-emerald-700 font-bold uppercase">Net Payouts</span>
+                        <p className="text-lg font-black text-emerald-900 mt-0.5">
+                          ৳ {Math.round(drawerData.owner_telemetry?.net_earnings_bdt || 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="bg-amber-50/50 p-2.5 rounded-xl border border-amber-100">
+                        <span className="text-[10px] text-amber-700 font-bold uppercase">Rating</span>
+                        <p className="text-lg font-black text-amber-900 mt-0.5">
+                          ★ {drawerData.owner_telemetry?.avg_rating || 0}
+                        </p>
+                      </div>
+                    </div>
+
+                    {drawerData.owner_telemetry?.recent_hosted?.length > 0 && (
+                      <div className="pt-2">
+                        <p className="font-bold text-slate-700 mb-2">Recent Hosted Rentals:</p>
+                        <div className="space-y-1.5">
+                          {drawerData.owner_telemetry.recent_hosted.map((h: any) => (
+                            <div
+                              key={h.id}
+                              className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100"
+                            >
+                              <div>
+                                <p className="font-bold text-slate-800">{h.item_title}</p>
+                                <span className="text-[10px] text-slate-400">Renter: {h.renter_name}</span>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold text-slate-900">৳ {h.total_amount?.toLocaleString()}</p>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-slate-200 text-slate-700">
+                                  {h.status}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : null}
+            </div>
+
+            {/* Drawer Footer Actions */}
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  setDrawerUser(null);
+                  openVerifyModal(drawerUser);
+                }}
+                className="px-3 py-2 rounded-xl border border-slate-300 font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Inspect Verification
+              </button>
+
+              {drawerUser.is_active !== false ? (
+                <button
+                  onClick={() => {
+                    const u = drawerUser;
+                    setDrawerUser(null);
+                    openSuspendModal(u);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Ban size={14} />
+                  <span>Suspend Account</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    const u = drawerUser;
+                    setDrawerUser(null);
+                    openReactivateModal(u);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Unlock size={14} />
+                  <span>Reactivate Account</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

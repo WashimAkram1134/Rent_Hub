@@ -24,6 +24,8 @@ import {
   Layers,
   ArrowUpDown,
   RefreshCw,
+  Eye,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/authStore";
 import apiClient from "@/lib/axios";
@@ -60,6 +62,55 @@ export default function AdminListingsPage() {
   const [isSavingSingleOffer, setIsSavingSingleOffer] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Listing Moderation & Review Modal state
+  const [reviewProduct, setReviewProduct] = useState<any | null>(null);
+  const [checklist, setChecklist] = useState({ info: true, images: true, category: true });
+  const [reviewAction, setReviewAction] = useState<"approve" | "changes" | "reject" | null>(null);
+  const [reviewRejectReason, setReviewRejectReason] = useState("Poor or blurry images");
+  const [reviewNote, setReviewNote] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  const openReviewModal = (p: any) => {
+    setReviewProduct(p);
+    setChecklist({ info: true, images: true, category: true });
+    setReviewAction(null);
+    setReviewNote("");
+    setReviewRejectReason("Poor or blurry images");
+  };
+
+  const handleExecuteReview = async (action: "approve" | "changes" | "reject") => {
+    if (!reviewProduct) return;
+    if (action === "changes" && !reviewNote.trim()) {
+      alert("Please enter a note explaining what changes the host needs to make.");
+      return;
+    }
+    if (action === "reject" && !reviewNote.trim()) {
+      alert("Please enter a note explaining why this listing is rejected.");
+      return;
+    }
+    try {
+      setIsSubmittingReview(true);
+      const targetStatus = action === "approve" ? "APPROVED" : (action === "changes" ? "PENDING" : "REJECTED");
+      await apiClient.patch(`/products/${reviewProduct.id}/status`, {
+        status: targetStatus,
+        review_action: action,
+        reject_reason: action === "reject" ? reviewRejectReason : undefined,
+        review_note: reviewNote.trim() || undefined
+      });
+      showToast(
+        action === "approve"
+          ? "Listing approved and published!"
+          : (action === "changes" ? "Revision request sent to host" : "Listing rejected")
+      );
+      setReviewProduct(null);
+      loadData();
+    } catch (e) {
+      alert("Failed to update listing status.");
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -682,6 +733,16 @@ export default function AdminListingsPage() {
                       {/* 7. Actions */}
                       <td className="py-3.5 px-4 text-right whitespace-nowrap">
                         <div className="inline-flex items-center gap-1.5">
+                          {/* Dedicated Review & Moderation Button */}
+                          <button
+                            onClick={() => openReviewModal(p)}
+                            title="Inspect Listing Photos & Checklist"
+                            className="px-2.5 py-1 rounded-lg bg-slate-900 text-white text-[11px] font-bold hover:bg-slate-800 transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
+                          >
+                            <Eye size={12} />
+                            <span>Review</span>
+                          </button>
+
                           {/* Offer Button */}
                           <button
                             onClick={() => openSingleOfferModal(p)}
@@ -1030,6 +1091,247 @@ export default function AdminListingsPage() {
                   <span>Save Offer</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 📝 Listing Review & Moderation Modal ── */}
+      {reviewProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-150 font-sans overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden my-6">
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+                  {reviewProduct.category_name || "Rental Asset"}
+                </span>
+                <h3 className="text-base font-black text-slate-900 mt-1">
+                  Listing Moderation: {reviewProduct.title}
+                </h3>
+              </div>
+              <button
+                onClick={() => setReviewProduct(null)}
+                className="w-8 h-8 rounded-full bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+              {/* Asset Photos & Quick Specs */}
+              <div className="flex flex-col sm:flex-row gap-4 items-start">
+                <div className="w-full sm:w-44 h-36 rounded-2xl bg-slate-100 overflow-hidden border border-slate-200 shrink-0">
+                  {reviewProduct.images && reviewProduct.images.length > 0 ? (
+                    <img
+                      src={reviewProduct.images[0].url || reviewProduct.images[0]}
+                      alt={reviewProduct.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : reviewProduct.image_url ? (
+                    <img
+                      src={reviewProduct.image_url}
+                      alt={reviewProduct.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-400">
+                      <Package size={32} />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2 flex-1">
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                      <span className="text-slate-400 text-[10px] block font-bold uppercase">Rate</span>
+                      <span className="font-mono font-black text-sm text-slate-900">
+                        ৳{Number(reviewProduct.price_per_day || 0).toLocaleString()} / day
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                      <span className="text-slate-400 text-[10px] block font-bold uppercase">Deposit</span>
+                      <span className="font-mono font-black text-sm text-slate-900">
+                        ৳{Number(reviewProduct.security_deposit || 2000).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-600 line-clamp-3">
+                    {reviewProduct.description || "No description provided by host."}
+                  </p>
+
+                  <div className="flex items-center gap-3 text-xs text-slate-500 pt-1">
+                    <span className="flex items-center gap-1">
+                      <MapPin size={12} className="text-slate-400" />
+                      {reviewProduct.area ? `${reviewProduct.area}, ` : ""}{reviewProduct.city || "Dhaka"}
+                    </span>
+                    <span>•</span>
+                    <span>Host: <strong>{reviewProduct.owner_name || "Verified Host"}</strong></span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3-Point Operator Checklist */}
+              <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 space-y-2.5">
+                <p className="text-xs font-black text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck size={14} className="text-indigo-600" /> 3-Point Quality Checklist
+                </p>
+                <div className="space-y-2 text-xs font-semibold text-slate-700">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checklist.info}
+                      onChange={(e) => setChecklist({ ...checklist, info: e.target.checked })}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                    />
+                    <span>Information & rental terms complete</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checklist.images}
+                      onChange={(e) => setChecklist({ ...checklist, images: e.target.checked })}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                    />
+                    <span>Images acceptable, sharp, and authentic</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checklist.category}
+                      onChange={(e) => setChecklist({ ...checklist, category: e.target.checked })}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                    />
+                    <span>Category correctly assigned</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Action Selector: Approve, Request Changes, Reject */}
+              <div className="space-y-3">
+                <p className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                  Select Moderation Action
+                </p>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setReviewAction("approve")}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      reviewAction === "approve"
+                        ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                        : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                    }`}
+                  >
+                    <CheckCircle size={14} /> Approve Listing
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setReviewAction("changes")}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      reviewAction === "changes"
+                        ? "bg-amber-600 text-white border-amber-600 shadow-sm"
+                        : "border-amber-200 text-amber-700 hover:bg-amber-50"
+                    }`}
+                  >
+                    <SlidersHorizontal size={14} /> Request Changes
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setReviewAction("reject")}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      reviewAction === "reject"
+                        ? "bg-rose-600 text-white border-rose-600 shadow-sm"
+                        : "border-rose-200 text-rose-700 hover:bg-rose-50"
+                    }`}
+                  >
+                    <XCircle size={14} /> Reject Listing
+                  </button>
+                </div>
+
+                {/* Sub-form: Reject reason */}
+                {reviewAction === "reject" && (
+                  <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 space-y-2 animate-in fade-in duration-150">
+                    <label className="text-xs font-bold text-rose-900 block">Rejection Reason</label>
+                    <select
+                      value={reviewRejectReason}
+                      onChange={(e) => setReviewRejectReason(e.target.value)}
+                      className="w-full p-2 bg-white border border-rose-200 rounded-lg text-xs font-semibold text-slate-800 outline-none"
+                    >
+                      <option value="Poor or blurry images">Poor or blurry images</option>
+                      <option value="Incorrect category">Incorrect category</option>
+                      <option value="Misleading information">Misleading information</option>
+                      <option value="Inappropriate or prohibited item">Inappropriate or prohibited item</option>
+                      <option value="Pricing or deposit issue">Pricing or deposit issue</option>
+                      <option value="Other">Other</option>
+                    </select>
+
+                    <label className="text-xs font-bold text-rose-900 block mt-2">Explanation Note to Host *</label>
+                    <textarea
+                      rows={2}
+                      value={reviewNote}
+                      onChange={(e) => setReviewNote(e.target.value)}
+                      placeholder="e.g. Please upload clear photos in natural light showing all sides of the equipment..."
+                      className="w-full p-2 bg-white border border-rose-200 rounded-lg text-xs text-slate-800 outline-none"
+                      required
+                    />
+                  </div>
+                )}
+
+                {/* Sub-form: Request Changes */}
+                {reviewAction === "changes" && (
+                  <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 space-y-2 animate-in fade-in duration-150">
+                    <label className="text-xs font-bold text-amber-900 block">Revision Note to Host *</label>
+                    <textarea
+                      rows={2}
+                      value={reviewNote}
+                      onChange={(e) => setReviewNote(e.target.value)}
+                      placeholder="e.g. Please update your security deposit to match standard DSLR camera policy (৳5,000)..."
+                      className="w-full p-2 bg-white border border-amber-200 rounded-lg text-xs text-slate-800 outline-none"
+                      required
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setReviewProduct(null)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 rounded-xl"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={!reviewAction || isSubmittingReview}
+                onClick={() => reviewAction && handleExecuteReview(reviewAction)}
+                className={`px-5 py-2.5 rounded-xl text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+                  reviewAction === "approve"
+                    ? "bg-emerald-600 hover:bg-emerald-700"
+                    : reviewAction === "changes"
+                    ? "bg-amber-600 hover:bg-amber-700"
+                    : "bg-rose-600 hover:bg-rose-700"
+                }`}
+              >
+                {isSubmittingReview && <Loader2 size={13} className="animate-spin" />}
+                <span>
+                  {reviewAction === "approve"
+                    ? "Confirm Approval & Publish"
+                    : reviewAction === "changes"
+                    ? "Send Revision Request"
+                    : reviewAction === "reject"
+                    ? "Confirm Rejection"
+                    : "Select an Action"}
+                </span>
+              </button>
             </div>
           </div>
         </div>

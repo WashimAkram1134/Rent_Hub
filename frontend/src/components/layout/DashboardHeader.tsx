@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   Search,
@@ -17,31 +17,95 @@ import {
   CarFront,
   ShieldCheck,
   Calendar,
+  Shield,
+  Package,
+  CreditCard,
+  Users,
+  Loader2,
+  X,
+  ExternalLink
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/authStore";
 import { useCartStore } from "@/store/cartStore";
 import { NotificationDropdown } from "./NotificationDropdown";
 import CustomerAccountModal from "@/components/common/CustomerAccountModal";
+import apiClient from "@/lib/axios";
 
 /**
  * DashboardHeader — global top bar used across authenticated pages.
- * Supports dual role mode switching (Customer ↔ Owner).
+ * Supports dual/triple role mode switching (Customer ↔ Owner ↔ Business Admin).
+ * Features global omni-search for platform operators.
  */
 export default function DashboardHeader() {
-  const { user, logout, activeRole, setActiveRole, toggleActiveRole } = useAuthStore();
+  const { user, logout, activeRole, setActiveRole } = useAuthStore();
   const { items } = useCartStore();
   const router = useRouter();
+  const pathname = usePathname();
+
   const [search, setSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
 
-  const isOwnerUser = user?.is_owner || user?.primary_role === "owner" || user?.role_names?.includes("owner") || user?.primary_role === "admin";
+  // Omni-search state
+  const [omniOpen, setOmniOpen] = useState(false);
+  const [omniLoading, setOmniLoading] = useState(false);
+  const [omniResults, setOmniResults] = useState<{
+    bookings: any[];
+    listings: any[];
+    users: any[];
+    payouts: any[];
+  }>({ bookings: [], listings: [], users: [], payouts: [] });
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  const isAdminUser = Boolean(user?.primary_role === "admin" || user?.role_names?.includes("admin"));
+  const isOwnerUser = Boolean(user?.is_owner || user?.primary_role === "owner" || user?.role_names?.includes("owner") || isAdminUser);
   const hasCustomerId = Boolean(
     user?.customer_id ||
     user?.is_customer ||
     user?.role_names?.includes("customer") ||
     user?.primary_role === "customer"
   );
+
+  const isAdminMode = isAdminUser && (activeRole === "admin" || pathname.startsWith("/admin"));
+
+  // Debounced omni-search
+  useEffect(() => {
+    if (!isAdminUser || !search || search.trim().length < 2) {
+      setOmniResults({ bookings: [], listings: [], users: [], payouts: [] });
+      setOmniLoading(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        setOmniLoading(true);
+        const res = await apiClient.get("/analytics/admin-omni-search", {
+          params: { q: search.trim() },
+        });
+        if (res.data?.results) {
+          setOmniResults(res.data.results);
+          setOmniOpen(true);
+        }
+      } catch (e) {
+        console.error("Omni-search error:", e);
+      } finally {
+        setOmniLoading(false);
+      }
+    }, 280);
+
+    return () => clearTimeout(timer);
+  }, [search, isAdminUser]);
+
+  // Click outside to close omni-search
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setOmniOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleMyBookingsClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -55,19 +119,6 @@ export default function DashboardHeader() {
     }
   };
 
-  const handleSwitchToCustomerMode = () => {
-    if (activeRole === "owner") {
-      if (!hasCustomerId) {
-        setDropdownOpen(false);
-        setShowCustomerModal(true);
-        return;
-      }
-    }
-    toggleActiveRole();
-    setDropdownOpen(false);
-    router.push("/dashboard");
-  };
-
   const handleSignOut = async () => {
     await logout();
     if (typeof window !== "undefined") {
@@ -77,27 +128,204 @@ export default function DashboardHeader() {
     }
   };
 
+  const totalResultsCount =
+    omniResults.bookings.length +
+    omniResults.listings.length +
+    omniResults.users.length +
+    omniResults.payouts.length;
+
   return (
-    <header className="relative z-50 bg-white dark:bg-[#111625] border-b border-gray-100 dark:border-slate-800 px-5 py-3 flex items-center gap-3 shrink-0 h-[60px] font-sans shadow-xs transition-colors">
-      {/* Search */}
-      <div className="flex-1 flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 max-w-sm focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
-        <Search size={16} className="text-slate-400 shrink-0" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={
-            activeRole === "owner"
-              ? "Search for listings, bookings, or anything..."
-              : "Search cars, cameras, apartments..."
-          }
-          className="bg-transparent outline-none text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 w-full"
-        />
+    <header className="relative z-50 bg-white dark:bg-[#0c101d] border-b border-gray-100 dark:border-slate-800 px-5 py-3 flex items-center gap-3 shrink-0 h-[60px] font-sans shadow-xs transition-colors">
+      {/* Omni / Global Search */}
+      <div ref={searchContainerRef} className="relative flex-1 max-w-md">
+        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
+          <Search size={16} className="text-slate-400 shrink-0" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onFocus={() => {
+              if (totalResultsCount > 0) setOmniOpen(true);
+            }}
+            placeholder={
+              isAdminMode
+                ? "Search #RH..., users, listings, payouts..."
+                : activeRole === "owner"
+                ? "Search for listings, bookings, or earnings..."
+                : "Search cars, cameras, apartments..."
+            }
+            className="bg-transparent outline-none text-xs sm:text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 w-full"
+          />
+          {omniLoading && <Loader2 size={14} className="animate-spin text-slate-400 shrink-0" />}
+          {search && (
+            <button onClick={() => { setSearch(""); setOmniOpen(false); }} className="text-slate-400 hover:text-slate-600">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Admin Omni-Search Live Results Popover */}
+        {isAdminUser && omniOpen && (
+          <div className="absolute left-0 top-full mt-2 w-full min-w-[360px] bg-white dark:bg-[#131929] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 py-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150 max-h-[460px] overflow-y-auto">
+            <div className="px-4 pb-2 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-slate-400">
+              <span>QUICK RESULTS FOR "{search}"</span>
+              <span>{totalResultsCount} found</span>
+            </div>
+
+            {totalResultsCount === 0 && !omniLoading ? (
+              <div className="p-6 text-center text-xs text-slate-500">
+                No matching bookings, listings, users, or payouts found.
+              </div>
+            ) : null}
+
+            {/* Bookings */}
+            {omniResults.bookings.length > 0 && (
+              <div className="py-2">
+                <p className="px-4 text-[10px] font-extrabold text-blue-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <Calendar size={12} /> Bookings
+                </p>
+                {omniResults.bookings.map((b) => (
+                  <Link
+                    key={b.id}
+                    href={b.href}
+                    onClick={() => setOmniOpen(false)}
+                    className="px-4 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-between text-xs transition-colors"
+                  >
+                    <div>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white mr-2">{b.code}</span>
+                      <span className="text-slate-600 dark:text-slate-300 font-medium">{b.item_name}</span>
+                    </div>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 uppercase">
+                      {b.status}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {/* Listings */}
+            {omniResults.listings.length > 0 && (
+              <div className="py-2 border-t border-slate-100 dark:border-slate-800">
+                <p className="px-4 text-[10px] font-extrabold text-amber-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <Package size={12} /> Listings
+                </p>
+                {omniResults.listings.map((l) => (
+                  <Link
+                    key={l.id}
+                    href={l.href}
+                    onClick={() => setOmniOpen(false)}
+                    className="px-4 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-between text-xs transition-colors"
+                  >
+                    <div className="truncate mr-2">
+                      <p className="font-bold text-slate-900 dark:text-white truncate">{l.title}</p>
+                      <p className="text-[10px] text-slate-400">৳{l.price_per_day}/day</p>
+                    </div>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 uppercase shrink-0">
+                      {l.status}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {/* Users */}
+            {omniResults.users.length > 0 && (
+              <div className="py-2 border-t border-slate-100 dark:border-slate-800">
+                <p className="px-4 text-[10px] font-extrabold text-emerald-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <Users size={12} /> Users
+                </p>
+                {omniResults.users.map((u) => (
+                  <Link
+                    key={u.id}
+                    href={u.href}
+                    onClick={() => setOmniOpen(false)}
+                    className="px-4 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-between text-xs transition-colors"
+                  >
+                    <div>
+                      <p className="font-bold text-slate-900 dark:text-white">{u.name}</p>
+                      <p className="text-[10px] text-slate-400">{u.email}</p>
+                    </div>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 uppercase">
+                      {u.role}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {/* Payouts */}
+            {omniResults.payouts.length > 0 && (
+              <div className="py-2 border-t border-slate-100 dark:border-slate-800">
+                <p className="px-4 text-[10px] font-extrabold text-indigo-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <CreditCard size={12} /> Payouts
+                </p>
+                {omniResults.payouts.map((py) => (
+                  <Link
+                    key={py.id}
+                    href={py.href}
+                    onClick={() => setOmniOpen(false)}
+                    className="px-4 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-between text-xs transition-colors"
+                  >
+                    <div>
+                      <p className="font-mono font-bold text-slate-900 dark:text-white">{py.payout_id}</p>
+                      <p className="text-[10px] text-slate-400">{py.account_name} • ৳{py.net_amount}</p>
+                    </div>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 uppercase">
+                      {py.status}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex-1" />
 
-      {/* Mode Switcher Button (if user is verified owner/lister) */}
-      {isOwnerUser && (
+      {/* Role Switcher Pill */}
+      {isAdminUser ? (
+        <div className="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl text-xs font-bold">
+          <button
+            onClick={() => {
+              setActiveRole("admin");
+              router.push("/dashboard");
+            }}
+            className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+              isAdminMode
+                ? "bg-amber-500 text-white shadow-sm"
+                : "text-slate-600 dark:text-slate-300 hover:text-slate-900"
+            }`}
+          >
+            <Shield size={13} /> Admin
+          </button>
+          <button
+            onClick={() => {
+              setActiveRole("owner");
+              router.push("/dashboard");
+            }}
+            className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+              !isAdminMode && activeRole === "owner"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "text-slate-600 dark:text-slate-300 hover:text-slate-900"
+            }`}
+          >
+            <Store size={13} /> Owner
+          </button>
+          <button
+            onClick={() => {
+              setActiveRole("customer");
+              router.push("/dashboard");
+            }}
+            className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+              !isAdminMode && activeRole === "customer"
+                ? "bg-emerald-600 text-white shadow-sm"
+                : "text-slate-600 dark:text-slate-300 hover:text-slate-900"
+            }`}
+          >
+            <ShoppingBag size={13} /> Customer
+          </button>
+        </div>
+      ) : isOwnerUser ? (
         <button
           onClick={() => {
             if (activeRole === "owner" && !hasCustomerId) {
@@ -127,36 +355,38 @@ export default function DashboardHeader() {
             </>
           )}
         </button>
-      )}
+      ) : null}
 
       {/* Location */}
-      <button className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 transition-colors">
+      <button className="hidden md:flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 transition-colors">
         <MapPin size={16} /> Dhaka
       </button>
 
       <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
 
-      {/* Shopping Cart Icon with Badge */}
-      <Link
-        id="header-cart-icon"
-        href="/cart"
-        className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-colors relative"
-        title="View Rental Cart"
-      >
-        <ShoppingCart className="w-5 h-5" />
-        {items.length > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-indigo-600 text-white font-extrabold text-[9px] rounded-full flex items-center justify-center border-2 border-white shadow-sm">
-            {items.length}
-          </span>
-        )}
-      </Link>
+      {/* Shopping Cart Icon (Hidden in Admin Mode) */}
+      {!isAdminMode && (
+        <Link
+          id="header-cart-icon"
+          href="/cart"
+          className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-colors relative"
+          title="View Rental Cart"
+        >
+          <ShoppingCart className="w-5 h-5" />
+          {items.length > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-indigo-600 text-white font-extrabold text-[9px] rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+              {items.length}
+            </span>
+          )}
+        </Link>
+      )}
 
       {/* Dynamic Notifications Dropdown */}
       <NotificationDropdown />
 
       {/* Messages */}
       <Link
-        href={user?.primary_role === "admin" ? "/admin/messages" : "/messages"}
+        href={isAdminMode ? "/admin/messages" : "/messages"}
         className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-colors hidden sm:block"
         title="Messages & Inquiries"
       >
@@ -171,7 +401,11 @@ export default function DashboardHeader() {
             className="flex items-center gap-2 pl-2 cursor-pointer"
           >
             <div className="relative">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-md ring-2 ring-white dark:ring-slate-800 overflow-hidden">
+              <div className={`w-9 h-9 rounded-full ${
+                isAdminMode 
+                  ? "bg-gradient-to-tr from-amber-500 to-amber-600" 
+                  : "bg-gradient-to-tr from-blue-600 to-indigo-600"
+              } text-white flex items-center justify-center font-bold text-sm shadow-md ring-2 ring-white dark:ring-slate-800 overflow-hidden`}>
                 {user.avatar_url ? (
                   <img
                     src={user.avatar_url}
@@ -190,8 +424,8 @@ export default function DashboardHeader() {
             </div>
             <div className="hidden sm:block text-left">
               <p className="text-slate-900 dark:text-white text-sm font-bold leading-none">{user.first_name} {user.last_name}</p>
-              <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 capitalize">
-                {isOwnerUser ? (activeRole === "owner" ? "Owner" : "Customer") : (user.primary_role || "Customer")}
+              <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 capitalize font-medium">
+                {isAdminMode ? "Business Admin" : activeRole === "owner" ? "Owner" : "Customer"}
               </p>
             </div>
             <ChevronDown className="w-4 h-4 text-slate-400 hidden sm:block" />
@@ -202,29 +436,24 @@ export default function DashboardHeader() {
               <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800">
                 <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{user.first_name} {user.last_name}</p>
                 <p className="text-[10px] text-slate-400">{user.email}</p>
-                {user.customer_id && (
-                  <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-mono font-bold mt-0.5">
-                    ID: {user.customer_id}
-                  </p>
+                {isAdminUser && (
+                  <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500/20 text-amber-500 border border-amber-500/30">
+                    BUSINESS ADMIN
+                  </span>
                 )}
               </div>
 
-              {/* Mode Toggle Button */}
-              {isOwnerUser && (
-                <div className="p-2 border-b border-slate-100 dark:border-slate-800">
-                  <button
-                    onClick={handleSwitchToCustomerMode}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold text-indigo-700 dark:text-indigo-400 flex items-center justify-between transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      {activeRole === "owner" ? <ShoppingBag size={15} /> : <Store size={15} />}
-                      <span>{activeRole === "owner" ? "Switch to Customer Mode" : "Switch to Owner Mode"}</span>
-                    </div>
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 border border-slate-200 dark:border-slate-600 font-extrabold uppercase">
-                      {activeRole}
-                    </span>
-                  </button>
-                </div>
+              {isAdminUser && (
+                <Link
+                  href="/dashboard"
+                  onClick={() => {
+                    setActiveRole("admin");
+                    setDropdownOpen(false);
+                  }}
+                  className="px-4 py-2 text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 flex items-center gap-2"
+                >
+                  <Shield size={15} /> Business Admin Center
+                </Link>
               )}
 
               <Link
