@@ -80,6 +80,35 @@ export default function BecomeListerPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [termsError, setTermsError] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: "error" | "success" } | null>(null);
+
+  const showToast = (text: string, type: "error" | "success" = "error") => {
+    setToastMessage({ text, type });
+    setTimeout(() => setToastMessage(null), 5000);
+  };
+
+  const parseErrorDetail = (err: any): string => {
+    const detail = err?.response?.data?.detail;
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) {
+      return detail
+        .map((d: any) => {
+          if (typeof d === "string") return d;
+          if (d && typeof d === "object") {
+            const field = Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : "";
+            return field ? `${field}: ${d.msg}` : d.msg || JSON.stringify(d);
+          }
+          return String(d);
+        })
+        .join(". ");
+    }
+    if (detail && typeof detail === "object") {
+      return detail.message || JSON.stringify(detail);
+    }
+    return err?.message || "Submission failed. Please check your details.";
+  };
 
   const frontFileRef = useRef<HTMLInputElement>(null);
   const backFileRef = useRef<HTMLInputElement>(null);
@@ -160,53 +189,104 @@ export default function BecomeListerPage() {
     e.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
+    setTermsError(false);
+    const newFieldErrors: Record<string, string> = {};
 
     const isAlreadyVerified =
       user?.identity_verification_status === "VERIFIED" || user?.is_identity_verified;
 
-    if (!fullName || !email || !phone || !addressLine) {
-      setErrorMsg("Please fill in all required fields (Name, Email, Phone, Address).");
-      return;
+    if (!fullName.trim()) newFieldErrors.fullName = "Full Legal Name is required";
+    if (!email.trim()) newFieldErrors.email = "Email Address is required";
+    if (!phone.trim()) newFieldErrors.phone = "Contact Phone Number is required";
+    if (!addressLine.trim()) newFieldErrors.addressLine = "Street Address / Area is required";
+
+    if (!isAlreadyVerified && applyWithNid && !idNumber.trim()) {
+      newFieldErrors.idNumber = "ID / Document Number is required (or choose 'Apply without NID')";
     }
 
-    if (!isAlreadyVerified && applyWithNid && !idNumber) {
-      setErrorMsg("Please provide your ID Number or select 'Apply without NID for now'.");
+    if (Object.keys(newFieldErrors).length > 0) {
+      setFieldErrors(newFieldErrors);
+      const firstError = Object.values(newFieldErrors)[0];
+      setErrorMsg(firstError);
+      showToast(firstError, "error");
+      window.scrollTo({ top: 350, behavior: "smooth" });
       return;
     }
 
     if (!agreedTerms) {
-      setErrorMsg("Please accept the Owner & Lister Terms of Service to proceed.");
+      setTermsError(true);
+      const termsMsg = "Please accept the Owner & Lister Terms of Service to proceed.";
+      setErrorMsg(termsMsg);
+      showToast(termsMsg, "error");
       return;
     }
 
     setSubmitting(true);
     try {
       const payload = {
-        full_name: fullName,
-        email,
-        phone,
-        business_name: businessName || null,
-        address_line: addressLine,
+        full_name: fullName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        business_name: businessName.trim() || null,
+        address_line: addressLine.trim(),
         city,
-        postal_code: postalCode || null,
+        postal_code: postalCode.trim() || null,
         country: "Bangladesh",
         id_type: idType,
-        id_number: (!isAlreadyVerified && !applyWithNid) ? null : (idNumber || null),
+        id_number: (!isAlreadyVerified && !applyWithNid) ? null : (idNumber.trim() || null),
         id_front_url: (!isAlreadyVerified && !applyWithNid) ? null : (idFrontUrl || null),
         id_back_url: (!isAlreadyVerified && !applyWithNid) ? null : (idBackUrl || null),
-        experience_bio: experienceBio || null,
+        experience_bio: experienceBio.trim() || null,
         categories_intended: selectedCategories,
         agreed_terms: true,
       };
 
-      await apiClient.post("/lister-applications/apply", payload);
-      setSuccessMsg("Your application has been submitted successfully!");
+      const res = await apiClient.post("/lister-applications/apply", payload);
+      const successText = res.data?.message || "Your application has been submitted successfully!";
+      setSuccessMsg(successText);
+      showToast("Application submitted successfully!", "success");
+
+      // Instantly transition local state to pending review screen
+      setStatusData({
+        is_owner: false,
+        lister_status: "pending",
+        application: {
+          full_name: fullName.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          business_name: businessName.trim() || null,
+          address_line: addressLine.trim(),
+          city,
+          postal_code: postalCode.trim() || null,
+          country: "Bangladesh",
+          id_type: idType,
+          id_number: idNumber.trim() || "NOT_PROVIDED",
+          id_front_url: idFrontUrl || null,
+          id_back_url: idBackUrl || null,
+          experience_bio: experienceBio.trim() || null,
+          categories_intended: selectedCategories,
+          agreed_terms: true,
+          status: "PENDING",
+          created_at: new Date().toISOString(),
+        },
+      });
       setIsEditing(false);
-      await fetchStatus();
-      if (refreshUser) await refreshUser();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
+      try {
+        await fetchStatus();
+      } catch (e) {
+        console.warn("Status re-fetch error", e);
+      }
+      try {
+        if (refreshUser) await refreshUser();
+      } catch (e) {
+        console.warn("User refresh error", e);
+      }
     } catch (err: any) {
-      const msg = err?.response?.data?.detail || "Submission failed. Please check your details.";
+      const msg = parseErrorDetail(err);
       setErrorMsg(msg);
+      showToast(msg, "error");
     } finally {
       setSubmitting(false);
     }
@@ -440,33 +520,63 @@ export default function BecomeListerPage() {
                       <input
                         type="text"
                         value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
+                        onChange={(e) => {
+                          setFullName(e.target.value);
+                          if (fieldErrors.fullName) setFieldErrors((prev) => ({ ...prev, fullName: "" }));
+                        }}
                         placeholder="e.g. Washim Akram"
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs sm:text-sm text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                        className={`w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm text-slate-800 outline-none transition-all ${
+                          fieldErrors.fullName
+                            ? "border-rose-400 bg-rose-50/50 focus:border-rose-500"
+                            : "border-slate-200 bg-slate-50/50 focus:border-indigo-500 focus:bg-white"
+                        }`}
                         required
                       />
+                      {fieldErrors.fullName && (
+                        <p className="text-[11px] text-rose-600 font-semibold mt-1">{fieldErrors.fullName}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1.5">Email Address *</label>
                       <input
                         type="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: "" }));
+                        }}
                         placeholder="e.g. washim@example.com"
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs sm:text-sm text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                        className={`w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm text-slate-800 outline-none transition-all ${
+                          fieldErrors.email
+                            ? "border-rose-400 bg-rose-50/50 focus:border-rose-500"
+                            : "border-slate-200 bg-slate-50/50 focus:border-indigo-500 focus:bg-white"
+                        }`}
                         required
                       />
+                      {fieldErrors.email && (
+                        <p className="text-[11px] text-rose-600 font-semibold mt-1">{fieldErrors.email}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1.5">Contact Phone Number *</label>
                       <input
                         type="tel"
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
+                        onChange={(e) => {
+                          setPhone(e.target.value);
+                          if (fieldErrors.phone) setFieldErrors((prev) => ({ ...prev, phone: "" }));
+                        }}
                         placeholder="+880 1712 345678"
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs sm:text-sm text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                        className={`w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm text-slate-800 outline-none transition-all ${
+                          fieldErrors.phone
+                            ? "border-rose-400 bg-rose-50/50 focus:border-rose-500"
+                            : "border-slate-200 bg-slate-50/50 focus:border-indigo-500 focus:bg-white"
+                        }`}
                         required
                       />
+                      {fieldErrors.phone && (
+                        <p className="text-[11px] text-rose-600 font-semibold mt-1">{fieldErrors.phone}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1.5">Business / Rental Name (Optional)</label>
@@ -494,11 +604,21 @@ export default function BecomeListerPage() {
                       <input
                         type="text"
                         value={addressLine}
-                        onChange={(e) => setAddressLine(e.target.value)}
+                        onChange={(e) => {
+                          setAddressLine(e.target.value);
+                          if (fieldErrors.addressLine) setFieldErrors((prev) => ({ ...prev, addressLine: "" }));
+                        }}
                         placeholder="e.g. House 14, Road 5, Dhanmondi"
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs sm:text-sm text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                        className={`w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm text-slate-800 outline-none transition-all ${
+                          fieldErrors.addressLine
+                            ? "border-rose-400 bg-rose-50/50 focus:border-rose-500"
+                            : "border-slate-200 bg-slate-50/50 focus:border-indigo-500 focus:bg-white"
+                        }`}
                         required
                       />
+                      {fieldErrors.addressLine && (
+                        <p className="text-[11px] text-rose-600 font-semibold mt-1">{fieldErrors.addressLine}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1.5">City *</label>
@@ -629,11 +749,21 @@ export default function BecomeListerPage() {
                               <input
                                 type="text"
                                 value={idNumber}
-                                onChange={(e) => setIdNumber(e.target.value)}
+                                onChange={(e) => {
+                                  setIdNumber(e.target.value);
+                                  if (fieldErrors.idNumber) setFieldErrors((prev) => ({ ...prev, idNumber: "" }));
+                                }}
                                 placeholder="e.g. 19942692589000123"
-                                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs sm:text-sm text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                                className={`w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm text-slate-800 outline-none transition-all ${
+                                  fieldErrors.idNumber
+                                    ? "border-rose-400 bg-rose-50/50 focus:border-rose-500"
+                                    : "border-slate-200 bg-slate-50/50 focus:border-indigo-500 focus:bg-white"
+                                }`}
                                 required={applyWithNid}
                               />
+                              {fieldErrors.idNumber && (
+                                <p className="text-[11px] text-rose-600 font-semibold mt-1">{fieldErrors.idNumber}</p>
+                              )}
                             </div>
                           </div>
 
@@ -782,17 +912,41 @@ export default function BecomeListerPage() {
 
                 {/* ── STEP 5: Terms & Submit ── */}
                 <div className="space-y-4 pt-4 border-t border-slate-100">
-                  <label className="flex items-start gap-3 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={agreedTerms}
-                      onChange={(e) => setAgreedTerms(e.target.checked)}
-                      className="mt-1 w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-                    />
-                    <span className="text-xs text-slate-600 leading-relaxed">
-                      I agree to the <span className="font-bold text-slate-900">RentHub Owner & Lister Terms</span>. I certify that all listed items are authentic, functional, and in good condition, and I agree to comply with platform safety, cancellation, and payout policies.
-                    </span>
-                  </label>
+                  <div
+                    className={`p-4 rounded-2xl border transition-all ${
+                      termsError && !agreedTerms
+                        ? "border-rose-400 bg-rose-50/80 ring-2 ring-rose-300"
+                        : "border-slate-200 bg-slate-50/50 hover:bg-slate-50"
+                    }`}
+                  >
+                    <label className="flex items-start gap-3 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={agreedTerms}
+                        onChange={(e) => {
+                          setAgreedTerms(e.target.checked);
+                          if (e.target.checked) setTermsError(false);
+                        }}
+                        className="mt-1 w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                      />
+                      <span className="text-xs text-slate-700 leading-relaxed">
+                        I agree to the <span className="font-bold text-slate-900">RentHub Owner & Lister Terms</span>. I certify that all listed items are authentic, functional, and in good condition, and I agree to comply with platform safety, cancellation, and payout policies.
+                      </span>
+                    </label>
+                    {termsError && !agreedTerms && (
+                      <p className="text-[11px] font-bold text-rose-600 mt-2 flex items-center gap-1">
+                        <AlertCircle size={13} /> Please check the box above to accept the terms before submitting.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Bottom Error Banner right above submit button */}
+                  {errorMsg && (
+                    <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                      <AlertCircle size={16} className="shrink-0 text-rose-600" />
+                      <span>{errorMsg}</span>
+                    </div>
+                  )}
 
                   <button
                     type="submit"
@@ -817,6 +971,24 @@ export default function BecomeListerPage() {
       </main>
 
       <Footer />
+
+      {/* Floating Toast Feedback */}
+      {toastMessage && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs font-bold animate-in fade-in slide-in-from-bottom-3 duration-200 ${
+            toastMessage.type === "success"
+              ? "bg-slate-900 text-white border border-emerald-500/40"
+              : "bg-slate-900 text-white border border-rose-500/40"
+          }`}
+        >
+          {toastMessage.type === "success" ? (
+            <CheckCircle2 size={16} className="text-emerald-400" />
+          ) : (
+            <AlertCircle size={16} className="text-rose-400" />
+          )}
+          <span>{toastMessage.text}</span>
+        </div>
+      )}
     </div>
   );
 }

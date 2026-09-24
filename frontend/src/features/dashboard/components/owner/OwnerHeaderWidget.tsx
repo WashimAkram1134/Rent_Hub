@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   Plus,
   ShieldCheck,
-  Crown,
   Sun,
   Moon,
   Sunset,
@@ -94,11 +93,6 @@ export function OwnerHeaderWidget({
 
               {/* Host Status Badges */}
               <div className="flex items-center gap-1.5">
-                <span className="bg-indigo-600 text-white px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide flex items-center gap-1 shadow-xs uppercase">
-                  <Crown size={11} className="text-amber-300 fill-amber-300" />
-                  SuperHost
-                </span>
-
                 <span className="bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1">
                   <ShieldCheck size={12} className="text-emerald-600 dark:text-emerald-400" />
                   NID Verified

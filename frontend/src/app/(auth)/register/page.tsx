@@ -98,7 +98,7 @@ function RegisterForm() {
             <CheckCircle className="w-10 h-10 text-emerald-400" />
           </div>
           <h2 className="font-display font-black text-2xl sm:text-3xl text-white mb-3">
-            Account Created! 🎉
+            Account Created!
           </h2>
           <p className="text-slate-300 text-sm mb-8 max-w-sm mx-auto leading-relaxed">
             Welcome to RentHub! Your account is ready. Sign in to start exploring verified rentals and listing your items.

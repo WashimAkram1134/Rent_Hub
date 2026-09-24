@@ -136,7 +136,7 @@ export function DashboardSidebar({
   const moreNav = [
     { icon: Tag, label: "Deals & Offers", href: "/offers" },
     { icon: HelpCircle, label: "Help & Support", href: "/support" },
-    { icon: Info, label: "About RentHub", href: "/about" },
+    { icon: Info, label: "About RentHub", href: "/" },
   ];
 
   const isFilterActive = activeTab === "filter" && !!filterContent;
