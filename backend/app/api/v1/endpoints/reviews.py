@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, and_, desc
 from sqlalchemy.orm import selectinload
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import uuid
 
 from app.database.session import get_db
@@ -73,16 +73,45 @@ async def get_reviews_overview(db: AsyncSession = Depends(get_db)):
             "rating": float(r.rating)
         })
 
+    # Dynamic 30-day comparative trends computed from database
+    t_now = datetime.now(timezone.utc)
+    t_30 = t_now - timedelta(days=30)
+    t_60 = t_now - timedelta(days=60)
+
+    curr_cnt = await db.scalar(select(func.count(Review.id)).where(Review.created_at >= t_30)) or 0
+    prev_cnt = await db.scalar(select(func.count(Review.id)).where(Review.created_at >= t_60, Review.created_at < t_30)) or 0
+
+    curr_avg = float(await db.scalar(select(func.avg(Review.rating)).where(Review.created_at >= t_30)) or avg_rating)
+    prev_avg = float(await db.scalar(select(func.avg(Review.rating)).where(Review.created_at >= t_60, Review.created_at < t_30)) or avg_rating)
+    avg_diff = round(curr_avg - prev_avg, 2)
+    avg_change = f"{'+' if avg_diff >= 0 else ''}{avg_diff:.2f}"
+
+    curr_pos = await db.scalar(select(func.count(Review.id)).where(Review.rating >= 4.0, Review.created_at >= t_30)) or 0
+    prev_pos = await db.scalar(select(func.count(Review.id)).where(Review.rating >= 4.0, Review.created_at >= t_60, Review.created_at < t_30)) or 0
+
+    curr_rep = await db.scalar(select(func.count(Review.id)).where(Review.status == "reported", Review.created_at >= t_30)) or 0
+    prev_rep = await db.scalar(select(func.count(Review.id)).where(Review.status == "reported", Review.created_at >= t_60, Review.created_at < t_30)) or 0
+
+    def calc_pct(c, p):
+        if p == 0:
+            return "+100%" if c > 0 else "+0.0%"
+        pct = ((c - p) / p) * 100
+        return f"{'+' if pct >= 0 else ''}{pct:.1f}%"
+
+    total_change = calc_pct(curr_cnt, prev_cnt)
+    pos_change = calc_pct(curr_pos, prev_pos)
+    rep_change = calc_pct(curr_rep, prev_rep)
+
     return {
         "kpi": {
             "total_reviews": total_rev,
-            "total_change": "+12.4%",
+            "total_change": total_change,
             "average_rating": avg_rating,
-            "avg_change": "+0.18",
+            "avg_change": avg_change,
             "positive_reviews": positive_count,
-            "positive_change": "+15.7%",
+            "positive_change": pos_change,
             "reported_reviews": reported_count,
-            "reported_change": "-8.3%"
+            "reported_change": rep_change
         },
         "rating_overview": {
             "average": avg_rating,

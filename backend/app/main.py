@@ -66,6 +66,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Start keep-alive ping loop (prevents Render free-tier sleep)
     start_keep_alive()
 
+    # Ensure database schema is up-to-date (auto-creates any new models/tables safely)
+    try:
+        from app.database.session import engine
+        from app.database.base import Base
+        import app.models  # ensure all models are registered
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("database_schema_synced")
+    except Exception as exc:
+        logger.warning("database_schema_sync_warning", error=str(exc))
+
     logger.info("renthub_ready", port=settings.APP_PORT)
 
     yield  # Application runs here

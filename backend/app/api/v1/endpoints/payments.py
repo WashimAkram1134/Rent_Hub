@@ -1,6 +1,6 @@
 from typing import Optional, List
 from uuid import UUID
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import random
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -54,24 +54,68 @@ async def get_payments_overview(db: AsyncSession = Depends(get_db)):
     total_transactions = paid_count + pending_count + failed_count + refunded_count or 1
     success_rate = round((paid_count / total_transactions) * 100, 1)
 
+    # 5. Dynamic 30-day comparative trends computed from database
+    t_now = datetime.now(timezone.utc)
+    t_30 = t_now - timedelta(days=30)
+    t_60 = t_now - timedelta(days=60)
+
+    curr_vol = float(await db.scalar(
+        select(func.sum(Payment.amount)).where(Payment.status == "paid", Payment.created_at >= t_30)
+    ) or 0)
+    prev_vol = float(await db.scalar(
+        select(func.sum(Payment.amount)).where(Payment.status == "paid", Payment.created_at >= t_60, Payment.created_at < t_30)
+    ) or 0)
+
+    curr_paid_cnt = await db.scalar(
+        select(func.count(Payment.id)).where(Payment.status == "paid", Payment.created_at >= t_30)
+    ) or 0
+    prev_paid_cnt = await db.scalar(
+        select(func.count(Payment.id)).where(Payment.status == "paid", Payment.created_at >= t_60, Payment.created_at < t_30)
+    ) or 0
+
+    curr_pend_cnt = await db.scalar(
+        select(func.count(Payment.id)).where(Payment.status == "pending", Payment.created_at >= t_30)
+    ) or 0
+    prev_pend_cnt = await db.scalar(
+        select(func.count(Payment.id)).where(Payment.status == "pending", Payment.created_at >= t_60, Payment.created_at < t_30)
+    ) or 0
+
+    curr_fail_cnt = await db.scalar(
+        select(func.count(Payment.id)).where(Payment.status.in_(["failed", "refunded"]), Payment.created_at >= t_30)
+    ) or 0
+    prev_fail_cnt = await db.scalar(
+        select(func.count(Payment.id)).where(Payment.status.in_(["failed", "refunded"]), Payment.created_at >= t_60, Payment.created_at < t_30)
+    ) or 0
+
+    def calc_pct(c, p):
+        if p == 0:
+            return "+100%" if c > 0 else "+0.0%"
+        pct = ((c - p) / p) * 100
+        return f"{'+' if pct >= 0 else ''}{pct:.1f}%"
+
+    vol_change = calc_pct(curr_vol, prev_vol)
+    paid_change = calc_pct(curr_paid_cnt, prev_paid_cnt)
+    pend_change = calc_pct(curr_pend_cnt, prev_pend_cnt)
+    fail_change = calc_pct(curr_fail_cnt, prev_fail_cnt)
+
     return {
         "summary": {
             "total_volume": tot_vol,
-            "total_volume_change": "+18.4%",
+            "total_volume_change": vol_change,
             "successful_payments": paid_count,
             "successful_volume": tot_vol,
             "success_rate": f"{success_rate}%",
-            "successful_change": "+12.2%",
+            "successful_change": paid_change,
             "pending_payments": pending_count,
             "pending_volume": pending_sum,
-            "pending_change": "-4.1%",
+            "pending_change": pend_change,
             "failed_payments": failed_count,
             "failed_volume": failed_sum,
             "refunded_payments": refunded_count,
             "refunded_volume": refunded_sum,
             "failed_refunded_total": failed_count + refunded_count,
             "failed_refunded_volume": failed_sum + refunded_sum,
-            "failed_change": "-8.5%"
+            "failed_change": fail_change
         }
     }
 

@@ -1,6 +1,6 @@
 from typing import Optional, List
 from uuid import UUID
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 import random
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -73,23 +73,59 @@ async def get_payouts_overview(
 
     available_settlement = max(0.0, round(owner_earnings - paid_sum - pending_sum, 2)) if owner_id else pending_sum
 
+    # 6. Dynamic 30-day comparative trends computed from database
+    t_now = datetime.now(timezone.utc)
+    t_30 = t_now - timedelta(days=30)
+    t_60 = t_now - timedelta(days=60)
+
+    curr_paid = float(await db.scalar(
+        select(func.sum(Payout.net_amount)).where(Payout.status == "paid", Payout.created_at >= t_30, *owner_filter)
+    ) or 0)
+    prev_paid = float(await db.scalar(
+        select(func.sum(Payout.net_amount)).where(Payout.status == "paid", Payout.created_at >= t_60, Payout.created_at < t_30, *owner_filter)
+    ) or 0)
+
+    curr_pend = float(await db.scalar(
+        select(func.sum(Payout.net_amount)).where(Payout.status.in_(["pending", "processing"]), Payout.created_at >= t_30, *owner_filter)
+    ) or 0)
+    prev_pend = float(await db.scalar(
+        select(func.sum(Payout.net_amount)).where(Payout.status.in_(["pending", "processing"]), Payout.created_at >= t_60, Payout.created_at < t_30, *owner_filter)
+    ) or 0)
+
+    curr_failed = float(await db.scalar(
+        select(func.sum(Payout.net_amount)).where(Payout.status.in_(["failed", "rejected"]), Payout.created_at >= t_30, *owner_filter)
+    ) or 0)
+    prev_failed = float(await db.scalar(
+        select(func.sum(Payout.net_amount)).where(Payout.status.in_(["failed", "rejected"]), Payout.created_at >= t_60, Payout.created_at < t_30, *owner_filter)
+    ) or 0)
+
+    def calc_pct(c, p):
+        if p == 0:
+            return "+100%" if c > 0 else "+0.0%"
+        pct = ((c - p) / p) * 100
+        return f"{'+' if pct >= 0 else ''}{pct:.1f}%"
+
+    pending_change = calc_pct(curr_pend, prev_pend)
+    paid_change = calc_pct(curr_paid, prev_paid)
+    failed_change = calc_pct(curr_failed, prev_failed)
+
     return {
         "summary": {
             "available_settlement": available_settlement,
             "owner_earnings": owner_earnings,
             "total_pending_payouts": pending_sum,
             "pending_count": pending_count,
-            "pending_change": "+5.2%",
+            "pending_change": pending_change,
             "total_paid_to_owners": paid_sum,
             "paid_count": paid_count,
-            "paid_change": "+14.8%",
+            "paid_change": paid_change,
             "platform_commission": comm_sum,
             "total_gross_volume": total_gross,
             "commission_rate": "10.0%",
-            "commission_change": "+12.6%",
+            "commission_change": paid_change,
             "failed_payouts": failed_sum,
             "failed_count": failed_count,
-            "failed_change": "-2.1%"
+            "failed_change": failed_change
         }
     }
 

@@ -52,34 +52,43 @@ export function AdminPlatformSummaryWidget({ stats }: { stats?: any }) {
 }
 
 export function AdminTopCategoriesWidget() {
-  const topCategories = [
-    { name: "Vehicles", amount: "৳ 48,750", percentage: "39%", width: "80%" },
-    { name: "Electronics", amount: "৳ 32,460", percentage: "26%", width: "60%" },
-    { name: "Apartments", amount: "৳ 24,180", percentage: "19%", width: "45%" },
-    { name: "Furniture", amount: "৳ 12,340", percentage: "10%", width: "25%" },
-    { name: "Others", amount: "৳ 7,850", percentage: "6%", width: "15%" },
-  ];
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiClient
+      .get("/analytics/chart/categories")
+      .then((res) => {
+        setCategories(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+    <div className="bg-white dark:bg-[#111625] p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-sm font-bold text-slate-900">Top Performing Categories</h2>
-        <button className="text-indigo-600 text-xs font-bold hover:text-indigo-700">View all</button>
+        <h2 className="text-sm font-bold text-slate-900 dark:text-white">Top Performing Categories</h2>
+        <Link href="/admin/categories" className="text-indigo-600 text-xs font-bold hover:text-indigo-700">View all</Link>
       </div>
-      <div className="space-y-5">
-        {topCategories.map((cat, i) => (
-          <div key={i} className="flex items-center gap-4">
-            <span className="text-xs font-medium text-slate-600 w-20">{cat.name}</span>
-            <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-              <div className="h-full bg-indigo-600 rounded-full" style={{ width: cat.width }}></div>
+      {categories.length === 0 && !loading ? (
+        <p className="text-xs text-slate-400 py-4 text-center">No categories recorded yet.</p>
+      ) : (
+        <div className="space-y-5">
+          {categories.map((cat, i) => (
+            <div key={i} className="flex items-center gap-4">
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-300 w-24 truncate">{cat.name}</span>
+              <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: cat.percentage || "50%", backgroundColor: cat.color || "#4F46E5" }}></div>
+              </div>
+              <div className="w-20 text-right">
+                <span className="text-xs font-bold text-slate-900 dark:text-white">{cat.value}</span>
+                <span className="text-[10px] text-slate-400 ml-1">({cat.percentage})</span>
+              </div>
             </div>
-            <div className="w-24 text-right">
-              <span className="text-xs font-bold text-slate-900">{cat.amount}</span>
-              <span className="text-[10px] text-slate-400 ml-1">({cat.percentage})</span>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -89,66 +98,90 @@ export function AdminQuickActionsWidget() {
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
       <h2 className="text-sm font-bold text-slate-900 mb-5">Quick Actions</h2>
       <div className="grid grid-cols-2 gap-3">
-        <button className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-100 hover:text-indigo-700 transition-colors text-xs font-medium text-slate-700">
+        <Link href="/admin/staff" className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-100 hover:text-indigo-700 transition-colors text-xs font-medium text-slate-700">
           <UserPlus size={16} className="text-indigo-600 shrink-0" />
           Add New Admin
-        </button>
-        <button className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-100 hover:text-indigo-700 transition-colors text-xs font-medium text-slate-700">
+        </Link>
+        <Link href="/admin/categories" className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-100 hover:text-indigo-700 transition-colors text-xs font-medium text-slate-700">
           <ListPlus size={16} className="text-blue-600 shrink-0" />
           Add Category
-        </button>
-        <button className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-100 hover:text-indigo-700 transition-colors text-xs font-medium text-slate-700">
+        </Link>
+        <Link href="/admin/users" className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-100 hover:text-indigo-700 transition-colors text-xs font-medium text-slate-700">
           <Users size={16} className="text-emerald-600 shrink-0" />
           Manage Users
-        </button>
-        <button className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-100 hover:text-indigo-700 transition-colors text-xs font-medium text-slate-700">
+        </Link>
+        <Link href="/admin/listings" className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-100 hover:text-indigo-700 transition-colors text-xs font-medium text-slate-700">
           <FileText size={16} className="text-purple-600 shrink-0" />
           Manage Listings
-        </button>
-        <button className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-100 hover:text-indigo-700 transition-colors text-xs font-medium text-slate-700">
+        </Link>
+        <Link href="/admin/disputes" className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-100 hover:text-indigo-700 transition-colors text-xs font-medium text-slate-700">
           <ShieldAlert size={16} className="text-red-500 shrink-0" />
           Dispute Center
-        </button>
-        <button className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-100 hover:text-indigo-700 transition-colors text-xs font-medium text-slate-700">
+        </Link>
+        <Link href="/admin/settings" className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-100 hover:text-indigo-700 transition-colors text-xs font-medium text-slate-700">
           <Settings size={16} className="text-slate-500 shrink-0" />
           System Settings
-        </button>
+        </Link>
       </div>
     </div>
   );
 }
 
 export function AdminRecentDisputesWidget() {
-  const recentDisputes = [
-    { id: "#DP1256", item: "Canon EOS R6", user: "Rahim Hasan", status: "Open", statusColor: "text-red-500" },
-    { id: "#DP1255", item: "2BHK Apartment", user: "Karim Uddin", status: "In Review", statusColor: "text-amber-500" },
-    { id: "#DP1254", item: "MacBook Air M2", user: "Nayeem Hasan", status: "Resolved", statusColor: "text-emerald-500" },
-  ];
+  const [disputes, setDisputes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiClient
+      .get("/bookings/admin/disputes/list")
+      .then((res) => {
+        const list = res.data?.disputes || [];
+        setDisputes(list.slice(0, 3));
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+    <div className="bg-white dark:bg-[#111625] p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
       <div className="flex justify-between items-center mb-5">
-        <h2 className="text-sm font-bold text-slate-900">Recent Disputes</h2>
-        <button className="text-indigo-600 text-xs font-bold hover:text-indigo-700">View all</button>
+        <h2 className="text-sm font-bold text-slate-900 dark:text-white">Recent Disputes</h2>
+        <Link href="/admin/disputes" className="text-indigo-600 text-xs font-bold hover:text-indigo-700">View all</Link>
       </div>
-      <div className="space-y-4">
-        {recentDisputes.map((dispute, i) => (
-          <div key={i} className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 shrink-0">
-                {dispute.user.split(' ').map(n=>n[0]).join('')}
+      {disputes.length === 0 && !loading ? (
+        <p className="text-xs text-slate-400 py-4 text-center">No disputes on file.</p>
+      ) : (
+        <div className="space-y-4">
+          {disputes.map((dispute, i) => {
+            const customerName = dispute.customer?.name || "Customer";
+            const initials = customerName.split(" ").map((n: string) => n[0]).join("").slice(0, 2);
+            const isResolved = dispute.status?.toLowerCase() === "resolved";
+            const isReview = dispute.status?.toLowerCase() === "under_review";
+            const statusColor = isResolved
+              ? "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40"
+              : isReview
+              ? "text-amber-500 bg-amber-50 dark:bg-amber-950/40"
+              : "text-red-500 bg-red-50 dark:bg-red-950/40";
+
+            return (
+              <div key={i} className="flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-600 dark:text-slate-300 shrink-0 uppercase">
+                    {initials}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Dispute {dispute.dispute_code || dispute.id.substring(0, 8)}</p>
+                    <p className="text-[10px] text-slate-500 truncate">{dispute.item_title} • {customerName}</p>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold ${statusColor} px-2 py-1 rounded-md shrink-0 capitalize`}>
+                  {dispute.status?.replace("_", " ")}
+                </span>
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-900">Dispute {dispute.id}</p>
-                <p className="text-[10px] text-slate-500">{dispute.item} • {dispute.user}</p>
-              </div>
-            </div>
-            <span className={`text-[10px] font-bold ${dispute.statusColor} bg-slate-50 px-2 py-1 rounded-md`}>
-              {dispute.status}
-            </span>
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

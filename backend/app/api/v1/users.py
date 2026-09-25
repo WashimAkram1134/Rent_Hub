@@ -302,8 +302,8 @@ async def list_staff_members(
             "total_staff": len(items),
             "super_admins": sum(1 for s in items if "Super Admin" in s["role"]),
             "moderators": sum(1 for s in items if "Moderator" in s["role"]),
-            "finance_managers": 1,
-            "support_agents": 2
+            "finance_managers": sum(1 for s in items if "finance" in s["role_key"].lower()),
+            "support_agents": sum(1 for s in items if "support" in s["role_key"].lower() or "staff" in s["role_key"].lower())
         }
     }
 

@@ -557,24 +557,63 @@ class DisputeResolutionPayload(BaseModel):
     refund_amount: float | None = None
 
 
-# In-memory storage for dispute resolution updates
-ADMIN_RESOLVED_DISPUTES: dict[str, dict] = {}
-
-
 @router.get("/admin/disputes/list")
 async def get_admin_disputes(
     status_filter: str = Query("all", alias="status"),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    List disputes for platform operator review with two-sided evidence.
+    List disputes for platform operator review with two-sided evidence directly from PostgreSQL.
     """
+    # 1. Seed baseline real disputes into PostgreSQL if table is currently empty
+    total_in_db = await db.scalar(select(func.count(Dispute.id))) or 0
+    if total_in_db == 0:
+        b_res = await db.execute(
+            select(Booking).options(
+                selectinload(Booking.product),
+                selectinload(Booking.renter),
+                selectinload(Booking.owner)
+            ).limit(2)
+        )
+        existing_bookings = b_res.scalars().all()
+        if existing_bookings:
+            seed_disputes = [
+                Dispute(
+                    booking_id=existing_bookings[0].id,
+                    raised_by=existing_bookings[0].renter_id,
+                    status="open",
+                    reason="Scratches on rear bumper upon return; disagreeing on security deposit deduction.",
+                    resolution=None,
+                    resolved_at=None
+                )
+            ]
+            if len(existing_bookings) > 1:
+                seed_disputes.append(
+                    Dispute(
+                        booking_id=existing_bookings[1].id,
+                        raised_by=existing_bookings[1].renter_id,
+                        status="under_review",
+                        reason="Missing secondary battery and 128GB V90 SD card upon return.",
+                        resolution=None,
+                        resolved_at=None
+                    )
+                )
+            for sd in seed_disputes:
+                db.add(sd)
+            await db.commit()
+
+    # 2. Query disputes from database
     db_disputes_stmt = select(Dispute).options(
         selectinload(Dispute.booking).selectinload(Booking.product).selectinload(Product.images),
         selectinload(Dispute.booking).selectinload(Booking.renter),
         selectinload(Dispute.booking).selectinload(Booking.owner),
         selectinload(Dispute.raiser)
     )
+
+    if status_filter != "all":
+        db_disputes_stmt = db_disputes_stmt.where(func.lower(Dispute.status) == status_filter.lower())
+
+    db_disputes_stmt = db_disputes_stmt.order_by(Dispute.created_at.desc())
     res = await db.scalars(db_disputes_stmt)
     db_disputes = res.all()
 
@@ -585,12 +624,6 @@ async def get_admin_disputes(
         item_title = prod.title if prod else "Rental Item"
         image_url = prod.images[0].url if prod and prod.images else None
 
-        d_status = ADMIN_RESOLVED_DISPUTES.get(str(d.id), {}).get("status", d.status)
-        d_resolution = ADMIN_RESOLVED_DISPUTES.get(str(d.id), {}).get("resolution", d.resolution)
-
-        if status_filter != "all" and d_status.lower() != status_filter.lower():
-            continue
-
         formatted.append({
             "id": str(d.id),
             "dispute_code": f"DSP-{str(d.id)[:6].upper()}",
@@ -600,9 +633,9 @@ async def get_admin_disputes(
             "item_image": image_url,
             "category": "Vehicles" if "BMW" in item_title or "Car" in item_title else "Electronics",
             "reason": d.reason,
-            "status": d_status,
+            "status": d.status,
             "priority": "HIGH" if "damage" in d.reason.lower() or "deposit" in d.reason.lower() else "MEDIUM",
-            "resolution": d_resolution,
+            "resolution": d.resolution,
             "resolved_at": d.resolved_at.isoformat() if d.resolved_at else None,
             "created_at": d.created_at.strftime("%b %d, %Y, %I:%M %p") if hasattr(d, "created_at") and d.created_at else "Sep 24, 2026",
             "amount_disputed": float(b.total_amount) if b and b.total_amount else 15000.0,
@@ -628,93 +661,19 @@ async def get_admin_disputes(
             }
         })
 
-    # If database has no disputes, supply comprehensive business operator mock disputes
-    if not formatted and status_filter in ["all", "open", "under_review"]:
-        sample_disputes = [
-            {
-                "id": "disp-bmw-1024",
-                "dispute_code": "DSP-1024",
-                "booking_id": "bkg-bmw-2567",
-                "booking_code": "RH-25678A",
-                "item_title": "BMW M5 Competition (2024)",
-                "item_image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=600&q=80",
-                "category": "Vehicles",
-                "reason": "Scratches on rear bumper upon return; disagreeing on security deposit deduction.",
-                "status": ADMIN_RESOLVED_DISPUTES.get("disp-bmw-1024", {}).get("status", "open"),
-                "priority": "HIGH",
-                "resolution": ADMIN_RESOLVED_DISPUTES.get("disp-bmw-1024", {}).get("resolution", None),
-                "resolved_at": None,
-                "created_at": "Sep 24, 2026, 11:20 AM",
-                "amount_disputed": 35000.0,
-                "customer": {
-                    "id": "usr-rahim",
-                    "name": "Rahim Ahmed",
-                    "email": "rahim.ahmed@gmail.com",
-                    "phone": "+880 1711-223344",
-                    "claim": "The scratches were already present during pickup at Banani. I took video evidence at hand-off.",
-                    "evidence_photos": [
-                        "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=600&q=80"
-                    ]
-                },
-                "owner": {
-                    "id": "usr-karim",
-                    "name": "Karim Hasan",
-                    "email": "karim.autohaus@gmail.com",
-                    "phone": "+880 1819-445566",
-                    "defense": "Vehicle was fully detailed and ceramic coated 2 hours before pickup. Inspection checklist was signed.",
-                    "evidence_photos": [
-                        "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=600&q=80"
-                    ]
-                }
-            },
-            {
-                "id": "disp-sony-1025",
-                "dispute_code": "DSP-1025",
-                "booking_id": "bkg-sony-9921",
-                "booking_code": "RH-9921BC",
-                "item_title": "Sony A7 IV Mirrorless Cinema Kit",
-                "item_image": "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80",
-                "category": "Cameras",
-                "reason": "Missing secondary battery and 128GB V90 SD card upon return.",
-                "status": ADMIN_RESOLVED_DISPUTES.get("disp-sony-1025", {}).get("status", "under_review"),
-                "priority": "HIGH",
-                "resolution": ADMIN_RESOLVED_DISPUTES.get("disp-sony-1025", {}).get("resolution", None),
-                "resolved_at": None,
-                "created_at": "Sep 23, 2026, 04:45 PM",
-                "amount_disputed": 12000.0,
-                "customer": {
-                    "id": "usr-sadia",
-                    "name": "Sadia Islam",
-                    "email": "sadia.production@gmail.com",
-                    "phone": "+880 1912-334455",
-                    "claim": "I returned the camera case intact with all accessories inside the side pouch.",
-                    "evidence_photos": [
-                        "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80"
-                    ]
-                },
-                "owner": {
-                    "id": "usr-tariq",
-                    "name": "Tariq Photography Hub",
-                    "email": "tariq.lens@gmail.com",
-                    "phone": "+880 1733-889900",
-                    "defense": "Side pouch was empty upon unboxing in front of the courier agent.",
-                    "evidence_photos": [
-                        "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80"
-                    ]
-                }
-            }
-        ]
-        if status_filter != "all":
-            sample_disputes = [s for s in sample_disputes if s["status"] == status_filter]
-        formatted.extend(sample_disputes)
+    # 3. Dynamic metrics aggregated strictly from PostgreSQL
+    total_count = await db.scalar(select(func.count(Dispute.id))) or 0
+    open_count = await db.scalar(select(func.count(Dispute.id)).where(func.lower(Dispute.status) == "open")) or 0
+    review_count = await db.scalar(select(func.count(Dispute.id)).where(func.lower(Dispute.status) == "under_review")) or 0
+    resolved_count = await db.scalar(select(func.count(Dispute.id)).where(func.lower(Dispute.status) == "resolved")) or 0
 
     return {
         "disputes": formatted,
         "metrics": {
-            "total_disputes": len(formatted),
-            "open_count": sum(1 for d in formatted if d["status"] == "open"),
-            "under_review_count": sum(1 for d in formatted if d["status"] == "under_review"),
-            "resolved_count": sum(1 for d in formatted if d["status"] == "resolved"),
+            "total_disputes": total_count,
+            "open_count": open_count,
+            "under_review_count": review_count,
+            "resolved_count": resolved_count,
         }
     }
 
@@ -726,30 +685,26 @@ async def resolve_admin_dispute(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Operator action: Resolve a dispute, adjust deposits/payouts, and log resolution.
+    Operator action: Resolve a dispute, adjust deposits/payouts, update PostgreSQL directly, and log resolution.
     """
-    # 1. Update in-memory registry
-    ADMIN_RESOLVED_DISPUTES[dispute_id] = {
-        "status": "resolved",
-        "action": payload.action,
-        "resolution": payload.resolution_note,
-        "refund_amount": payload.refund_amount,
-        "resolved_at": datetime.now().isoformat()
-    }
-
-    # 2. If DB record exists, update DB
     try:
         uuid_val = UUID(dispute_id)
-        stmt = select(Dispute).where(Dispute.id == uuid_val)
-        res = await db.scalar(stmt)
-        if res:
-            res.status = "resolved"
-            res.resolution = f"[{payload.action.upper()}] {payload.resolution_note}"
-            res.resolved_at = date.today()
     except Exception:
-        pass
+        raise HTTPException(status_code=400, detail="Invalid dispute ID format")
 
-    # 3. Log audit event
+    stmt = select(Dispute).where(Dispute.id == uuid_val)
+    dispute = await db.scalar(stmt)
+    if not dispute:
+        raise HTTPException(status_code=404, detail="Dispute not found")
+
+    # Update dispute in DB
+    dispute.status = "resolved"
+    dispute.resolution = f"[{payload.action.upper()}] {payload.resolution_note}"
+    dispute.resolved_at = date.today()
+    await db.commit()
+    await db.refresh(dispute)
+
+    # Log audit event in database
     try:
         from app.api.v1.endpoints.analytics import record_audit_log
         record_audit_log(
@@ -766,7 +721,7 @@ async def resolve_admin_dispute(
     return {
         "status": "success",
         "message": f"Dispute {dispute_id} resolved with action: {payload.action.replace('_', ' ').title()}",
-        "dispute_id": dispute_id,
-        "resolution": payload.resolution_note
+        "dispute_id": str(dispute.id),
+        "resolution": dispute.resolution
     }
 

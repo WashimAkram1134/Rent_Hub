@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { MoreHorizontal } from "lucide-react";
 import dayjs from "dayjs";
+import apiClient from "@/lib/axios";
 
 interface Booking {
   id: string;
@@ -101,36 +103,52 @@ export function AdminRecentBookingsWidget({ bookings }: AdminTablesProps) {
 }
 
 export function AdminRecentUsersWidget() {
-  const recentUsers = [
-    { name: "Arafat Hossain", date: "May 24, 2025" },
-    { name: "Tanzila Rahman", date: "May 24, 2025" },
-    { name: "MD. Rashed", date: "May 23, 2025" },
-    { name: "Sadia Islam", date: "May 23, 2025" },
-    { name: "Imran Hossain", date: "May 22, 2025" },
-  ];
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiClient
+      .get("/users")
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : [];
+        setUsers(list.slice(0, 6));
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+    <div className="bg-white dark:bg-[#111625] p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-sm font-bold text-slate-900">Recently Registered Users</h2>
-        <button className="text-indigo-600 text-xs font-bold hover:text-indigo-700">View all</button>
+        <h2 className="text-sm font-bold text-slate-900 dark:text-white">Recently Registered Users</h2>
+        <Link href="/admin/users" className="text-indigo-600 text-xs font-bold hover:text-indigo-700">View all</Link>
       </div>
-      <div className="flex items-center gap-4 overflow-x-auto pb-2 custom-scrollbar">
-        {recentUsers.map((u, i) => (
-          <div key={i} className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-xl p-3 min-w-[180px] shrink-0">
-            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold text-sm shrink-0">
-              {u.name.split(' ').map(n=>n[0]).join('')}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-slate-900 truncate">{u.name}</p>
-              <p className="text-[10px] text-slate-400 truncate">{u.date}</p>
-            </div>
-            <button className="text-slate-400 hover:text-slate-600">
-              <MoreHorizontal size={16} />
-            </button>
-          </div>
-        ))}
-      </div>
+      {users.length === 0 && !loading ? (
+        <p className="text-xs text-slate-400 py-4 text-center">No users registered yet.</p>
+      ) : (
+        <div className="flex items-center gap-4 overflow-x-auto pb-2 custom-scrollbar">
+          {users.map((u, i) => {
+            const fullName = `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email || "User";
+            const initials = fullName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() || "U";
+            const regDate = u.created_at ? dayjs(u.created_at).format("MMM DD, YYYY") : "Recently";
+
+            return (
+              <div key={u.id || i} className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60 rounded-xl p-3 min-w-[200px] shrink-0">
+                <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-sm shrink-0">
+                  {initials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{fullName}</p>
+                  <p className="text-[10px] text-slate-400 truncate">{regDate}</p>
+                </div>
+                <Link href={`/admin/users`} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                  <MoreHorizontal size={16} />
+                </Link>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

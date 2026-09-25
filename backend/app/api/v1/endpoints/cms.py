@@ -5,11 +5,13 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, delete
 import re
+import json
 
 from app.database.session import get_db
 from app.models.cms import HeroBanner, Promotion, City
 from app.models.category import Category
 from app.models.product import Product
+from app.models.system_setting import SystemSetting
 from app.schemas.cms import HeroBannerOut, PromotionOut, CityOut, CategoryOut
 
 router = APIRouter()
@@ -357,16 +359,58 @@ async def delete_city(
 # ── Admin System Settings Endpoints ──────────────────────────────────────────
 
 @router.get("/admin/settings")
-async def get_system_settings():
-    return {"settings": CURRENT_SYSTEM_SETTINGS}
+async def get_system_settings(db: AsyncSession = Depends(get_db)):
+    rows = (await db.scalars(select(SystemSetting))).all()
+    if not rows:
+        # Seed baseline settings directly into database
+        initial_records = [
+            SystemSetting(key=k, value=json.dumps(v))
+            for k, v in CURRENT_SYSTEM_SETTINGS.items()
+        ]
+        db.add_all(initial_records)
+        await db.commit()
+        rows = (await db.scalars(select(SystemSetting))).all()
+
+    settings_dict = {}
+    for r in rows:
+        try:
+            settings_dict[r.key] = json.loads(r.value)
+        except Exception:
+            settings_dict[r.key] = r.value
+
+    merged = {**CURRENT_SYSTEM_SETTINGS, **settings_dict}
+    return {"settings": merged}
+
 
 @router.post("/admin/settings")
-async def save_system_settings(payload: SystemSettingsPayload):
-    global CURRENT_SYSTEM_SETTINGS
-    CURRENT_SYSTEM_SETTINGS.update(payload.dict())
+async def save_system_settings(payload: SystemSettingsPayload, db: AsyncSession = Depends(get_db)):
+    settings_dict = payload.dict()
+    for k, v in settings_dict.items():
+        existing = await db.scalar(select(SystemSetting).where(SystemSetting.key == k))
+        val_str = json.dumps(v)
+        if existing:
+            existing.value = val_str
+        else:
+            db.add(SystemSetting(key=k, value=val_str))
+
+    await db.commit()
+
+    try:
+        from app.api.v1.endpoints.analytics import record_audit_log
+        record_audit_log(
+            action="SYSTEM_SETTINGS_UPDATED",
+            title="Updated platform business & financial configurations",
+            admin="Super Admin",
+            target="Database: system_settings",
+            severity="INFO",
+            details=f"Commission: {payload.platform_commission_rate}%, Deposit: {payload.security_deposit_rate}%, NID Required: {payload.require_nid_for_rentals}"
+        )
+    except Exception:
+        pass
+
     return {
-        "message": "Platform system configurations updated & persisted successfully!",
-        "settings": CURRENT_SYSTEM_SETTINGS
+        "message": "Platform system configurations updated & persisted directly in database successfully!",
+        "settings": settings_dict
     }
 
 
@@ -385,9 +429,35 @@ class PromotionCreateUpdate(BaseModel):
 
 @router.get("/admin/promotions")
 async def get_admin_promotions(db: AsyncSession = Depends(get_db)):
+    count = await db.scalar(select(func.count(Promotion.id))) or 0
+    if count == 0:
+        base_promos = [
+            Promotion(
+                title="Monsoon Roadtrip Special",
+                subtitle="Flat 15% off all SUVs, 4x4s, and rental cars across Dhaka and Chittagong.",
+                discount_text="15% OFF",
+                discount_pct=15.0,
+                image_url="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
+                theme_color="#4f46e5",
+                is_active=True
+            ),
+            Promotion(
+                title="Cinema & Creator Equipment Pass",
+                subtitle="Get 20% discount on professional Sony, Canon cameras and cinema prime lenses.",
+                discount_text="20% OFF",
+                discount_pct=20.0,
+                image_url="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80",
+                theme_color="#059669",
+                is_active=True
+            )
+        ]
+        db.add_all(base_promos)
+        await db.commit()
+
     result = await db.execute(select(Promotion).order_by(Promotion.created_at.desc()))
     promotions = result.scalars().all()
     return promotions
+
 
 
 @router.post("/admin/promotions")
@@ -497,7 +567,36 @@ class HeroSlideCreateUpdate(BaseModel):
 @router.get("/admin/hero-slides")
 async def get_admin_hero_slides(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(HeroBanner).order_by(HeroBanner.sort_order))
-    return result.scalars().all()
+    slides = result.scalars().all()
+    if not slides:
+        default_slides = [
+            HeroBanner(
+                eyebrow="Trusted Peer-to-Peer Rentals",
+                title="Rent Premium Vehicles, Cameras & Spaces in Bangladesh",
+                subtitle="Skip expensive ownership. Rent verified gear with security deposit escrow protection.",
+                cta_text="Explore Inventory",
+                cta_href="/categories",
+                image_url="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
+                sort_order=1,
+                is_active=True
+            ),
+            HeroBanner(
+                eyebrow="Host & Earn Passive Income",
+                title="Turn Your Idle Assets Into Guaranteed Monthly Revenue",
+                subtitle="List your car, camera or wedding outfits and connect with verified local renters.",
+                cta_text="Become a Host",
+                cta_href="/lister-register",
+                image_url="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80",
+                sort_order=2,
+                is_active=True
+            )
+        ]
+        for s in default_slides:
+            db.add(s)
+        await db.commit()
+        result = await db.execute(select(HeroBanner).order_by(HeroBanner.sort_order))
+        slides = result.scalars().all()
+    return slides
 
 
 @router.post("/admin/hero-slides")

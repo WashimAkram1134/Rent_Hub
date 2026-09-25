@@ -12,6 +12,9 @@ from app.models.recently_viewed import RecentlyViewed
 
 from app.models.payment import Payment
 from app.models.payout import Payout
+from app.models.audit_log import AuditLog
+from app.models.system_setting import SystemSetting
+from app.models.backup_snapshot import BackupSnapshot
 
 __all__ = [
     "User",
@@ -39,4 +42,7 @@ __all__ = [
     "ListerApplication",
     "ListerApplicationStatus",
     "RecentlyViewed",
+    "AuditLog",
+    "SystemSetting",
+    "BackupSnapshot",
 ]

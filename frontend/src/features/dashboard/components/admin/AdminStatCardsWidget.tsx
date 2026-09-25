@@ -21,6 +21,10 @@ interface AdminStats {
   total_revenue?: number;
   total_payouts?: number;
   open_disputes?: number;
+  revenue_change?: string;
+  bookings_change?: string;
+  customers_change?: string;
+  owners_change?: string;
 }
 
 interface AdminStatCardsProps {
@@ -39,8 +43,8 @@ export function AdminStatCardsWidget({ stats }: AdminStatCardsProps) {
     {
       title: "Platform Revenue",
       value: `৳ ${Math.round(revenue).toLocaleString()}`,
-      trend: "+12.4%",
-      isPositive: true,
+      trend: stats.revenue_change || "+0.0%",
+      isPositive: !stats.revenue_change || !stats.revenue_change.startsWith("-"),
       icon: Banknote,
       color: "bg-emerald-600 text-white",
       caption: "Gross rental volume"
@@ -48,26 +52,26 @@ export function AdminStatCardsWidget({ stats }: AdminStatCardsProps) {
     {
       title: "Total Bookings",
       value: bookings.toLocaleString(),
-      trend: "+8.2%",
-      isPositive: true,
+      trend: stats.bookings_change || "+0.0%",
+      isPositive: !stats.bookings_change || !stats.bookings_change.startsWith("-"),
       icon: Calendar,
       color: "bg-blue-600 text-white",
       caption: "Confirmed & completed"
     },
     {
       title: "Active Customers",
-      value: (customers || 1).toLocaleString(),
-      trend: "+15.0%",
-      isPositive: true,
+      value: customers.toLocaleString(),
+      trend: stats.customers_change || "+0.0%",
+      isPositive: !stats.customers_change || !stats.customers_change.startsWith("-"),
       icon: ShoppingBag,
       color: "bg-indigo-600 text-white",
       caption: "Verified renters"
     },
     {
       title: "Active Owners",
-      value: (owners || 1).toLocaleString(),
-      trend: "+9.0%",
-      isPositive: true,
+      value: owners.toLocaleString(),
+      trend: stats.owners_change || "+0.0%",
+      isPositive: !stats.owners_change || !stats.owners_change.startsWith("-"),
       icon: Store,
       color: "bg-amber-600 text-white",
       caption: "Asset providers"

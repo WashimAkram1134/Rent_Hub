@@ -75,33 +75,7 @@ export default function AdminCmsPage() {
       }
     } catch (err) {
       console.error("Failed to load hero slides:", err);
-      // Fallback sample slides if database is initializing
-      const fallbacks: HeroSlide[] = [
-        {
-          id: "slide-1",
-          eyebrow: "Trusted Peer-to-Peer Rentals",
-          title: "Rent Premium Vehicles, Cameras & Spaces in Bangladesh",
-          subtitle: "Skip expensive ownership. Rent verified gear with security deposit escrow protection.",
-          cta_text: "Explore Inventory",
-          cta_href: "/categories",
-          image_url: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
-          sort_order: 1,
-          is_active: true,
-        },
-        {
-          id: "slide-2",
-          eyebrow: "Host & Earn Passive Income",
-          title: "Turn Your Idle Assets Into Guaranteed Monthly Revenue",
-          subtitle: "List your car, camera or wedding outfits and connect with verified local renters.",
-          cta_text: "Become a Host",
-          cta_href: "/lister-register",
-          image_url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80",
-          sort_order: 2,
-          is_active: true,
-        },
-      ];
-      setSlides(fallbacks);
-      setPreviewSlide(fallbacks[0]);
+      setSlides([]);
     } finally {
       setLoading(false);
     }
