@@ -376,7 +376,10 @@ async def get_owner_stats(
     }
 
 @router.get("/admin-stats")
-async def get_admin_stats(db: AsyncSession = Depends(get_db)):
+async def get_admin_stats(
+    range: str = Query("30D"),
+    db: AsyncSession = Depends(get_db)
+):
     # Base counts
     users_count = await db.scalar(select(func.count(User.id)))
     products_count = await db.scalar(select(func.count(Product.id)))
@@ -426,49 +429,51 @@ async def get_admin_stats(db: AsyncSession = Depends(get_db)):
         )
     )
 
-    # Dynamic 30-day changes calculated directly from database
+    # Dynamic time-range changes calculated directly from database
     now = datetime.now(timezone.utc)
-    t_30d = now - timedelta(days=30)
-    t_60d = now - timedelta(days=60)
+    days_map = {"7D": 7, "30D": 30, "3M": 90, "1Y": 365}
+    days = days_map.get(range.upper(), 30)
+    t_curr = now - timedelta(days=days)
+    t_prev = now - timedelta(days=days * 2)
 
     curr_rev = await db.scalar(
         select(func.sum(Booking.total_amount)).where(
-            Booking.created_at >= t_30d,
+            Booking.created_at >= t_curr,
             Booking.status.in_(["confirmed", "active", "completed"])
         )
     ) or 0.0
     prev_rev = await db.scalar(
         select(func.sum(Booking.total_amount)).where(
-            Booking.created_at >= t_60d,
-            Booking.created_at < t_30d,
+            Booking.created_at >= t_prev,
+            Booking.created_at < t_curr,
             Booking.status.in_(["confirmed", "active", "completed"])
         )
     ) or 0.0
 
     curr_bkg = await db.scalar(
-        select(func.count(Booking.id)).where(Booking.created_at >= t_30d)
+        select(func.count(Booking.id)).where(Booking.created_at >= t_curr)
     ) or 0
     prev_bkg = await db.scalar(
-        select(func.count(Booking.id)).where(Booking.created_at >= t_60d, Booking.created_at < t_30d)
+        select(func.count(Booking.id)).where(Booking.created_at >= t_prev, Booking.created_at < t_curr)
     ) or 0
 
     curr_usr = await db.scalar(
-        select(func.count(User.id)).where(User.created_at >= t_30d)
+        select(func.count(User.id)).where(User.created_at >= t_curr)
     ) or 0
     prev_usr = await db.scalar(
-        select(func.count(User.id)).where(User.created_at >= t_60d, User.created_at < t_30d)
+        select(func.count(User.id)).where(User.created_at >= t_prev, User.created_at < t_curr)
     ) or 0
 
     curr_own = await db.scalar(
         select(func.count(User.id)).where(
-            User.created_at >= t_30d,
+            User.created_at >= t_curr,
             or_(User.is_owner == True, User.primary_role == "owner")
         )
     ) or 0
     prev_own = await db.scalar(
         select(func.count(User.id)).where(
-            User.created_at >= t_60d,
-            User.created_at < t_30d,
+            User.created_at >= t_prev,
+            User.created_at < t_curr,
             or_(User.is_owner == True, User.primary_role == "owner")
         )
     ) or 0
