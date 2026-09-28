@@ -226,10 +226,14 @@ function SearchContent() {
   const initialQuery = searchParams.get("q") || "";
   const initialCity = searchParams.get("city") || "";
   const initialCategory = searchParams.get("category") || "all";
+  const initialCategories = searchParams.get("categories") || "";
+  const initialPromo = searchParams.get("promo") || "";
 
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [selectedCity, setSelectedCity] = useState(initialCity || "All Cities");
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+  const [applicableCategories, setApplicableCategories] = useState(initialCategories);
+  const [promoCode, setPromoCode] = useState(initialPromo);
   const [sortBy, setSortBy] = useState<"featured" | "price_asc" | "price_desc" | "rating">("featured");
   const [maxPrice, setMaxPrice] = useState<number>(20000);
   const [only360, setOnly360] = useState<boolean>(false);
@@ -241,6 +245,8 @@ function SearchContent() {
     setSearchQuery(searchParams.get("q") || "");
     if (searchParams.get("city")) setSelectedCity(searchParams.get("city")!);
     if (searchParams.get("category")) setSelectedCategory(searchParams.get("category")!);
+    setApplicableCategories(searchParams.get("categories") || "");
+    setPromoCode(searchParams.get("promo") || "");
   }, [searchParams]);
 
   // Fetch from API if query present
@@ -340,6 +346,23 @@ function SearchContent() {
           if (item.categorySlug.toLowerCase() !== selectedCategory.toLowerCase()) return false;
         }
 
+        // Applicable categories filter from offer banner
+        if (applicableCategories) {
+          const targetCats = applicableCategories
+            .toLowerCase()
+            .split(",")
+            .map((c) => c.trim())
+            .filter(Boolean);
+          if (targetCats.length > 0) {
+            const itemCat = (item.category || "").toLowerCase();
+            const itemSlug = (item.categorySlug || "").toLowerCase();
+            const matchesOffer = targetCats.some(
+              (tc) => itemCat.includes(tc) || itemSlug.includes(tc) || tc.includes(itemSlug)
+            );
+            if (!matchesOffer) return false;
+          }
+        }
+
         // Price filter
         if (item.price_per_day > maxPrice) return false;
 
@@ -354,7 +377,7 @@ function SearchContent() {
         if (sortBy === "rating") return b.avg_rating - a.avg_rating;
         return 0; // Default featured
       });
-  }, [allResults, searchQuery, selectedCity, selectedCategory, maxPrice, only360, sortBy]);
+  }, [allResults, searchQuery, selectedCity, selectedCategory, applicableCategories, maxPrice, only360, sortBy]);
 
   return (
     <div className="min-h-screen bg-[#07070F] text-white flex flex-col font-sans">
@@ -568,6 +591,47 @@ function SearchContent() {
                 </select>
               </div>
             </div>
+
+            {/* Active Promotional Offer Filter Banner */}
+            {applicableCategories && (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-violet-950/80 via-indigo-950/70 to-slate-900 border border-violet-500/40 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-300">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-violet-600/30 text-violet-300 border border-violet-500/30 shadow-inner">
+                    <Sparkles size={18} className="animate-spin-slow" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-violet-400">
+                        Offer Category Filter Active
+                      </span>
+                      {promoCode && (
+                        <span className="text-[11px] font-mono font-bold bg-violet-500/20 text-violet-200 border border-violet-500/40 px-2 py-0.5 rounded">
+                          Use Code: {promoCode}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs sm:text-sm font-bold text-white mt-0.5">
+                      Showing special promotion rentals for:{" "}
+                      <span className="text-violet-300 font-extrabold">
+                        {applicableCategories.split(",").join(" & ")}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setApplicableCategories("");
+                    setPromoCode("");
+                    router.push("/search");
+                  }}
+                  className="text-xs font-bold text-slate-300 hover:text-white flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all w-fit cursor-pointer shrink-0"
+                >
+                  <X size={14} />
+                  <span>Show All Items</span>
+                </button>
+              </div>
+            )}
 
             {/* Results Grid */}
             {filteredResults.length === 0 ? (

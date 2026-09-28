@@ -177,7 +177,7 @@ export default function Navbar() {
           </Link>
 
           {/* Search Bar & Location */}
-          <form onSubmit={handleSearchSubmit} className="hidden md:flex items-center flex-1 max-w-xl mx-4 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 focus-within:bg-white focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/10 transition-all shadow-inner">
+          <form onSubmit={handleSearchSubmit} className="hidden md:flex items-center flex-1 max-w-xl mx-4 bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-1.5 py-1.5 focus-within:bg-white focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/10 transition-all shadow-inner">
             <Search size={16} className="text-slate-400 shrink-0 mr-2" />
             <input
               type="text"
@@ -187,11 +187,18 @@ export default function Navbar() {
               className="w-full bg-transparent text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 outline-none font-medium"
             />
             <div className="w-px h-5 bg-slate-200 mx-2 shrink-0" />
-            <div className="flex items-center gap-1 text-xs font-semibold text-slate-600 shrink-0 hover:text-blue-600 cursor-pointer">
+            <div className="flex items-center gap-1 text-xs font-semibold text-slate-600 shrink-0 hover:text-blue-600 cursor-pointer pr-1">
               <MapPin size={14} className="text-slate-400" />
               <span>Dhaka</span>
               <ChevronDown size={12} className="text-slate-400" />
             </div>
+            <button
+              type="submit"
+              className="ml-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-95 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg flex items-center gap-1 shadow-sm shadow-blue-500/20 transition-all shrink-0 cursor-pointer"
+            >
+              <span>Search</span>
+              <Search size={12} />
+            </button>
           </form>
 
           {/* Right Actions */}
@@ -478,15 +485,21 @@ export default function Navbar() {
       {/* Mobile Menu */}
       {mobileOpen && (
         <div className="lg:hidden border-t border-slate-100 bg-white px-4 py-4 space-y-3">
-          <form onSubmit={handleSearchSubmit} className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-            <Search size={16} className="text-slate-400 mr-2" />
+          <form onSubmit={handleSearchSubmit} className="flex items-center bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-1.5 py-1.5 focus-within:ring-2 focus-within:ring-blue-500/20">
+            <Search size={16} className="text-slate-400 mr-2 shrink-0" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search anything..."
-              className="w-full bg-transparent text-xs text-slate-800 outline-none"
+              className="w-full bg-transparent text-xs text-slate-800 outline-none font-medium"
             />
+            <button
+              type="submit"
+              className="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shrink-0"
+            >
+              Search
+            </button>
           </form>
           <div className="flex flex-col gap-1 pt-2">
             {isOwnerUser && (

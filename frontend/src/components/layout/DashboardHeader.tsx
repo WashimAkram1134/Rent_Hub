@@ -128,6 +128,19 @@ export default function DashboardHeader() {
     }
   };
 
+  const handleExecuteSearch = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!search.trim()) return;
+    setOmniOpen(false);
+    if (isAdminMode) {
+      router.push(`/admin/listings?search=${encodeURIComponent(search.trim())}`);
+    } else if (activeRole === "owner") {
+      router.push(`/listings?search=${encodeURIComponent(search.trim())}`);
+    } else {
+      router.push(`/search?q=${encodeURIComponent(search.trim())}`);
+    }
+  };
+
   const totalResultsCount =
     omniResults.bookings.length +
     omniResults.listings.length +
@@ -138,7 +151,10 @@ export default function DashboardHeader() {
     <header className="relative z-50 bg-white dark:bg-[#0c101d] border-b border-gray-100 dark:border-slate-800 px-5 py-3 flex items-center gap-3 shrink-0 h-[60px] font-sans shadow-xs transition-colors">
       {/* Omni / Global Search */}
       <div ref={searchContainerRef} className="relative flex-1 max-w-md">
-        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
+        <form
+          onSubmit={handleExecuteSearch}
+          className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl pl-3 pr-1.5 py-1.5 focus-within:ring-2 focus-within:ring-violet-500/20 focus-within:border-violet-500 transition-all shadow-xs"
+        >
           <Search size={16} className="text-slate-400 shrink-0" />
           <input
             value={search}
@@ -153,15 +169,26 @@ export default function DashboardHeader() {
                 ? "Search for listings, bookings, or earnings..."
                 : "Search cars, cameras, apartments..."
             }
-            className="bg-transparent outline-none text-xs sm:text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 w-full"
+            className="bg-transparent outline-none text-xs sm:text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 w-full font-medium"
           />
           {omniLoading && <Loader2 size={14} className="animate-spin text-slate-400 shrink-0" />}
           {search && (
-            <button onClick={() => { setSearch(""); setOmniOpen(false); }} className="text-slate-400 hover:text-slate-600">
+            <button
+              type="button"
+              onClick={() => { setSearch(""); setOmniOpen(false); }}
+              className="text-slate-400 hover:text-slate-600 p-0.5"
+            >
               <X size={14} />
             </button>
           )}
-        </div>
+          <button
+            type="submit"
+            className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 active:scale-95 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-sm shadow-violet-500/20 transition-all shrink-0 cursor-pointer"
+          >
+            <span>Search</span>
+            <Search size={11} />
+          </button>
+        </form>
 
         {/* Admin Omni-Search Live Results Popover */}
         {isAdminUser && omniOpen && (

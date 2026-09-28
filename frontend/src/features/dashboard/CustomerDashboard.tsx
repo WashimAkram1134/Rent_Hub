@@ -65,8 +65,9 @@ export function CustomerDashboard() {
 
     const fetchData = async () => {
       try {
-        const [bannersRes, catsRes, productsRes, recommendedRes, citiesRes, dealsRes, bookingsRes, topOwnersRes, topPerfRes] = await Promise.all([
+        const [bannersRes, offerBannersRes, catsRes, productsRes, recommendedRes, citiesRes, dealsRes, bookingsRes, topOwnersRes, topPerfRes] = await Promise.all([
           apiClient.get("/cms/hero-slides").then(r => r.data).catch(() => []),
+          apiClient.get("/offer-studio/active", { params: { placement: "HOMEPAGE_HERO" } }).then(r => r.data).catch(() => []),
           apiClient.get("/cms/categories").then(r => r.data).catch(() => []),
           apiClient.get("/products", { params: { trending: true, limit: 4 } }).then(r => r.data).catch(() => []),
           apiClient.get("/products", { params: { recommended: true, limit: 8 } }).then(r => r.data).catch(() => []),
@@ -77,7 +78,36 @@ export function CustomerDashboard() {
           apiClient.get("/cms/top-performers").then(r => r.data).catch(() => []),
         ]);
 
-        setHeroSlides(bannersRes || []);
+        const mappedOfferSlides = Array.isArray(offerBannersRes)
+          ? offerBannersRes.map((c: any) => {
+              const cats = Array.isArray(c.applicable_categories) ? c.applicable_categories : [];
+              const catsParam = cats.length > 0 ? cats.join(",") : "";
+              const targetHref = cats.length > 0
+                ? `/search?categories=${encodeURIComponent(catsParam)}&promo=${encodeURIComponent(c.promo_code)}`
+                : (c.cta_url || "/offers");
+
+              return {
+                id: `offer-${c.id}`,
+                eyebrow: `Special Offer • ${c.discount_display}`,
+                title: c.title,
+                subtitle: c.description,
+                cta_text: c.cta_text || "Explore Offers",
+                cta_href: targetHref,
+                image_url:
+                  c.visual_asset_url ||
+                  c.design_spec_json?.visual?.asset_url ||
+                  "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
+                is_offer: true,
+                discount_display: c.discount_display,
+                promo_code: c.promo_code,
+                applicable_categories: cats,
+                design_spec_json: c.design_spec_json,
+              };
+            })
+          : [];
+
+        const mergedSlides = [...mappedOfferSlides, ...(bannersRes || [])];
+        setHeroSlides(mergedSlides.length > 0 ? mergedSlides : (bannersRes || []));
 
         const fetchedCats = catsRes || [];
         setCategories([...fetchedCats, { name: "More", slug: "more", icon_url: "" }]);
@@ -102,7 +132,12 @@ export function CustomerDashboard() {
     fetchData();
   }, [user?.id]);
 
-
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchValue.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchValue.trim())}`);
+    }
+  };
 
   const handleSignOut = async () => {
     await logout();
@@ -133,15 +168,26 @@ export function CustomerDashboard() {
 
         {/* Top Header */}
         <header className="relative z-50 bg-white border-b border-gray-100 px-5 py-3 flex items-center gap-3 shrink-0 shadow-xs">
-          <div className="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 max-w-sm focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
+          <form
+            onSubmit={handleSearchSubmit}
+            className="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-1.5 py-1.5 max-w-md focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 focus-within:bg-white transition-all shadow-xs"
+          >
             <Search size={16} className="text-slate-400 shrink-0" />
             <input
+              type="text"
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
               placeholder="Search for anything (cars, laptops, apartments...)"
-              className="bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400 w-full"
+              className="bg-transparent outline-none text-xs sm:text-sm text-slate-700 placeholder:text-slate-400 w-full font-medium"
             />
-          </div>
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm shadow-blue-500/20 transition-all shrink-0 cursor-pointer"
+            >
+              <span>Search</span>
+              <Search size={12} />
+            </button>
+          </form>
 
           <div className="flex-1" />
 

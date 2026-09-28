@@ -11,6 +11,15 @@ export default function CategoryNavbar() {
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
   const handleLogout = async () => {
     await logout();
     setDropdownOpen(false);
@@ -36,14 +45,26 @@ export default function CategoryNavbar() {
 
       {/* Middle: Search */}
       <div className="flex-1 max-w-2xl mx-6 hidden md:block">
-        <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus-within:ring-2 focus-within:ring-violet-500 focus-within:border-violet-500 transition-all shadow-sm">
-          <Search size={18} className="text-slate-400 shrink-0" />
+        <form
+          onSubmit={handleSearchSubmit}
+          className="flex items-center bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-1.5 py-1.5 focus-within:ring-2 focus-within:ring-violet-500/20 focus-within:border-violet-500 focus-within:bg-white transition-all shadow-xs"
+        >
+          <Search size={16} className="text-slate-400 shrink-0" />
           <input 
             type="text" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search for anything (cars, laptops, apartments...)"
-            className="bg-transparent border-none outline-none w-full px-3 text-sm text-slate-700 placeholder:text-slate-400"
+            className="bg-transparent border-none outline-none w-full px-3 text-xs sm:text-sm text-slate-700 placeholder:text-slate-400 font-medium"
           />
-        </div>
+          <button
+            type="submit"
+            className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 active:scale-95 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg flex items-center gap-1 shadow-sm shadow-violet-500/20 transition-all shrink-0 cursor-pointer"
+          >
+            <span>Search</span>
+            <Search size={11} />
+          </button>
+        </form>
       </div>
 
       {/* Right: Location & Profile */}

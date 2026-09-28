@@ -125,8 +125,13 @@ export default function RentHubBannerRenderer({
   const promoCode = businessData?.promo_code || spec.locked_content?.promo_code || "RENTHUB20";
   const validUntil = businessData?.valid_until || spec.locked_content?.valid_until || "Limited Time Offer";
   const ctaText = businessData?.cta_text || spec.locked_content?.cta_text || "Explore Offers";
-  const ctaUrl = businessData?.cta_url || spec.locked_content?.cta_url || "/offers";
   const categories = businessData?.applicable_categories || spec.locked_content?.categories || ["Vehicles", "Cameras"];
+  const defaultCategoryHref = categories && categories.length > 0
+    ? `/search?categories=${encodeURIComponent(categories.join(","))}&promo=${encodeURIComponent(promoCode)}`
+    : "/offers";
+  const ctaUrl = (businessData?.cta_url && businessData.cta_url !== "/offers" && !businessData.cta_url.startsWith("/search?categories="))
+    ? businessData.cta_url
+    : defaultCategoryHref;
 
   const palette = spec.palette || {
     bg_primary: "#0A0F1D",

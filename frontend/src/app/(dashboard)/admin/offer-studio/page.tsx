@@ -81,12 +81,8 @@ const CATEGORY_OPTIONS = [
 ];
 
 const PLACEMENT_OPTIONS = [
-  { label: "Homepage Hero Banner", value: "HOMEPAGE_HERO", desc: "Prime 1920×600 top storefront hero" },
-  { label: "Homepage Offer Card", value: "OFFER_CARD", desc: "High conversion 600×400 compact card" },
-  { label: "Category Page Banner", value: "CATEGORY_BANNER", desc: "Header banner across selected category" },
+  { label: "Homepage Hero Banner", value: "HOMEPAGE_HERO", desc: "Rotates in Explore & Rent hero carousel alongside other banners" },
   { label: "Deals & Offers Page", value: "DEALS_PAGE", desc: "Featured spotlight banner on /offers" },
-  { label: "Popup Modal Offer", value: "POPUP", desc: "First-time visitor high-intent overlay" },
-  { label: "Mobile Banner", value: "MOBILE_BANNER", desc: "Optimized mobile screen card" },
 ];
 
 export default function AIOfferStudioPage() {
@@ -164,6 +160,13 @@ export default function AIOfferStudioPage() {
   const handleGenerateDesigns = async () => {
     try {
       setGenerating(true);
+      const effectiveCtaUrl =
+        ctaUrl && ctaUrl !== "/offers" && !ctaUrl.startsWith("/search?categories=")
+          ? ctaUrl
+          : selectedCategories.length > 0
+          ? `/search?categories=${encodeURIComponent(selectedCategories.join(","))}&promo=${encodeURIComponent(promoCode.trim().toUpperCase())}`
+          : "/offers";
+
       const payload = {
         title,
         description,
@@ -175,7 +178,7 @@ export default function AIOfferStudioPage() {
         applicable_categories: selectedCategories,
         target_audience: targetAudience,
         cta_text: ctaText,
-        cta_url: ctaUrl,
+        cta_url: effectiveCtaUrl,
         placement,
         campaign_theme: campaignTheme || undefined,
         custom_image_url: customImageUrl || undefined,
@@ -227,6 +230,13 @@ export default function AIOfferStudioPage() {
     if (!activeSpec) return;
     try {
       setPublishing(true);
+      const effectiveCtaUrl =
+        ctaUrl && ctaUrl !== "/offers" && !ctaUrl.startsWith("/search?categories=")
+          ? ctaUrl
+          : selectedCategories.length > 0
+          ? `/search?categories=${encodeURIComponent(selectedCategories.join(","))}&promo=${encodeURIComponent(promoCode.trim().toUpperCase())}`
+          : "/offers";
+
       const payload = {
         title,
         description,
@@ -238,7 +248,7 @@ export default function AIOfferStudioPage() {
         applicable_categories: selectedCategories,
         target_audience: targetAudience,
         cta_text: ctaText,
-        cta_url: ctaUrl,
+        cta_url: effectiveCtaUrl,
         placement,
         status,
         selected_template: activeSpec.template || "split_hero",

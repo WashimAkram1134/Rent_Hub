@@ -59,6 +59,18 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
+  const [headerSearch, setHeaderSearch] = useState("");
+
+  const handleHeaderSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (headerSearch.trim()) {
+      if (user?.primary_role === "admin") {
+        router.push(`/admin/listings?search=${encodeURIComponent(headerSearch.trim())}`);
+      } else {
+        router.push(`/search?q=${encodeURIComponent(headerSearch.trim())}`);
+      }
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -419,16 +431,30 @@ export default function DashboardLayout({
                 <Menu className="w-5 h-5" />
               </button>
               
-              {isCustomer && (
-                <div className="hidden md:flex items-center bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 w-full max-w-md focus-within:ring-2 focus-within:ring-violet-500 focus-within:border-violet-500 transition-all">
-                  <Search size={18} className="text-slate-400 shrink-0" />
-                  <input 
-                    type="text" 
-                    placeholder={dict.header.searchPlaceholder}
-                    className="bg-transparent border-none outline-none w-full px-3 text-sm text-slate-700 placeholder:text-slate-400"
-                  />
-                </div>
-              )}
+              <form
+                onSubmit={handleHeaderSearch}
+                className="hidden md:flex items-center bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-1.5 py-1.5 w-full max-w-md focus-within:ring-2 focus-within:ring-violet-500/20 focus-within:border-violet-500 focus-within:bg-white transition-all shadow-xs"
+              >
+                <Search size={16} className="text-slate-400 shrink-0" />
+                <input 
+                  type="text" 
+                  value={headerSearch}
+                  onChange={(e) => setHeaderSearch(e.target.value)}
+                  placeholder={
+                    isAdmin
+                      ? "Search listings, users, orders..."
+                      : dict?.header?.searchPlaceholder || "Search cars, cameras, gear..."
+                  }
+                  className="bg-transparent border-none outline-none w-full px-2.5 text-xs sm:text-sm text-slate-700 placeholder:text-slate-400 font-medium"
+                />
+                <button
+                  type="submit"
+                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 active:scale-95 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-sm shadow-violet-500/20 transition-all shrink-0 cursor-pointer"
+                >
+                  <span>Search</span>
+                  <Search size={11} />
+                </button>
+              </form>
             </div>
 
             {/* Right */}

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ChevronLeft, ChevronRight, ArrowRight, Sparkles, Tag, ShieldCheck } from "lucide-react";
 
 export interface HeroSlide {
   id: string;
@@ -11,62 +13,180 @@ export interface HeroSlide {
   cta_text: string;
   cta_href: string;
   image_url: string;
+  is_offer?: boolean;
+  discount_display?: string;
+  promo_code?: string;
+  applicable_categories?: string[];
+  design_spec_json?: any;
 }
 
 export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
   const [heroIndex, setHeroIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
-    if (!slides || slides.length === 0) return;
+    if (!slides || slides.length === 0 || isHovered) return;
     const interval = setInterval(() => {
       setHeroIndex((prev) => (prev + 1) % slides.length);
-    }, 5000);
+    }, 5500);
     return () => clearInterval(interval);
-  }, [slides]);
+  }, [slides, isHovered]);
 
   if (!slides || slides.length === 0) {
-    return <div className="relative rounded-2xl overflow-hidden h-[230px] bg-slate-200 animate-pulse shadow-sm" />;
+    return <div className="relative rounded-2xl overflow-hidden h-[240px] bg-slate-200 animate-pulse shadow-sm" />;
   }
 
+  const handleSlideClick = (href: string) => {
+    if (href) {
+      router.push(href);
+    }
+  };
+
   return (
-    <div className="relative rounded-2xl overflow-hidden h-[230px] shadow-sm group">
-      {slides.map((slide, i) => (
-        <div
-          key={slide.id}
-          className={`absolute inset-0 transition-opacity duration-700 ${i === heroIndex ? "opacity-100" : "opacity-0"}`}
-        >
-          <img src={slide.image_url} alt={slide.title} className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/40 to-transparent" />
-          <div className="absolute inset-0 flex flex-col justify-center px-8 py-6 max-w-sm">
-            <p className="text-white/80 text-sm font-medium mb-1">{slide.eyebrow}</p>
-            <h1 className="text-white text-3xl font-extrabold leading-tight mb-2">{slide.title}</h1>
-            <p className="text-white/80 text-xs leading-relaxed mb-5">{slide.subtitle}</p>
-            <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-5 py-2.5 rounded-xl w-fit transition-colors shadow-lg">
-              {slide.cta_text} <ArrowRight size={14} />
-            </button>
+    <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="relative rounded-2xl overflow-hidden h-[240px] shadow-md group select-none"
+    >
+      {slides.map((slide, i) => {
+        const isActive = i === heroIndex;
+        const isOffer = Boolean(slide.is_offer);
+
+        return (
+          <div
+            key={slide.id}
+            onClick={() => handleSlideClick(slide.cta_href)}
+            className={`absolute inset-0 cursor-pointer transition-opacity duration-700 ${
+              isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+            }`}
+          >
+            {/* Background Image */}
+            <img
+              src={slide.image_url}
+              alt={slide.title}
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+            />
+
+            {/* Gradient Overlays */}
+            <div
+              className={`absolute inset-0 ${
+                isOffer
+                  ? "bg-gradient-to-r from-[#070b18]/95 via-[#0b1329]/80 to-transparent"
+                  : "bg-gradient-to-r from-black/80 via-black/45 to-transparent"
+              }`}
+            />
+
+            {/* Ambient Radial Accent for Offer Slides */}
+            {isOffer && (
+              <div className="absolute -top-12 -left-12 w-64 h-64 rounded-full bg-violet-600/30 blur-3xl pointer-events-none" />
+            )}
+
+            {/* Slide Content */}
+            <div className="absolute inset-0 flex flex-col justify-center px-7 sm:px-10 py-5 max-w-lg z-10">
+              {/* Eyebrow / Offer Badges */}
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                {isOffer ? (
+                  <>
+                    <span className="inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black text-[11px] px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-md">
+                      <Sparkles size={11} className="fill-slate-950" />
+                      <span>{slide.discount_display || "SPECIAL OFFER"}</span>
+                    </span>
+
+                    {slide.promo_code && (
+                      <span className="inline-flex items-center gap-1 bg-white/15 backdrop-blur-md border border-white/20 text-white font-mono text-[11px] font-bold px-2 py-0.5 rounded-md shadow-xs">
+                        <Tag size={10} className="text-amber-300" />
+                        <span>Code: {slide.promo_code}</span>
+                      </span>
+                    )}
+
+                    {slide.applicable_categories && slide.applicable_categories.length > 0 && (
+                      <span className="hidden sm:inline-flex text-[10px] text-slate-300 bg-white/10 px-2 py-0.5 rounded border border-white/10">
+                        {slide.applicable_categories.slice(0, 2).join(", ")}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-white/85 text-xs font-bold uppercase tracking-wider mb-0.5">
+                    {slide.eyebrow}
+                  </p>
+                )}
+              </div>
+
+              {/* Title */}
+              <h1 className="text-white text-2xl sm:text-3xl font-black leading-tight tracking-tight drop-shadow-md mb-1.5">
+                {slide.title}
+              </h1>
+
+              {/* Subtitle */}
+              <p className="text-white/80 text-xs sm:text-[13px] leading-relaxed line-clamp-2 max-w-md mb-4">
+                {slide.subtitle}
+              </p>
+
+              {/* CTA Action Button */}
+              <div className="flex items-center gap-3">
+                <Link
+                  href={slide.cta_href || "/categories"}
+                  onClick={(e) => e.stopPropagation()}
+                  className={`inline-flex items-center gap-2 font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg transition-all active:scale-95 ${
+                    isOffer
+                      ? "bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-violet-600/30"
+                      : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/25"
+                  }`}
+                >
+                  <span>{slide.cta_text || "Explore Offers"}</span>
+                  <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+
+                {isOffer && (
+                  <span className="text-[11px] text-slate-300 font-medium hidden sm:inline-flex items-center gap-1">
+                    <ShieldCheck size={12} className="text-emerald-400" />
+                    <span>Verified Rentals</span>
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      ))}
-      {/* Dots */}
-      <div className="absolute bottom-4 left-8 flex gap-1.5 z-10">
-        {slides.map((_, i) => (
+        );
+      })}
+
+      {/* Dots Indicator */}
+      <div className="absolute bottom-4 left-7 sm:left-10 flex items-center gap-1.5 z-20">
+        {slides.map((s, i) => (
           <button
             key={i}
-            onClick={() => setHeroIndex(i)}
-            className={`rounded-full transition-all duration-300 ${i === heroIndex ? "w-5 h-2 bg-white" : "w-2 h-2 bg-white/50 hover:bg-white/80"}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setHeroIndex(i);
+            }}
+            className={`rounded-full transition-all duration-300 cursor-pointer ${
+              i === heroIndex
+                ? "w-6 h-2 bg-white shadow-sm"
+                : "w-2 h-2 bg-white/40 hover:bg-white/70"
+            }`}
+            aria-label={`Go to slide ${i + 1}`}
           />
         ))}
       </div>
-      {/* Arrow controls */}
+
+      {/* Arrow Controls */}
       <button
-        onClick={() => setHeroIndex((i) => (i - 1 + slides.length) % slides.length)}
-        className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/20 hover:bg-white/40 rounded-full flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-sm"
+        onClick={(e) => {
+          e.stopPropagation();
+          setHeroIndex((i) => (i - 1 + slides.length) % slides.length);
+        }}
+        className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md z-20 cursor-pointer shadow-md"
+        aria-label="Previous slide"
       >
         <ChevronLeft size={16} />
       </button>
       <button
-        onClick={() => setHeroIndex((i) => (i + 1) % slides.length)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/20 hover:bg-white/40 rounded-full flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-sm"
+        onClick={(e) => {
+          e.stopPropagation();
+          setHeroIndex((i) => (i + 1) % slides.length);
+        }}
+        className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md z-20 cursor-pointer shadow-md"
+        aria-label="Next slide"
       >
         <ChevronRight size={16} />
       </button>

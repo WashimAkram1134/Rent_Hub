@@ -18,7 +18,7 @@ class OfferCampaignGenerateRequest(BaseModel):
     target_audience: str = Field(default="CUSTOMERS", description="Target audience: EVERYONE, CUSTOMERS, OWNERS, STUDENTS")
     cta_text: str = Field(default="Explore Offers", max_length=50, description="Button call to action")
     cta_url: str = Field(default="/offers", max_length=255, description="CTA redirection link")
-    placement: str = Field(default="HOMEPAGE_HERO", description="Placement: HOMEPAGE_HERO, OFFER_CARD, CATEGORY_BANNER, DEALS_PAGE, POPUP, MOBILE_BANNER")
+    placement: str = Field(default="HOMEPAGE_HERO", description="Placement: HOMEPAGE_HERO, DEALS_PAGE")
     campaign_theme: Optional[str] = Field(default=None, description="Optional theme override: festive_eid, dark_luxury, summer_vibes, minimal_clean, etc.")
     custom_image_url: Optional[str] = Field(default=None, description="Optional direct visual asset link")
 

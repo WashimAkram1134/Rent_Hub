@@ -94,14 +94,12 @@ The studio features 8 core, responsive templates:
 
 ---
 
-## 5. Supported Placements & Dimensions
+## 5. Supported Placements
 
-1. **Homepage Hero Banner (`HOMEPAGE_HERO`)**: Prime 1920×600 top storefront hero banner.
-2. **Homepage Offer Card (`OFFER_CARD`)**: High conversion 600×400 compact card.
-3. **Category Page Banner (`CATEGORY_BANNER`)**: Header banner across selected category pages.
-4. **Deals & Offers Page (`DEALS_PAGE`)**: Featured spotlight banner on `/offers`.
-5. **Popup Modal Offer (`POPUP`)**: High-intent overlay modal.
-6. **Mobile Banner (`MOBILE_BANNER`)**: Optimized mobile screen card (1080×1350 or compact card).
+To keep the platform marketing intuitive and high-converting, placement is streamlined into **two primary business options**:
+
+1. **Homepage Hero Banner (`HOMEPAGE_HERO`)**: Rotates in the prime Explore & Rent hero carousel (`/` or `/dashboard`) alongside platform hero slides, featuring high-visibility discount pills, coupon codes, and direct category-filtered links.
+2. **Deals & Offers Page (`DEALS_PAGE`)**: Featured spotlight showcase banner atop the dedicated platform deals page (`/offers`).
 
 ---
 
@@ -129,23 +127,36 @@ The studio features 8 core, responsive templates:
 
 ### 4. Deterministic React Banner Renderer (`frontend/src/components/banners/RentHubBannerRenderer.tsx`)
 - Pure, reusable component rendering design JSON specs deterministically.
-- Includes interactive copy-to-clipboard coupon box with animated feedback.
+- Interactive copy-to-clipboard coupon box with animated feedback.
 - Fluid responsive layouts across mobile, tablet, and desktop.
+- Default link routing automatically points to `/search?categories=...&promo=...`.
 
-### 5. Business Admin UI (`frontend/src/app/(dashboard)/admin/offer-studio/page.tsx`)
-- Intuitive two-column layout: Form inputs on left, 3 variations + live canvas preview on right.
+### 5. Explore & Rent Page Hero Integration (`CustomerDashboard.tsx` & `HeroSlider.tsx`)
+- Fetches active `HOMEPAGE_HERO` campaigns alongside standard CMS slides.
+- Renders live offer slides with glowing discount badges, coupon codes, and category pills.
+- Interactive navigation: clicking the banner or CTA opens `/search` filtered to the exact applicable categories.
+- Carousel supports auto-rotation with hover pause and manual navigation dots.
+
+### 6. Dynamic Category Filtering on Click (`frontend/src/app/search/page.tsx`)
+- URL search param handling for `categories` (comma-separated slugs or names) and `promo`.
+- Automatically displays a prominent "Offer Category Filter Active" alert banner with promo code chip and quick clear action.
+- Filters listing items by category match, enabling targeted promotional campaigns.
+
+### 7. Universal Workable Search System (Customer, Admin, Owner)
+- **Customer Mode**:
+  - `CustomerDashboard.tsx`: Explore & Rent search bar with a styled blue "Search" button that routes to `/search?q=...`.
+  - `Navbar.tsx`: Desktop and mobile navigation search bars equipped with sleek, high-visibility Search buttons and Enter-key triggers.
+  - `CategoryNavbar.tsx`: Interactive category search input with styled button.
+- **Admin & Owner Modes**:
+  - `DashboardHeader.tsx`: Role-aware search input with a gradient violet/indigo Search button routing to `/admin/listings?search=...`, `/listings?search=...`, or `/search?q=...`.
+  - `frontend/src/app/(dashboard)/layout.tsx`: Functional search form with styled button for dashboard headers.
+
+### 8. Business Admin UI (`frontend/src/app/(dashboard)/admin/offer-studio/page.tsx`)
+- Streamlined placement dropdown with only 2 options: `Homepage Hero Banner` and `Deals & Offers Page`.
+- Two-column layout: Form inputs on left, 3 variations + live canvas preview on right.
 - AI Quick Action Bar for instant micro-adjustments.
 - Safety Approval Modal verifying locked facts prior to publishing.
 - Integrated Campaign Management table for viewing, pausing, and editing past campaigns.
-
-### 6. Admin Navigation (`frontend/src/app/(dashboard)/layout.tsx`)
-- Added **MARKETING** section to the Business Admin Sidebar:
-  - `AI Offer Studio` (`/admin/offer-studio`) with shiny `AI ✨` badge.
-  - `Offers & Promotions` (`/admin/promotions`).
-
-### 7. Public Storefront Integration (`frontend/src/app/offers/page.tsx`)
-- Integrated `/offer-studio/active` endpoint into `/offers`.
-- Automatically displays active AI-generated banners at the top of the deals page, seamlessly falling back to default banners when no AI campaign is active.
 
 ---
 
@@ -166,4 +177,5 @@ The studio features 8 core, responsive templates:
    * Click **💎 Make More Premium** or **⚡ Make Offer Bigger**.
 6. Click **Review & Publish Live 🚀**.
 7. Confirm the locked business terms in the Safety Modal.
-8. Your banner is immediately live across the designated placement on RentHub!
+8. If `Homepage Hero Banner` was chosen, the offer immediately displays in the Explore & Rent hero carousel. Clicking it filters the search page to only the applicable categories!
+
