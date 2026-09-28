@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useWishlistStore } from "@/store/wishlistStore";
 import apiClient from "@/lib/axios";
+import RentHubBannerRenderer, { DesignSpec, LockedOfferData } from "@/components/banners/RentHubBannerRenderer";
 
 interface DealItem {
   id: string;
@@ -51,7 +52,23 @@ export default function DealsAndOffersPage() {
   const [sortBy, setSortBy] = useState<"discount" | "price_asc" | "price_desc" | "rating">("discount");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeAiCampaign, setActiveAiCampaign] = useState<any | null>(null);
   const DEALS_PER_PAGE = 9;
+
+  // Fetch Active AI Offer Campaign from AI Offer Studio
+  useEffect(() => {
+    async function fetchAiOffers() {
+      try {
+        const res = await apiClient.get("/offer-studio/active");
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setActiveAiCampaign(res.data[0]);
+        }
+      } catch {
+        // Fallback to default banner
+      }
+    }
+    fetchAiOffers();
+  }, []);
 
   // Countdown timer effect
   useEffect(() => {
@@ -150,37 +167,60 @@ export default function DealsAndOffersPage() {
       <div className="p-6 font-sans bg-[#F8FAFC] min-h-screen text-slate-800">
         <div className="max-w-[1360px] mx-auto space-y-6">
 
-          {/* ── Top Hero Banner (Exclusive Rental Deals) ──────────────────── */}
-          <div className="relative rounded-[28px] overflow-hidden shadow-xl min-h-[220px] sm:min-h-[260px] flex items-center p-8 sm:p-12 text-white group">
-            <img
-              src="/images/deals-hero-banner.png"
-              alt="Exclusive Rental Deals Banner"
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.01] transition-transform duration-700 ease-out"
+          {/* ── Top Hero Banner (Live AI Offer Studio or Fallback) ─────── */}
+          {activeAiCampaign && activeAiCampaign.design_spec_json ? (
+            <RentHubBannerRenderer
+              spec={activeAiCampaign.design_spec_json}
+              businessData={{
+                title: activeAiCampaign.title,
+                description: activeAiCampaign.description,
+                discount_display: activeAiCampaign.discount_display,
+                promo_code: activeAiCampaign.promo_code,
+                valid_until: new Date(activeAiCampaign.end_at).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                }),
+                cta_text: activeAiCampaign.cta_text,
+                cta_url: activeAiCampaign.cta_url,
+                applicable_categories: activeAiCampaign.applicable_categories,
+                target_audience: activeAiCampaign.target_audience,
+                placement: activeAiCampaign.placement,
+              }}
+              placement="DEALS_PAGE"
             />
-            
-            <div className="relative z-10 max-w-lg space-y-3">
-              <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider text-amber-300 shadow-sm">
-                <Flame size={14} className="fill-amber-300 text-amber-300" /> Best Deals of the Week
-              </div>
-              <h1 className="text-3xl sm:text-4xl font-black leading-tight tracking-tight drop-shadow-md">
-                Exclusive Rental Deals
-              </h1>
-              <p className="text-indigo-100 text-xs sm:text-sm leading-relaxed drop-shadow">
-                Unbeatable offers on real vehicles, electronics, apartments and more from verified owners!
-              </p>
-              <div className="pt-2">
-                <button
-                  onClick={() => {
-                    const el = document.getElementById("deals-grid-section");
-                    el?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                  className="bg-white text-indigo-700 hover:bg-indigo-50 font-extrabold text-xs px-6 py-3 rounded-2xl shadow-lg transition-all active:scale-95 cursor-pointer"
-                >
-                  Explore Deals ({deals.length})
-                </button>
+          ) : (
+            <div className="relative rounded-[28px] overflow-hidden shadow-xl min-h-[220px] sm:min-h-[260px] flex items-center p-8 sm:p-12 text-white group">
+              <img
+                src="/images/deals-hero-banner.png"
+                alt="Exclusive Rental Deals Banner"
+                className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.01] transition-transform duration-700 ease-out"
+              />
+              
+              <div className="relative z-10 max-w-lg space-y-3">
+                <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider text-amber-300 shadow-sm">
+                  <Flame size={14} className="fill-amber-300 text-amber-300" /> Best Deals of the Week
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-black leading-tight tracking-tight drop-shadow-md">
+                  Exclusive Rental Deals
+                </h1>
+                <p className="text-indigo-100 text-xs sm:text-sm leading-relaxed drop-shadow">
+                  Unbeatable offers on real vehicles, electronics, apartments and more from verified owners!
+                </p>
+                <div className="pt-2">
+                  <button
+                    onClick={() => {
+                      const el = document.getElementById("deals-grid-section");
+                      el?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    className="bg-white text-indigo-700 hover:bg-indigo-50 font-extrabold text-xs px-6 py-3 rounded-2xl shadow-lg transition-all active:scale-95 cursor-pointer"
+                  >
+                    Explore Deals ({deals.length})
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div id="deals-grid-section" className="grid grid-cols-1 xl:grid-cols-12 gap-7 items-start">
 

@@ -15,6 +15,7 @@ from app.models.payout import Payout
 from app.models.audit_log import AuditLog
 from app.models.system_setting import SystemSetting
 from app.models.backup_snapshot import BackupSnapshot
+from app.models.offer_campaign import OfferCampaign
 
 __all__ = [
     "User",
@@ -45,4 +46,5 @@ __all__ = [
     "AuditLog",
     "SystemSetting",
     "BackupSnapshot",
+    "OfferCampaign",
 ]

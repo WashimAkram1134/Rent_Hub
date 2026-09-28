@@ -135,13 +135,14 @@ def create_application() -> FastAPI:
 
     # ── Routers ───────────────────────────────────────────────────────────
     from app.api.v1.endpoints import cms, products, bookings, analytics, upload, payments, websockets, messages, notifications, reviews, payouts, lister_applications
-    from app.api.v1.endpoints import identity_verification, admin_identity_verification
+    from app.api.v1.endpoints import identity_verification, admin_identity_verification, offer_studio
 
     _app.include_router(health.router, prefix=API_V1_PREFIX)
     _app.include_router(auth.router, prefix=API_V1_PREFIX)
     _app.include_router(users.router, prefix=API_V1_PREFIX)
     _app.include_router(categories.router, prefix=API_V1_PREFIX)
     _app.include_router(cms.router, prefix=f"{API_V1_PREFIX}/cms")
+    _app.include_router(offer_studio.router, prefix=f"{API_V1_PREFIX}/offer-studio")
     _app.include_router(products.router, prefix=f"{API_V1_PREFIX}/products")
     _app.include_router(bookings.router, prefix=f"{API_V1_PREFIX}/bookings")
     _app.include_router(payments.router, prefix=f"{API_V1_PREFIX}/payments")

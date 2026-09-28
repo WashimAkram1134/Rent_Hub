@@ -42,6 +42,7 @@ import {
   ClipboardList,
   RefreshCcw,
   Flag,
+  Sparkles,
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/authStore";
 import { useAppStore } from "@/store/appStore";
@@ -145,6 +146,11 @@ export default function DashboardLayout({
     { label: "Messages", href: "/admin/messages", icon: MessageSquare },
     { label: "Disputes", href: "/admin/disputes", icon: Flag },
     { label: "Reports", href: "/admin/reports", icon: BarChart },
+  ];
+
+  const ADMIN_MARKETING_ITEMS = [
+    { label: "AI Offer Studio", href: "/admin/offer-studio", icon: Sparkles, isAi: true },
+    { label: "Offers & Promotions", href: "/admin/promotions", icon: Tag, isAi: false },
   ];
 
   const ADMIN_MANAGEMENT_ITEMS = [
@@ -267,6 +273,40 @@ export default function DashboardLayout({
             {/* Admin specific categories section */}
             {isAdmin && (
               <>
+                <div className="mt-8">
+                  <p className="px-3 text-[10px] font-bold text-violet-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Sparkles size={11} className="text-violet-400" />
+                    <span>MARKETING</span>
+                  </p>
+                  <ul className="space-y-1">
+                    {ADMIN_MARKETING_ITEMS.map(({ label, href, icon: Icon, isAi }) => {
+                      const active = pathname.startsWith(href);
+                      return (
+                        <li key={href}>
+                          <Link
+                            href={href}
+                            className={`flex items-center justify-between px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                              active
+                                ? "bg-violet-600 text-white"
+                                : "text-slate-400 hover:text-white hover:bg-white/5"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Icon size={16} className={active ? "text-white" : "text-slate-500"} />
+                              <span>{label}</span>
+                            </div>
+                            {isAi && (
+                              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 text-white shadow-sm">
+                                AI ✨
+                              </span>
+                            )}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+
                 <div className="mt-8">
                   <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
                     MANAGEMENT
