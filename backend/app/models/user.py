@@ -182,6 +182,10 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         return [r.name for r in self.roles]
 
     @property
+    def is_admin(self) -> bool:
+        return any(r.name == "admin" for r in self.roles)
+
+    @property
     def is_owner(self) -> bool:
         return any(r.name in ["owner", "admin"] for r in self.roles)
 

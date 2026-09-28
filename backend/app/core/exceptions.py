@@ -143,6 +143,20 @@ class AccountBannedException(RentHubException):
         )
 
 
+class MaintenanceModeException(RentHubException):
+    def __init__(
+        self,
+        message: str = "Platform is undergoing scheduled database maintenance. We will be back online shortly.",
+    ) -> None:
+        super().__init__(
+            message=message,
+            code="MAINTENANCE_MODE",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            details={"maintenance_mode": True},
+        )
+
+
+
 # ─── 404 Not Found ───────────────────────────────────────────────────────────
 
 class NotFoundException(RentHubException):

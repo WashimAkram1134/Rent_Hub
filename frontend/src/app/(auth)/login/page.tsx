@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense, useCallback } from "react";
+import { useState, useEffect, Suspense, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransitionStore } from "@/store/transitionStore";
@@ -12,15 +12,18 @@ import {
   LogIn,
   Loader2,
   AlertCircle,
+  AlertTriangle,
   Mail,
   Lock,
   Sparkles,
   ShieldCheck,
   ArrowRight,
+  Wrench,
 } from "lucide-react";
 import { loginSchema, type LoginFormData } from "@/features/auth/schemas";
 import { useAuthStore } from "@/features/auth/authStore";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
+import apiClient from "@/lib/axios";
 
 function LoginForm() {
   const router = useRouter();
@@ -32,6 +35,26 @@ function LoginForm() {
   const { showLoader } = useTransitionStore();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+
+  // Platform Maintenance Mode State
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [maintenanceNotice, setMaintenanceNotice] = useState("");
+  const [maintenanceError, setMaintenanceError] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiClient
+      .get("/cms/maintenance-status")
+      .then((res) => {
+        if (res.data?.maintenance_mode) {
+          setMaintenanceMode(true);
+          setMaintenanceNotice(
+            res.data.maintenance_notice ||
+              "Platform is undergoing scheduled database maintenance. We will be back online shortly."
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const {
     register,
@@ -48,6 +71,7 @@ function LoginForm() {
 
   const onSubmit = async (data: LoginFormData) => {
     clearError();
+    setMaintenanceError(null);
     try {
       await login(data);
       const currentUser = useAuthStore.getState().user;
@@ -65,9 +89,11 @@ function LoginForm() {
 
       // Determine redirect destination
       let destination = "/dashboard";
-      if (isAdmin && returnUrl.startsWith("/admin")) {
+      if (isAdmin && returnUrl?.startsWith("/admin")) {
         destination = returnUrl;
-      } else if (isPublicActionFlow) {
+      } else if (isAdmin) {
+        destination = "/dashboard";
+      } else if (isPublicActionFlow && returnUrl) {
         destination = returnUrl;
       }
 
@@ -75,8 +101,21 @@ function LoginForm() {
       // then navigate immediately — dashboard will hide the overlay when ready
       showLoader();
       router.push(destination);
-    } catch {
-      // Error is set in the store
+    } catch (err: any) {
+      const errCode = err?.response?.data?.error?.code;
+      const errMsg = err?.response?.data?.error?.message;
+      const isMaintenance =
+        errCode === "MAINTENANCE_MODE" ||
+        err?.response?.status === 503 ||
+        (errMsg && errMsg.toLowerCase().includes("maintenance"));
+
+      if (isMaintenance) {
+        setMaintenanceMode(true);
+        if (errMsg) setMaintenanceNotice(errMsg);
+        setMaintenanceError(
+          "Access Restricted: Platform is currently in Maintenance Mode. Only administrators can log in. Customer and Owner access will resume shortly."
+        );
+      }
     }
   };
 
@@ -108,6 +147,48 @@ function LoginForm() {
           </p>
         </div>
 
+        {/* Platform Maintenance Mode Announcement Banner */}
+        {maintenanceMode && (
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 border-2 border-amber-500/40 p-4 sm:p-5 mb-6 text-amber-200 shadow-[0_0_30px_rgba(245,158,11,0.2)] animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 shrink-0 mt-0.5">
+                <AlertTriangle className="w-5 h-5 animate-pulse" />
+              </div>
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-extrabold text-sm text-amber-300 tracking-wide uppercase flex items-center gap-1.5">
+                    <span>Platform Maintenance Active</span>
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping inline-block" />
+                  </h3>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-200">
+                    Admins Only
+                  </span>
+                </div>
+
+                <p className="text-xs text-amber-100/90 leading-relaxed font-medium">
+                  {maintenanceNotice || "Platform is undergoing scheduled database maintenance. We will be back online shortly."}
+                </p>
+
+                <div className="pt-2 border-t border-amber-500/20 text-[11px] text-amber-300/80 flex items-center gap-1.5 font-semibold">
+                  <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span>Notice: Customer & Owner access is paused during maintenance. Only system administrators may log in.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Maintenance Rejection Error Banner */}
+        {maintenanceError && (
+          <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-500/15 border-2 border-amber-500/50 mb-6 text-amber-200 text-sm animate-shake shadow-lg">
+            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-bold text-amber-200">Customer & Owner Access Paused</div>
+              <div className="text-xs text-amber-100/90 mt-0.5 leading-relaxed">{maintenanceError}</div>
+            </div>
+          </div>
+        )}
+
         {/* Session Expired Alert */}
         {reason === "session_expired" && (
           <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 mb-6 text-xs text-amber-300">
@@ -116,8 +197,8 @@ function LoginForm() {
           </div>
         )}
 
-        {/* Global Error Alert */}
-        {error && (
+        {/* Global Error Alert (hidden if maintenance error is displayed) */}
+        {error && !maintenanceError && (
           <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 mb-6 text-rose-300 text-sm animate-shake">
             <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
             <div>

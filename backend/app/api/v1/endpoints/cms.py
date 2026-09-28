@@ -63,6 +63,36 @@ CURRENT_SYSTEM_SETTINGS = {
 
 # ── Public Endpoints ─────────────────────────────────────────────────────────
 
+@router.get("/maintenance-status")
+async def get_maintenance_status(db: AsyncSession = Depends(get_db)):
+    """Public endpoint to check if platform maintenance mode is enabled and get notice."""
+    setting = await db.scalar(select(SystemSetting).where(SystemSetting.key == "maintenance_mode"))
+    is_maintenance = False
+    if setting:
+        try:
+            is_maintenance = bool(json.loads(setting.value))
+        except Exception:
+            is_maintenance = str(setting.value).lower() in ("true", "1")
+    else:
+        is_maintenance = bool(CURRENT_SYSTEM_SETTINGS.get("maintenance_mode", False))
+
+    notice_setting = await db.scalar(select(SystemSetting).where(SystemSetting.key == "maintenance_notice"))
+    notice_msg = CURRENT_SYSTEM_SETTINGS.get(
+        "maintenance_notice",
+        "Platform is undergoing scheduled database maintenance. We will be back online shortly."
+    )
+    if notice_setting:
+        try:
+            notice_msg = json.loads(notice_setting.value)
+        except Exception:
+            notice_msg = str(notice_setting.value)
+
+    return {
+        "maintenance_mode": is_maintenance,
+        "maintenance_notice": notice_msg,
+    }
+
+
 @router.get("/hero-slides", response_model=list[HeroBannerOut])
 async def get_banners(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(HeroBanner).where(HeroBanner.is_active == True).order_by(HeroBanner.sort_order))
@@ -394,6 +424,7 @@ async def save_system_settings(payload: SystemSettingsPayload, db: AsyncSession 
             db.add(SystemSetting(key=k, value=val_str))
 
     await db.commit()
+    CURRENT_SYSTEM_SETTINGS.update(settings_dict)
 
     try:
         from app.api.v1.endpoints.analytics import record_audit_log

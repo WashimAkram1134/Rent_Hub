@@ -39,6 +39,7 @@ from app.core.exceptions import (
     BadRequestException,
     ConflictException,
     InvalidTokenException,
+    MaintenanceModeException,
     NotFoundException,
     TokenExpiredException,
     UnauthorizedException,
@@ -126,6 +127,52 @@ class AuthService:
         logger.info("user_registered", user_id=str(user.id), role=data.role)
         return UserResponse.model_validate(user)
 
+    async def _check_maintenance_mode(self, user: User) -> None:
+        """
+        When Platform Maintenance Mode is active:
+        - Only Administrators are allowed to log in.
+        - Customers and Owners are strictly blocked with MaintenanceModeException.
+        """
+        is_admin = (
+            user.is_admin
+            or user.primary_role == "admin"
+            or (user.role_names and "admin" in user.role_names)
+        )
+        if is_admin:
+            return
+
+        import json
+        from sqlalchemy import select
+        from app.models.system_setting import SystemSetting
+
+        setting = await self.db.scalar(select(SystemSetting).where(SystemSetting.key == "maintenance_mode"))
+        is_maintenance = False
+        if setting:
+            try:
+                is_maintenance = bool(json.loads(setting.value))
+            except Exception:
+                is_maintenance = str(setting.value).lower() in ("true", "1")
+        else:
+            from app.api.v1.endpoints.cms import CURRENT_SYSTEM_SETTINGS
+            is_maintenance = bool(CURRENT_SYSTEM_SETTINGS.get("maintenance_mode", False))
+
+        if is_maintenance:
+            notice_setting = await self.db.scalar(select(SystemSetting).where(SystemSetting.key == "maintenance_notice"))
+            notice_msg = "Platform is undergoing scheduled database maintenance. We will be back online shortly."
+            if notice_setting:
+                try:
+                    notice_msg = json.loads(notice_setting.value)
+                except Exception:
+                    notice_msg = str(notice_setting.value)
+
+            logger.warning(
+                "maintenance_mode_login_blocked",
+                user_id=str(user.id),
+                email=user.email,
+                role=user.primary_role,
+            )
+            raise MaintenanceModeException(message=notice_msg)
+
     # ─── Login ────────────────────────────────────────────────────────────────
 
     async def login(self, email: str, password: str, request: Request) -> tuple[LoginResponse, str]:
@@ -143,6 +190,9 @@ class AuthService:
 
         if not user.is_active:
             raise UnauthorizedException("Your account has been suspended. Please contact support.")
+
+        # Platform Maintenance Mode gate: only administrators can log in
+        await self._check_maintenance_mode(user)
 
         # Update last login
         user.last_login_at = datetime.now(timezone.utc)
@@ -258,6 +308,9 @@ class AuthService:
             await self.db.refresh(user)
             logger.info("google_user_created", user_id=str(user.id), email=email, role=role_name)
 
+        # Platform Maintenance Mode gate: only administrators can log in
+        await self._check_maintenance_mode(user)
+
         # 4. Issue access and refresh tokens
         access_token = create_access_token(
             user_id=user.id,
@@ -368,6 +421,9 @@ class AuthService:
             await self.db.refresh(user)
             logger.info("facebook_user_created", user_id=str(user.id), email=email, role=role_name)
 
+        # Platform Maintenance Mode gate: only administrators can log in
+        await self._check_maintenance_mode(user)
+
         # 4. Issue access and refresh tokens
         access_token = create_access_token(
             user_id=user.id,
@@ -425,6 +481,9 @@ class AuthService:
         user = await self.user_repo.get_active_by_id(stored.user_id)
         if user is None:
             raise UnauthorizedException()
+
+        # Platform Maintenance Mode gate: only administrators can refresh tokens during maintenance
+        await self._check_maintenance_mode(user)
 
         # Revoke old token (rotation)
         await self.user_repo.revoke_refresh_token(token_hash)

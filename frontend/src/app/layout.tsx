@@ -8,6 +8,7 @@ import { FlyToCartOverlay } from "@/components/cart/FlyToCartOverlay";
 import { FloatingCartBar } from "@/components/cart/FloatingCartBar";
 import GlobalTransitionOverlay from "@/components/common/GlobalTransitionOverlay";
 import { WishlistSync } from "@/components/common/WishlistSync";
+import PlatformMaintenanceBanner from "@/components/common/PlatformMaintenanceBanner";
 
 // ─── Fonts ─────────────────────────────────────────────────────────────────
 const inter = Inter({
@@ -104,6 +105,7 @@ export default function RootLayout({
             <WishlistSync />
             <FlyToCartOverlay />
             <FloatingCartBar />
+            <PlatformMaintenanceBanner />
             {children}
           </FlyToCartProvider>
         </WebSocketProvider>

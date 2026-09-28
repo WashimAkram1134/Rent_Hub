@@ -96,7 +96,12 @@ export function GoogleAuthButton({
                   setModalOpen(false);
                   handleRedirect();
                 } catch (err: any) {
-                  setAuthError(err?.message || "Google authentication failed.");
+                  const errMsg =
+                    err?.response?.data?.error?.message ||
+                    err?.response?.data?.detail ||
+                    err?.message ||
+                    "Google authentication failed.";
+                  setAuthError(errMsg);
                 } finally {
                   setSubmitting(false);
                 }
@@ -201,7 +206,12 @@ export function GoogleAuthButton({
       setModalOpen(false);
       handleRedirect();
     } catch (err: any) {
-      setAuthError(err?.message || "Google authentication failed. Please try again.");
+      const errMsg =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Google authentication failed. Please try again.";
+      setAuthError(errMsg);
     } finally {
       setSubmitting(false);
     }
