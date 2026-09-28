@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowUpRight, UserPlus, ListPlus, Users, FileText, ShieldAlert, Settings, Server, CreditCard, Mail, Database, CheckCircle2 } from "lucide-react";
+import { ArrowUpRight, UserPlus, ListPlus, Users, FileText, ShieldAlert, Settings, Server, CreditCard, Mail, Database, CheckCircle2, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import apiClient from "@/lib/axios";
 
 export function AdminPlatformSummaryWidget({ stats }: { stats?: any }) {
@@ -217,13 +217,17 @@ export function AdminSystemHealthWidget() {
 }
 
 export function AdminPendingListingsWidget() {
-  const [pendingListings, setPendingListings] = useState<any>([]);
+  const [pendingListings, setPendingListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  const ITEMS_PER_PAGE = 8;
 
   const fetchPending = async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get("/products", { params: { status: "PENDING" } });
+      const res = await apiClient.get("/products", { params: { status: "PENDING", limit: 200 } });
       setPendingListings(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error("Failed to fetch pending listings:", err);
@@ -236,32 +240,81 @@ export function AdminPendingListingsWidget() {
     fetchPending();
   }, []);
 
+  const totalPages = Math.ceil(pendingListings.length / ITEMS_PER_PAGE) || 1;
+
   const handleApprove = async (id: string) => {
     try {
+      setActionLoadingId(id);
       const res = await apiClient.patch(`/products/${id}/status`, { status: "APPROVED" });
       if (res.status === 200 || res.status === 204) {
-        setPendingListings((prev: any) => prev.filter((p: any) => p.id !== id));
+        setPendingListings((prev: any[]) => {
+          const next = prev.filter((p) => p.id !== id);
+          const newTotalPages = Math.ceil(next.length / ITEMS_PER_PAGE) || 1;
+          if (currentPage > newTotalPages) {
+            setCurrentPage(newTotalPages);
+          }
+          return next;
+        });
       }
     } catch (err) {
-      console.error(err);
+      console.error("Failed to approve product:", err);
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
   const handleReject = async (id: string) => {
     try {
+      setActionLoadingId(id);
       const res = await apiClient.patch(`/products/${id}/status`, { status: "REJECTED" });
       if (res.status === 200 || res.status === 204) {
-        setPendingListings((prev: any) => prev.filter((p: any) => p.id !== id));
+        setPendingListings((prev: any[]) => {
+          const next = prev.filter((p) => p.id !== id);
+          const newTotalPages = Math.ceil(next.length / ITEMS_PER_PAGE) || 1;
+          if (currentPage > newTotalPages) {
+            setCurrentPage(newTotalPages);
+          }
+          return next;
+        });
       }
     } catch (err) {
-      console.error(err);
+      console.error("Failed to reject product:", err);
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center py-12">
+        <Loader2 size={24} className="text-indigo-600 animate-spin" />
+      </div>
+    );
+  }
+
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentListings = pendingListings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  // Generate pagination page numbers
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 3) {
+        pages.push(1, 2, 3, 4, "...", totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1, "...", totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages);
+      }
+    }
+    return pages;
+  };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
+      {/* Header with Title, Count Badge and Page Dropdown */}
       <div className="flex justify-between items-center mb-5">
         <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
           Pending Approvals
@@ -271,34 +324,139 @@ export function AdminPendingListingsWidget() {
             </span>
           )}
         </h2>
+
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
+            <span>Page</span>
+            <select
+              value={currentPage}
+              onChange={(e) => setCurrentPage(Number(e.target.value))}
+              aria-label="Select page"
+              className="bg-slate-50 border border-slate-200 rounded-md px-1.5 py-0.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 cursor-pointer"
+            >
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <option key={p} value={p}>
+                  {p} of {totalPages}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
+
+      {/* Listing Content (strictly 8 items per page) */}
       {pendingListings.length === 0 ? (
-        <div className="text-center py-6 text-sm text-slate-500">
+        <div className="text-center py-8 text-xs font-medium text-slate-400">
           No pending listings.
         </div>
       ) : (
-        <div className="space-y-4">
-          {pendingListings.map((product: any) => (
-            <div key={product.id} className="flex items-center justify-between border-b border-slate-50 pb-4 last:border-0 last:pb-0">
-              <Link href={`/products/${product.slug || product.id}`} className="flex items-center gap-3 overflow-hidden group cursor-pointer">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden shrink-0 group-hover:ring-2 group-hover:ring-indigo-500 transition-all">
-                  <img src={product.image_url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+        <div className="space-y-3.5 flex-1">
+          {currentListings.map((product: any) => {
+            const isProcessing = actionLoadingId === product.id;
+            return (
+              <div
+                key={product.id}
+                className="flex items-center justify-between border-b border-slate-50 pb-3 last:border-0 last:pb-0"
+              >
+                <Link
+                  href={`/products/${product.slug || product.id}`}
+                  className="flex items-center gap-3 overflow-hidden group cursor-pointer flex-1 min-w-0 pr-2"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden shrink-0 group-hover:ring-2 group-hover:ring-indigo-500 transition-all border border-slate-100">
+                    <img
+                      src={
+                        product.image_url ||
+                        "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80"
+                      }
+                      alt={product.title}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80";
+                      }}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className="text-xs font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors"
+                      title={product.title}
+                    >
+                      {product.title}
+                    </p>
+                    <p className="text-[10px] text-slate-500 truncate">
+                      ৳{Number(product.price_per_day || 0).toLocaleString()}/day
+                    </p>
+                  </div>
+                </Link>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    disabled={isProcessing}
+                    onClick={() => handleApprove(product.id)}
+                    className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                  >
+                    {isProcessing ? "..." : "Approve"}
+                  </button>
+                  <button
+                    disabled={isProcessing}
+                    onClick={() => handleReject(product.id)}
+                    className="bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                  >
+                    {isProcessing ? "..." : "Reject"}
+                  </button>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">{product.title}</p>
-                  <p className="text-[10px] text-slate-500 truncate">৳{product.price_per_day}/day</p>
-                </div>
-              </Link>
-              <div className="flex items-center gap-2 shrink-0">
-                <button onClick={() => handleApprove(product.id)} className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors">
-                  Approve
-                </button>
-                <button onClick={() => handleReject(product.id)} className="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors">
-                  Reject
-                </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
+        </div>
+      )}
+
+      {/* Pagination Controls Footer */}
+      {totalPages > 1 && (
+        <div className="pt-4 mt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span className="text-[10px] text-slate-400 font-medium">
+            Showing {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, pendingListings.length)} of {pendingListings.length}
+          </span>
+
+          <div className="flex items-center gap-1">
+            <button
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+              title="Previous page"
+            >
+              <ChevronLeft size={13} />
+            </button>
+
+            {getPageNumbers().map((p, idx) =>
+              typeof p === "number" ? (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentPage(p)}
+                  className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    currentPage === p
+                      ? "bg-indigo-600 text-white shadow-2xs"
+                      : "border border-slate-200 text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {p}
+                </button>
+              ) : (
+                <span key={idx} className="w-4 text-center text-xs text-slate-400 font-bold">
+                  …
+                </span>
+              )
+            )}
+
+            <button
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+              title="Next page"
+            >
+              <ChevronRight size={13} />
+            </button>
+          </div>
         </div>
       )}
     </div>
