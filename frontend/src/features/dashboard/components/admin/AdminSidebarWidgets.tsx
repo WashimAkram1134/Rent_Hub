@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowUpRight, UserPlus, ListPlus, Users, FileText, ShieldAlert, Settings, Server, CreditCard, Mail, Database, CheckCircle2, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ArrowUpRight, UserPlus, ListPlus, Users, FileText, ShieldAlert, Settings, Server, CreditCard, Mail, Database, CheckCircle2, ChevronLeft, ChevronRight, Loader2, Eye, Check } from "lucide-react";
 import apiClient from "@/lib/axios";
+import { AdminListingReviewModal } from "./AdminListingReviewModal";
 
 export function AdminPlatformSummaryWidget({ stats }: { stats?: any }) {
   const safeStats = stats || {};
@@ -221,8 +222,26 @@ export function AdminPendingListingsWidget() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [selectedProductForReview, setSelectedProductForReview] = useState<any | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const ITEMS_PER_PAGE = 8;
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const removeProductFromList = (id: string) => {
+    setPendingListings((prev: any[]) => {
+      const next = prev.filter((p) => p.id !== id);
+      const newTotalPages = Math.ceil(next.length / ITEMS_PER_PAGE) || 1;
+      if (currentPage > newTotalPages) {
+        setCurrentPage(newTotalPages);
+      }
+      return next;
+    });
+  };
 
   const fetchPending = async () => {
     try {
@@ -242,19 +261,13 @@ export function AdminPendingListingsWidget() {
 
   const totalPages = Math.ceil(pendingListings.length / ITEMS_PER_PAGE) || 1;
 
-  const handleApprove = async (id: string) => {
+  const handleApprove = async (id: string, title?: string) => {
     try {
       setActionLoadingId(id);
       const res = await apiClient.patch(`/products/${id}/status`, { status: "APPROVED" });
       if (res.status === 200 || res.status === 204) {
-        setPendingListings((prev: any[]) => {
-          const next = prev.filter((p) => p.id !== id);
-          const newTotalPages = Math.ceil(next.length / ITEMS_PER_PAGE) || 1;
-          if (currentPage > newTotalPages) {
-            setCurrentPage(newTotalPages);
-          }
-          return next;
-        });
+        removeProductFromList(id);
+        showToast(`Listing ${title ? `"${title}" ` : ""}approved successfully!`);
       }
     } catch (err) {
       console.error("Failed to approve product:", err);
@@ -263,19 +276,13 @@ export function AdminPendingListingsWidget() {
     }
   };
 
-  const handleReject = async (id: string) => {
+  const handleReject = async (id: string, title?: string) => {
     try {
       setActionLoadingId(id);
       const res = await apiClient.patch(`/products/${id}/status`, { status: "REJECTED" });
       if (res.status === 200 || res.status === 204) {
-        setPendingListings((prev: any[]) => {
-          const next = prev.filter((p) => p.id !== id);
-          const newTotalPages = Math.ceil(next.length / ITEMS_PER_PAGE) || 1;
-          if (currentPage > newTotalPages) {
-            setCurrentPage(newTotalPages);
-          }
-          return next;
-        });
+        removeProductFromList(id);
+        showToast(`Listing ${title ? `"${title}" ` : ""}rejected.`);
       }
     } catch (err) {
       console.error("Failed to reject product:", err);
@@ -284,9 +291,13 @@ export function AdminPendingListingsWidget() {
     }
   };
 
+  const handleModalActionComplete = (id: string) => {
+    removeProductFromList(id);
+  };
+
   if (loading) {
     return (
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center py-12">
+      <div className="bg-white dark:bg-[#111625] p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-center py-12">
         <Loader2 size={24} className="text-indigo-600 animate-spin" />
       </div>
     );
@@ -313,17 +324,36 @@ export function AdminPendingListingsWidget() {
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
-      {/* Header with Title, Count Badge and Page Dropdown */}
+    <div className="bg-white dark:bg-[#111625] p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col relative">
+      {/* Toast Alert */}
+      {toastMessage && (
+        <div className="absolute top-3 left-4 right-4 z-20 bg-slate-900 text-white text-xs font-semibold py-2 px-3 rounded-xl shadow-lg flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-200">
+          <span className="truncate">{toastMessage}</span>
+          <button onClick={() => setToastMessage(null)} className="text-slate-400 hover:text-white ml-2 text-xs">
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Header with Title, Count Badge, Manage Link, and Page Dropdown */}
       <div className="flex justify-between items-center mb-5">
-        <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-          Pending Approvals
-          {pendingListings.length > 0 && (
-            <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
-              {pendingListings.length}
-            </span>
-          )}
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            Pending Approvals
+            {pendingListings.length > 0 && (
+              <span className="bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                {pendingListings.length}
+              </span>
+            )}
+          </h2>
+          <Link
+            href="/admin/listings"
+            className="text-indigo-600 dark:text-indigo-400 text-xs font-bold hover:underline ml-1"
+            title="Open Manage Listings page"
+          >
+            Manage
+          </Link>
+        </div>
 
         {totalPages > 1 && (
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
@@ -332,7 +362,7 @@ export function AdminPendingListingsWidget() {
               value={currentPage}
               onChange={(e) => setCurrentPage(Number(e.target.value))}
               aria-label="Select page"
-              className="bg-slate-50 border border-slate-200 rounded-md px-1.5 py-0.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 cursor-pointer"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md px-1.5 py-0.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 cursor-pointer"
             >
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
                 <option key={p} value={p}>
@@ -350,19 +380,22 @@ export function AdminPendingListingsWidget() {
           No pending listings.
         </div>
       ) : (
-        <div className="space-y-3.5 flex-1">
+        <div className="space-y-3 flex-1">
           {currentListings.map((product: any) => {
             const isProcessing = actionLoadingId === product.id;
             return (
               <div
                 key={product.id}
-                className="flex items-center justify-between border-b border-slate-50 pb-3 last:border-0 last:pb-0"
+                className="flex items-center justify-between border-b border-slate-50 dark:border-slate-800/60 pb-3 last:border-0 last:pb-0 gap-2"
               >
-                <Link
-                  href={`/products/${product.slug || product.id}`}
-                  className="flex items-center gap-3 overflow-hidden group cursor-pointer flex-1 min-w-0 pr-2"
+                {/* Clicking on the item row opens the Admin Review Modal instead of leaving to customer booking */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedProductForReview(product)}
+                  className="flex items-center gap-3 overflow-hidden group cursor-pointer flex-1 min-w-0 pr-2 text-left"
+                  title="Click to inspect item details given by owner to approve or reject"
                 >
-                  <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden shrink-0 group-hover:ring-2 group-hover:ring-indigo-500 transition-all border border-slate-100">
+                  <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0 group-hover:ring-2 group-hover:ring-indigo-500 transition-all border border-slate-100 dark:border-slate-700">
                     <img
                       src={
                         product.image_url ||
@@ -378,29 +411,36 @@ export function AdminPendingListingsWidget() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p
-                      className="text-xs font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors"
+                      className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors"
                       title={product.title}
                     >
                       {product.title}
                     </p>
-                    <p className="text-[10px] text-slate-500 truncate">
-                      ৳{Number(product.price_per_day || 0).toLocaleString()}/day
-                    </p>
+                    <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400">
+                      <span>৳{Number(product.price_per_day || 0).toLocaleString()}/day</span>
+                      <span>•</span>
+                      <span className="text-indigo-600 dark:text-indigo-400 font-semibold group-hover:underline flex items-center gap-0.5">
+                        <Eye size={10} /> Review Details
+                      </span>
+                    </div>
                   </div>
-                </Link>
+                </button>
 
+                {/* Quick Action Buttons */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     disabled={isProcessing}
-                    onClick={() => handleApprove(product.id)}
-                    className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                    onClick={() => handleApprove(product.id, product.title)}
+                    className="bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 disabled:opacity-50 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                    title="Quick Approve"
                   >
                     {isProcessing ? "..." : "Approve"}
                   </button>
                   <button
                     disabled={isProcessing}
-                    onClick={() => handleReject(product.id)}
-                    className="bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                    onClick={() => handleReject(product.id, product.title)}
+                    className="bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/60 disabled:opacity-50 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                    title="Quick Reject"
                   >
                     {isProcessing ? "..." : "Reject"}
                   </button>
@@ -413,7 +453,7 @@ export function AdminPendingListingsWidget() {
 
       {/* Pagination Controls Footer */}
       {totalPages > 1 && (
-        <div className="pt-4 mt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span className="text-[10px] text-slate-400 font-medium">
             Showing {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, pendingListings.length)} of {pendingListings.length}
           </span>
@@ -422,7 +462,7 @@ export function AdminPendingListingsWidget() {
             <button
               disabled={currentPage <= 1}
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+              className="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
               title="Previous page"
             >
               <ChevronLeft size={13} />
@@ -436,7 +476,7 @@ export function AdminPendingListingsWidget() {
                   className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     currentPage === p
                       ? "bg-indigo-600 text-white shadow-2xs"
-                      : "border border-slate-200 text-slate-700 hover:bg-slate-50"
+                      : "border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                   }`}
                 >
                   {p}
@@ -451,13 +491,23 @@ export function AdminPendingListingsWidget() {
             <button
               disabled={currentPage >= totalPages}
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+              className="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
               title="Next page"
             >
               <ChevronRight size={13} />
             </button>
           </div>
         </div>
+      )}
+
+      {/* Listing Moderation / Details Review Modal */}
+      {selectedProductForReview && (
+        <AdminListingReviewModal
+          product={selectedProductForReview}
+          onClose={() => setSelectedProductForReview(null)}
+          onActionComplete={handleModalActionComplete}
+          showToast={showToast}
+        />
       )}
     </div>
   );
